@@ -128,6 +128,49 @@ export const IconExport = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+// Globe icon
+export const IconGlobe = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+    <path
+      d="M3.75 12H20.25"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 3.75C9.75 6.5 9.75 17.5 12 20.25C14.25 17.5 14.25 6.5 12 3.75Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+// Image icon
+export const IconImage = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <rect
+      x="3.5"
+      y="5.5"
+      width="17"
+      height="13"
+      rx="2"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
+    <path
+      d="M7.5 14.5L10.5 11.5L13.5 14.5L16.5 12.5L20.5 15.5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="8.5" cy="9" r="1.25" fill="currentColor" />
+  </svg>
+);
+
 // Sun icon (light mode)
 export const IconSun = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">

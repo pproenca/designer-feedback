@@ -36,28 +36,40 @@ export async function captureFullPage(): Promise<string> {
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   const dpr = window.devicePixelRatio || 1;
+  const maxScrollY = Math.max(0, docHeight - viewportHeight);
 
   // Calculate number of captures needed
-  const numCaptures = Math.ceil(docHeight / viewportHeight);
+  const numCaptures = Math.max(1, Math.ceil(docHeight / viewportHeight));
   const screenshots: string[] = [];
+  const scrollPositions: number[] = [];
 
-  // Capture each viewport section
-  for (let i = 0; i < numCaptures; i++) {
-    const scrollY = i * viewportHeight;
-    window.scrollTo(0, scrollY);
+  try {
+    // Capture each viewport section
+    for (let i = 0; i < numCaptures; i++) {
+      const scrollY = Math.min(i * viewportHeight, maxScrollY);
+      scrollPositions.push(scrollY);
+      window.scrollTo(0, scrollY);
 
-    // Wait for render
-    await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for render
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const screenshot = await captureScreenshot();
-    screenshots.push(screenshot);
+      const screenshot = await captureScreenshot();
+      screenshots.push(screenshot);
+    }
+  } finally {
+    // Restore scroll position
+    window.scrollTo(0, originalScrollY);
   }
 
-  // Restore scroll position
-  window.scrollTo(0, originalScrollY);
-
   // Stitch screenshots on canvas
-  return stitchScreenshots(screenshots, viewportWidth, viewportHeight, docHeight, dpr);
+  return stitchScreenshots(
+    screenshots,
+    viewportWidth,
+    viewportHeight,
+    docHeight,
+    dpr,
+    scrollPositions
+  );
 }
 
 /**
@@ -68,7 +80,8 @@ async function stitchScreenshots(
   viewportWidth: number,
   viewportHeight: number,
   totalHeight: number,
-  dpr: number
+  dpr: number,
+  scrollPositions: number[]
 ): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = viewportWidth * dpr;
@@ -81,23 +94,23 @@ async function stitchScreenshots(
 
   for (let i = 0; i < screenshots.length; i++) {
     const img = await loadImage(screenshots[i]);
-    const y = i * viewportHeight * dpr;
+    const scrollY = scrollPositions[i] ?? i * viewportHeight;
+    const drawHeight = Math.min(viewportHeight, totalHeight - scrollY);
+    const sourceHeight = Math.max(0, drawHeight * dpr);
+    const destY = scrollY * dpr;
 
-    // For the last image, only draw the remaining portion
-    const isLast = i === screenshots.length - 1;
-    const remainingHeight = totalHeight - i * viewportHeight;
-    const drawHeight = isLast ? remainingHeight * dpr : viewportHeight * dpr;
+    if (sourceHeight <= 0) continue;
 
     ctx.drawImage(
       img,
       0,
       0,
       img.width,
-      drawHeight, // source
+      sourceHeight,
       0,
-      y,
+      destY,
       img.width,
-      drawHeight // destination
+      sourceHeight
     );
   }
 

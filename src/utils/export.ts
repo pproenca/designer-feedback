@@ -215,25 +215,53 @@ function generateInteractiveHTML(annotations: Annotation[], screenshot: string):
   const pageTitle = document.title || 'Feedback Report';
   const pageUrl = window.location.href;
   const exportDate = new Date().toLocaleString();
+  const pageHeight = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight
+  );
+  const pageWidth = window.innerWidth;
 
   // Generate category CSS variables
   const categoryStyles = CATEGORIES.map(
     (c) => `    --color-${c.id}: ${c.color};`
   ).join('\n');
 
+  const getAnnotationPoint = (
+    annotation: Annotation,
+    bounds?: { x: number; y: number; width: number; height: number }
+  ) => {
+    if (bounds) {
+      return {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+      };
+    }
+    const baseX = annotation.isFixed ? annotation.x + window.scrollX : annotation.x;
+    const baseY = annotation.isFixed ? annotation.y + window.scrollY : annotation.y;
+    return { x: baseX, y: baseY };
+  };
+
   // Generate markers HTML - use absolute document positions directly
   const markersHTML = annotations
     .map((annotation, index) => {
       const config = getCategoryConfig(annotation.category);
-      const leftPercent = annotation.x * 100;
-      // Use annotation.y directly (absolute document position)
-      const topPx = annotation.y;
+      const bounds = annotation.boundingBox ?? annotation.screenshotBounds;
+      const { x: leftPx, y: topPx } = getAnnotationPoint(annotation, bounds);
+      const boundsAttrs = bounds
+        ? `data-bx="${bounds.x}" data-by="${bounds.y}" data-bw="${bounds.width}" data-bh="${bounds.height}"`
+        : '';
+      const ariaLabel = escapeHtml(
+        `Annotation ${index + 1}: ${config.label} - ${annotation.element}`
+      );
 
       return `
-    <div class="marker" style="left: ${leftPercent}%; top: ${topPx}px; background-color: ${config.color};" data-index="${index + 1}">
+    <div class="marker" role="button" tabindex="0" aria-pressed="false" aria-label="${ariaLabel}" style="left: ${leftPx}px; top: ${topPx}px; background-color: ${config.color};" data-index="${index}" ${boundsAttrs}>
       ${index + 1}
       <div class="tooltip">
-        <div class="tooltip-category" style="color: ${config.color};">${config.emoji} ${config.label}</div>
+        <div class="tooltip-category">
+          <span class="tooltip-dot" style="background-color: ${config.color};"></span>
+          ${config.label}
+        </div>
         <div class="tooltip-element">${escapeHtml(annotation.element)}</div>
         <div class="tooltip-comment">${escapeHtml(annotation.comment)}</div>
         ${annotation.elementPath ? `<div class="tooltip-path">${escapeHtml(annotation.elementPath)}</div>` : ''}
@@ -246,11 +274,21 @@ function generateInteractiveHTML(annotations: Annotation[], screenshot: string):
   const annotationsListHTML = annotations
     .map((annotation, index) => {
       const config = getCategoryConfig(annotation.category);
+      const bounds = annotation.boundingBox ?? annotation.screenshotBounds;
+      const boundsAttrs = bounds
+        ? `data-bx="${bounds.x}" data-by="${bounds.y}" data-bw="${bounds.width}" data-bh="${bounds.height}"`
+        : '';
+      const ariaLabel = escapeHtml(
+        `Annotation ${index + 1}: ${config.label} - ${annotation.element}`
+      );
       return `
-      <div class="annotation-item" data-index="${index}">
+      <div class="annotation-item" role="button" tabindex="0" aria-pressed="false" aria-label="${ariaLabel}" data-index="${index}" ${boundsAttrs}>
         <div class="annotation-index" style="background-color: ${config.color};">${index + 1}</div>
         <div class="annotation-content">
-          <div class="annotation-category">${config.emoji} ${config.label}</div>
+          <div class="annotation-category">
+            <span class="category-dot" style="background-color: ${config.color};"></span>
+            ${config.label}
+          </div>
           <div class="annotation-element">${escapeHtml(annotation.element)}</div>
           <div class="annotation-comment">${escapeHtml(annotation.comment)}</div>
         </div>
@@ -267,6 +305,16 @@ function generateInteractiveHTML(annotations: Annotation[], screenshot: string):
   <style>
     :root {
 ${categoryStyles}
+      --df-bg: #0f0f10;
+      --df-surface: #171717;
+      --df-surface-2: #1f1f1f;
+      --df-surface-3: #2b2b2b;
+      --df-text: #f5f5f7;
+      --df-muted: rgba(255, 255, 255, 0.6);
+      --df-border: rgba(255, 255, 255, 0.08);
+      --df-blue: #3c82f7;
+      --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
+      --ease-pop: cubic-bezier(0.34, 1.2, 0.64, 1);
     }
 
     * {
@@ -276,9 +324,9 @@ ${categoryStyles}
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #1a1a1a;
-      color: #fff;
+      font-family: "Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif;
+      background: radial-gradient(120% 120% at 15% 0%, #1d1d1f 0%, #0f0f10 45%, #0a0a0b 100%);
+      color: var(--df-text);
       min-height: 100vh;
     }
 
@@ -287,29 +335,31 @@ ${categoryStyles}
       top: 0;
       left: 0;
       right: 0;
-      background: rgba(26, 26, 26, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 12px 20px;
-      border-bottom: 1px solid #333;
-      z-index: 1000;
+      height: 64px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: rgba(18, 18, 18, 0.86);
+      backdrop-filter: blur(12px) saturate(1.2);
+      border-bottom: 1px solid var(--df-border);
+      z-index: 1000;
     }
 
     .header-info h1 {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 2px;
+      margin-bottom: 4px;
+      letter-spacing: 0.01em;
     }
 
     .header-info .meta {
       font-size: 11px;
-      color: #888;
+      color: var(--df-muted);
     }
 
     .header-info .meta a {
-      color: #888;
+      color: var(--df-muted);
       text-decoration: none;
     }
 
@@ -318,48 +368,85 @@ ${categoryStyles}
     }
 
     .toggle-sidebar {
-      background: #333;
-      border: none;
+      background: linear-gradient(135deg, #2b2b2b, #1c1c1c);
+      border: 1px solid var(--df-border);
       color: #fff;
       padding: 8px 14px;
-      border-radius: 6px;
+      border-radius: 999px;
       cursor: pointer;
       font-size: 12px;
+      transition: transform 0.15s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
     }
 
     .toggle-sidebar:hover {
-      background: #444;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .toggle-sidebar:focus-visible {
+      outline: 2px solid rgba(60, 130, 247, 0.6);
+      outline-offset: 2px;
     }
 
     .main {
-      display: flex;
-      padding-top: 60px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      padding-top: 64px;
+      height: calc(100vh - 0px);
     }
 
     .screenshot-container {
-      flex: 1;
       position: relative;
       overflow: auto;
+      background: #0b0b0c;
+      border-right: 1px solid var(--df-border);
+    }
+
+    .screenshot-stage {
+      position: relative;
+      width: ${pageWidth}px;
+      height: ${pageHeight}px;
     }
 
     .screenshot {
       display: block;
-      max-width: 100%;
+      width: 100%;
+      height: 100%;
     }
 
     .markers-layer {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       pointer-events: none;
+    }
+
+    .focus-box {
+      position: absolute;
+      border-radius: 12px;
+      border: 2px solid rgba(60, 130, 247, 0.85);
+      background: rgba(60, 130, 247, 0.12);
+      box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(60, 130, 247, 0.35);
+      outline: 9999px solid rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transform: scale(0.98);
+      transition:
+        opacity 0.18s var(--ease-smooth),
+        transform 0.18s var(--ease-smooth),
+        box-shadow 0.2s var(--ease-smooth);
+      pointer-events: none;
+    }
+
+    .focus-box.active {
+      opacity: 1;
+      transform: scale(1);
     }
 
     .marker {
       position: absolute;
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -370,35 +457,42 @@ ${categoryStyles}
       cursor: pointer;
       pointer-events: auto;
       transform: translate(-50%, -50%);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      transition: transform 0.15s ease;
+      box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.15);
+      transition: transform 0.15s var(--ease-pop), box-shadow 0.2s var(--ease-smooth);
     }
 
-    .marker:hover {
-      transform: translate(-50%, -50%) scale(1.2);
-      z-index: 100;
-    }
-
+    .marker:hover,
     .marker.active {
-      transform: translate(-50%, -50%) scale(1.2);
+      transform: translate(-50%, -50%) scale(1.18);
       z-index: 100;
+      box-shadow:
+        0 12px 22px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .marker:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.6);
+      outline-offset: 2px;
     }
 
     .tooltip {
       position: absolute;
       left: 50%;
-      top: 100%;
-      transform: translateX(-50%);
-      margin-top: 8px;
-      background: #222;
-      border-radius: 8px;
+      top: calc(100% + 10px);
+      transform: translateX(-50%) scale(0.96);
+      background: rgba(20, 20, 20, 0.98);
+      border-radius: 10px;
       padding: 12px;
-      min-width: 200px;
-      max-width: 300px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      min-width: 220px;
+      max-width: 320px;
+      box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.08);
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.15s ease, visibility 0.15s ease;
+      transition: opacity 0.15s var(--ease-smooth), transform 0.15s var(--ease-smooth);
       pointer-events: none;
     }
 
@@ -406,81 +500,120 @@ ${categoryStyles}
     .marker.active .tooltip {
       opacity: 1;
       visibility: visible;
+      transform: translateX(-50%) scale(1);
+    }
+
+    .marker:focus-visible .tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) scale(1);
     }
 
     .tooltip-category {
-      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      letter-spacing: 0.08em;
+      color: var(--df-muted);
+      margin-bottom: 6px;
+    }
+
+    .tooltip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
     }
 
     .tooltip-element {
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       margin-bottom: 6px;
       color: #fff;
     }
 
     .tooltip-comment {
       font-size: 12px;
-      color: #ccc;
+      color: rgba(255, 255, 255, 0.7);
       line-height: 1.4;
     }
 
     .tooltip-path {
       font-size: 10px;
-      color: #666;
-      font-family: monospace;
+      color: rgba(255, 255, 255, 0.4);
+      font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
       margin-top: 8px;
       word-break: break-all;
     }
 
     .sidebar {
-      width: 320px;
-      background: #222;
-      border-left: 1px solid #333;
-      height: calc(100vh - 60px);
+      width: 340px;
+      background: #141414;
+      border-left: 1px solid var(--df-border);
+      height: calc(100vh - 64px);
       overflow-y: auto;
       flex-shrink: 0;
-      transition: margin-right 0.3s ease;
+      transition: margin-right 0.3s var(--ease-smooth);
     }
 
     .sidebar.hidden {
-      margin-right: -320px;
+      margin-right: -340px;
     }
 
     .sidebar-header {
-      padding: 16px;
-      border-bottom: 1px solid #333;
-      font-size: 13px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--df-border);
+      font-size: 12px;
       font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--df-muted);
     }
 
     .annotations-list {
-      padding: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .annotation-item {
       display: flex;
       gap: 12px;
-      padding: 12px;
-      border-radius: 8px;
+      padding: 12px 14px;
+      border-radius: 14px;
       cursor: pointer;
-      transition: background 0.15s ease;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+      transition:
+        background 0.15s var(--ease-smooth),
+        border-color 0.15s var(--ease-smooth),
+        transform 0.15s var(--ease-smooth);
     }
 
     .annotation-item:hover {
-      background: #2a2a2a;
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-1px);
     }
 
     .annotation-item.active {
-      background: #333;
+      background:
+        linear-gradient(135deg, rgba(60, 130, 247, 0.18), rgba(60, 130, 247, 0.03)),
+        rgba(255, 255, 255, 0.02);
+      border-color: rgba(60, 130, 247, 0.45);
+    }
+
+    .annotation-item:focus-visible {
+      outline: 2px solid rgba(60, 130, 247, 0.5);
+      outline-offset: 2px;
     }
 
     .annotation-index {
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -489,6 +622,7 @@ ${categoryStyles}
       font-size: 12px;
       font-weight: 600;
       flex-shrink: 0;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
     }
 
     .annotation-content {
@@ -497,15 +631,26 @@ ${categoryStyles}
     }
 
     .annotation-category {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 10px;
       text-transform: uppercase;
-      margin-bottom: 2px;
-      color: #888;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+      color: var(--df-muted);
+    }
+
+    .category-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
     }
 
     .annotation-element {
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       margin-bottom: 4px;
       white-space: nowrap;
       overflow: hidden;
@@ -514,7 +659,7 @@ ${categoryStyles}
 
     .annotation-comment {
       font-size: 12px;
-      color: #999;
+      color: rgba(255, 255, 255, 0.6);
       line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -522,7 +667,11 @@ ${categoryStyles}
       overflow: hidden;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+
       .sidebar {
         display: none;
       }
@@ -532,19 +681,22 @@ ${categoryStyles}
 <body>
   <div class="header">
     <div class="header-info">
-      <h1>Feedback Report</h1>
+      <h1>Feedback Export</h1>
       <div class="meta">
         <a href="${escapeHtml(pageUrl)}" target="_blank">${escapeHtml(pageTitle)}</a> · ${escapeHtml(exportDate)} · ${annotations.length} annotation${annotations.length !== 1 ? 's' : ''}
       </div>
     </div>
-    <button class="toggle-sidebar" onclick="toggleSidebar()">Toggle List</button>
+    <button class="toggle-sidebar" id="toggle-sidebar" aria-controls="sidebar" aria-expanded="true">Toggle list</button>
   </div>
 
   <div class="main">
     <div class="screenshot-container">
-      <img class="screenshot" src="${screenshot}" alt="Page screenshot" />
-      <div class="markers-layer">
+      <div class="screenshot-stage">
+        <img class="screenshot" src="${screenshot}" alt="Page screenshot" width="${pageWidth}" height="${pageHeight}" />
+        <div class="markers-layer">
+          <div class="focus-box" id="focus-box"></div>
 ${markersHTML}
+        </div>
       </div>
     </div>
 
@@ -560,26 +712,137 @@ ${annotationsListHTML}
     // Interactive functionality
     const markers = document.querySelectorAll('.marker');
     const items = document.querySelectorAll('.annotation-item');
+    const focusBox = document.getElementById('focus-box');
+    const screenshotContainer = document.querySelector('.screenshot-container');
+    const toggleButton = document.getElementById('toggle-sidebar');
+
+    function getBounds(el) {
+      if (!el || !el.dataset) return null;
+      const bx = parseFloat(el.dataset.bx);
+      const by = parseFloat(el.dataset.by);
+      const bw = parseFloat(el.dataset.bw);
+      const bh = parseFloat(el.dataset.bh);
+      if (!Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bw) || !Number.isFinite(bh)) {
+        return null;
+      }
+      return { x: bx, y: by, width: bw, height: bh };
+    }
+
+    function updateFocus(bounds) {
+      if (!focusBox) return;
+      if (!bounds) {
+        focusBox.classList.remove('active');
+        return;
+      }
+      focusBox.style.left = bounds.x + 'px';
+      focusBox.style.top = bounds.y + 'px';
+      focusBox.style.width = bounds.width + 'px';
+      focusBox.style.height = bounds.height + 'px';
+      focusBox.classList.add('active');
+    }
+
+    function scrollToBounds(bounds) {
+      if (!bounds || !screenshotContainer) return;
+      const targetTop = bounds.y - screenshotContainer.clientHeight / 2 + bounds.height / 2;
+      const targetLeft = bounds.x - screenshotContainer.clientWidth / 2 + bounds.width / 2;
+      screenshotContainer.scrollTo({
+        top: Math.max(0, targetTop),
+        left: Math.max(0, targetLeft),
+        behavior: 'smooth',
+      });
+    }
 
     function setActive(index) {
       markers.forEach((m, i) => m.classList.toggle('active', i === index));
       items.forEach((item, i) => item.classList.toggle('active', i === index));
+      markers.forEach((m, i) => m.setAttribute('aria-pressed', i === index ? 'true' : 'false'));
+      items.forEach((item, i) => item.setAttribute('aria-pressed', i === index ? 'true' : 'false'));
+      const marker = markers[index];
+      const bounds = getBounds(marker) || getBounds(items[index]);
+      updateFocus(bounds);
+    }
+
+    function clearActive() {
+      markers.forEach((m) => m.classList.remove('active'));
+      items.forEach((item) => item.classList.remove('active'));
+      markers.forEach((m) => m.setAttribute('aria-pressed', 'false'));
+      items.forEach((item) => item.setAttribute('aria-pressed', 'false'));
+      updateFocus(null);
     }
 
     markers.forEach((marker, index) => {
-      marker.addEventListener('click', () => setActive(index));
+      marker.addEventListener('click', () => {
+        setActive(index);
+        const bounds = getBounds(marker);
+        scrollToBounds(bounds);
+      });
+      marker.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setActive(index);
+          const bounds = getBounds(marker);
+          scrollToBounds(bounds);
+        }
+      });
     });
 
     items.forEach((item, index) => {
       item.addEventListener('click', () => {
         setActive(index);
-        markers[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const bounds = getBounds(item);
+        scrollToBounds(bounds);
+        if (markers[index]) {
+          markers[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+      item.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setActive(index);
+          const bounds = getBounds(item);
+          scrollToBounds(bounds);
+          if (markers[index]) {
+            markers[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
       });
     });
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('hidden');
+    function getEventTarget(event) {
+      if (event.target instanceof Element) return event.target;
+      if (event.target && event.target.parentElement) return event.target.parentElement;
+      return null;
     }
+
+    document.addEventListener('click', (event) => {
+      const target = getEventTarget(event);
+      if (!target) return;
+      if (target.closest('#toggle-sidebar')) {
+        toggleSidebar();
+        return;
+      }
+      if (target.closest('.marker, .annotation-item')) return;
+      clearActive();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        clearActive();
+      }
+    });
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar) return;
+      sidebar.classList.toggle('hidden');
+      if (!toggleButton) return;
+      toggleButton.setAttribute(
+        'aria-expanded',
+        sidebar.classList.contains('hidden') ? 'false' : 'true'
+      );
+    }
+
+    // Toggle is handled in the document click listener for robustness.
   </script>
 </body>
 </html>`;
@@ -638,7 +901,12 @@ async function createMarkedImage(
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const dpr = window.devicePixelRatio || 1;
+      const docHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+      const scaleX = img.width / window.innerWidth;
+      const scaleY = img.height / docHeight;
 
       // Set canvas size to match the screenshot
       canvas.width = img.width;
@@ -657,11 +925,19 @@ async function createMarkedImage(
       annotations.forEach((annotation, index) => {
         const config = getCategoryConfig(annotation.category);
 
-        // Calculate position (scale by DPR since screenshot is captured at DPR)
-        const x = annotation.x * img.width;
-        const y = annotation.y * dpr;
+        const bounds = annotation.boundingBox ?? annotation.screenshotBounds;
+        const point = bounds
+          ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+          : {
+              x: annotation.isFixed ? annotation.x + window.scrollX : annotation.x,
+              y: annotation.isFixed ? annotation.y + window.scrollY : annotation.y,
+            };
 
-        const radius = 14 * dpr;
+        // Calculate position (scale to screenshot resolution)
+        const x = point.x * scaleX;
+        const y = point.y * scaleY;
+        const markerScale = Math.max(scaleX, scaleY);
+        const radius = 14 * markerScale;
 
         // Draw circle
         ctx.beginPath();
@@ -671,12 +947,12 @@ async function createMarkedImage(
 
         // Draw shadow
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        ctx.shadowBlur = 4 * dpr;
-        ctx.shadowOffsetY = 2 * dpr;
+        ctx.shadowBlur = 4 * markerScale;
+        ctx.shadowOffsetY = 2 * markerScale;
 
         // Draw number
         ctx.fillStyle = '#fff';
-        ctx.font = `bold ${12 * dpr}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+        ctx.font = `bold ${12 * markerScale}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(index + 1), x, y);

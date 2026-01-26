@@ -6,8 +6,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from 'react';
-import type { FeedbackCategory } from '@/types';
-import { CategorySelector } from '../CategorySelector';
+import type { Annotation } from '@/types';
 import styles from './styles.module.scss';
 
 // =============================================================================
@@ -15,13 +14,15 @@ import styles from './styles.module.scss';
 // =============================================================================
 
 export interface AnnotationPopupProps {
+  mode?: 'create' | 'view';
   element: string;
+  annotation?: Annotation;
   selectedText?: string;
   placeholder?: string;
   initialValue?: string;
-  initialCategory?: FeedbackCategory;
   submitLabel?: string;
-  onSubmit: (text: string, category: FeedbackCategory) => void;
+  onSubmit?: (text: string) => void;
+  onDelete?: () => void;
   onCancel: () => void;
   style?: React.CSSProperties;
   accentColor?: string;
@@ -40,13 +41,15 @@ export interface AnnotationPopupHandle {
 export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopupProps>(
   function AnnotationPopup(
     {
+      mode = 'create',
       element,
+      annotation,
       selectedText,
       placeholder = 'What should change?',
       initialValue = '',
-      initialCategory = 'suggestion',
       submitLabel = 'Add',
       onSubmit,
+      onDelete,
       onCancel,
       style,
       accentColor = '#3c82f7',
@@ -56,7 +59,6 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     ref
   ) {
     const [text, setText] = useState(initialValue);
-    const [category, setCategory] = useState<FeedbackCategory>(initialCategory);
     const [isShaking, setIsShaking] = useState(false);
     const [animState, setAnimState] = useState<'initial' | 'enter' | 'entered' | 'exit'>(
       'initial'
@@ -122,9 +124,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
 
     // Handle submit
     const handleSubmit = useCallback(() => {
-      if (!text.trim()) return;
-      onSubmit(text.trim(), category);
-    }, [text, category, onSubmit]);
+      if (!text.trim() || !onSubmit) return;
+      onSubmit(text.trim());
+    }, [text, onSubmit]);
 
     // Handle keyboard
     const handleKeyDown = useCallback(
@@ -154,6 +156,39 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       .filter(Boolean)
       .join(' ');
 
+    // View mode: show annotation details with delete option
+    if (mode === 'view' && annotation) {
+      return (
+        <div
+          ref={popupRef}
+          className={popupClassName}
+          data-annotation-popup
+          style={style}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.header}>
+            <span className={styles.element}>{element}</span>
+          </div>
+
+          <div className={styles.comment}>{annotation.comment}</div>
+
+          <div className={styles.actions}>
+            <button className={styles.cancel} type="button" onClick={handleCancel}>
+              Close
+            </button>
+            <button
+              className={styles.delete}
+              type="button"
+              onClick={onDelete}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Create mode: show form to add new annotation
     return (
       <div
         ref={popupRef}
@@ -173,12 +208,6 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
           </div>
         )}
 
-        <CategorySelector
-          selected={category}
-          onChange={setCategory}
-          lightMode={lightMode}
-        />
-
         <textarea
           ref={textareaRef}
           className={styles.textarea}
@@ -193,7 +222,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         />
 
         <div className={styles.actions}>
-          <button className={styles.cancel} onClick={handleCancel}>
+          <button className={styles.cancel} type="button" onClick={handleCancel}>
             Cancel
           </button>
           <button
@@ -202,6 +231,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               backgroundColor: accentColor,
               opacity: text.trim() ? 1 : 0.4,
             }}
+            type="button"
             onClick={handleSubmit}
             disabled={!text.trim()}
           >

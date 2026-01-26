@@ -26,6 +26,11 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 
   if (message.type === 'GET_SETTINGS') {
     chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to get settings:', chrome.runtime.lastError.message);
+        sendResponse({ type: 'SETTINGS_RESPONSE', settings: DEFAULT_SETTINGS, error: chrome.runtime.lastError.message });
+        return;
+      }
       sendResponse({ type: 'SETTINGS_RESPONSE', settings: result as Settings });
     });
     return true;
@@ -33,6 +38,11 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 
   if (message.type === 'SAVE_SETTINGS') {
     chrome.storage.sync.set(message.settings, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to save settings:', chrome.runtime.lastError.message);
+        sendResponse({ type: 'SETTINGS_RESPONSE', settings: message.settings, error: chrome.runtime.lastError.message });
+        return;
+      }
       sendResponse({ type: 'SETTINGS_RESPONSE', settings: message.settings });
     });
     return true;

@@ -2,59 +2,67 @@
 
 $blue: #3c82f7;
 
-@keyframes skeleton-pulse {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+@keyframes df-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes modalFadeIn {
+@keyframes df-modal-in {
   from {
     opacity: 0;
+    transform: translateY(12px) scale(0.96);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+@keyframes df-skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background:
+    radial-gradient(80% 120% at 20% 0%, rgba(40, 40, 40, 0.5) 0%, rgba(0, 0, 0, 0.75) 100%);
+  backdrop-filter: blur(10px) saturate(1.1);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100010;
-  animation: modalFadeIn 0.2s ease-out;
+  animation: df-overlay-in 0.2s ease-out;
 }
 
 .modal {
-  background: #1a1a1a;
-  border-radius: 1rem;
+  --modal-bg: #151515;
+  --modal-surface: #1d1d1d;
+  --modal-surface-2: #232323;
+  --modal-surface-3: #2b2b2b;
+  --modal-text: #ffffff;
+  --modal-text-muted: rgba(255, 255, 255, 0.62);
+  --modal-border: rgba(255, 255, 255, 0.08);
+  --modal-glow: rgba(60, 130, 247, 0.45);
+
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    var(--modal-bg);
+  border-radius: 18px;
   width: 90%;
-  max-width: 420px;
+  max-width: 400px;
   max-height: 80vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
-  animation: modalSlideIn 0.25s ease-out;
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 0 1px var(--modal-border);
+  animation: df-modal-in 0.35s cubic-bezier(0.19, 1, 0.22, 1);
   font-family:
     system-ui,
     -apple-system,
@@ -68,15 +76,16 @@ $blue: #3c82f7;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.95rem 1.1rem 0.8rem;
+  border-bottom: 1px solid var(--modal-border);
 }
 
 .title {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   margin: 0;
-  color: #fff;
+  color: var(--modal-text);
+  letter-spacing: 0.01em;
 }
 
 .closeButton {
@@ -88,13 +97,14 @@ $blue: #3c82f7;
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
+    transform: translateY(-1px);
   }
 
   &:focus-visible {
@@ -104,31 +114,41 @@ $blue: #3c82f7;
 }
 
 .content {
-  padding: 1.25rem;
+  padding: 1rem 1.1rem 1.1rem;
   overflow-y: auto;
   flex: 1;
 }
 
 .summary {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--modal-surface);
+  border-radius: 12px;
+  border: 1px solid var(--modal-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .summaryItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
 }
 
 .summaryLabel {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8125rem;
+  color: var(--modal-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .summaryValue {
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #fff;
+  color: #dbe7ff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba($blue, 0.2);
+  border: 1px solid rgba($blue, 0.5);
 }
 
 .categories {
@@ -151,16 +171,16 @@ $blue: #3c82f7;
 
 // Format Selection
 .formatSection {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.9rem;
 }
 
 .formatTitle {
   font-size: 0.75rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 0.625rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
 .formatOptions {
@@ -173,21 +193,42 @@ $blue: #3c82f7;
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.875rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--modal-surface);
+  border: 1px solid var(--modal-border);
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--modal-surface-2);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.99);
   }
 
   &.selected {
-    background: rgba($blue, 0.1);
-    border-color: rgba($blue, 0.4);
+    background:
+      linear-gradient(140deg, rgba(60, 130, 247, 0.18), rgba(60, 130, 247, 0.02)),
+      var(--modal-surface);
+    border-color: rgba($blue, 0.55);
+    box-shadow:
+      0 10px 24px rgba(60, 130, 247, 0.18),
+      0 0 0 1px rgba(60, 130, 247, 0.35) inset;
+
+    .formatIcon {
+      color: #dbe7ff;
+      border-color: rgba($blue, 0.35);
+      background: rgba($blue, 0.18);
+    }
   }
 
   &:focus-visible {
@@ -197,7 +238,15 @@ $blue: #3c82f7;
 }
 
 .formatIcon {
-  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--modal-surface-3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
   line-height: 1;
 }
 
@@ -211,29 +260,30 @@ $blue: #3c82f7;
 .formatLabel {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #fff;
+  color: var(--modal-text);
 }
 
 .formatDescription {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--modal-text-muted);
   line-height: 1.4;
 }
 
 .preview {
-  margin-bottom: 1.25rem;
-  padding: 0.875rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 0.5rem;
+  margin-bottom: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--modal-surface);
+  border-radius: 10px;
+  border: 1px solid var(--modal-border);
 }
 
 .previewTitle {
   font-size: 0.75rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 0.625rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 0.55rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
 .previewList {
@@ -246,7 +296,7 @@ $blue: #3c82f7;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
 }
 
 .previewIndex {
@@ -260,18 +310,19 @@ $blue: #3c82f7;
   font-weight: 600;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
 .previewElement {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 120px;
 }
 
 .previewComment {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -280,7 +331,7 @@ $blue: #3c82f7;
 
 .previewMore {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
   font-style: italic;
   padding-top: 0.25rem;
 }
@@ -313,8 +364,9 @@ $blue: #3c82f7;
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.85rem 1.1rem 1rem;
+  border-top: 1px solid var(--modal-border);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent);
 }
 
 .cancelButton,
@@ -322,10 +374,14 @@ $blue: #3c82f7;
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  border-radius: 0.5rem;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease,
+    box-shadow 0.2s ease;
 
   &:focus-visible {
     outline: 2px solid rgba(60, 130, 247, 0.5);
@@ -336,10 +392,16 @@ $blue: #3c82f7;
 .cancelButton {
   background: transparent;
   color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 
   &:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #fff;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.98);
   }
 }
 
@@ -347,11 +409,21 @@ $blue: #3c82f7;
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  background: $blue;
+  background: linear-gradient(135deg, #4b8cff, #2d6fe8);
   color: #fff;
+  box-shadow:
+    0 10px 24px rgba(60, 130, 247, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 
   &:hover:not(:disabled) {
-    filter: brightness(0.9);
+    transform: translateY(-1px);
+    box-shadow:
+      0 14px 26px rgba(60, 130, 247, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
   }
 
   &:disabled {
@@ -367,7 +439,7 @@ $blue: #3c82f7;
       rgba($blue, 0.8) 75%
     );
     background-size: 200% 100%;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    animation: df-skeleton-pulse 1.5s ease-in-out infinite;
   }
 }
 
@@ -376,6 +448,14 @@ $blue: #3c82f7;
 // =============================================================================
 
 .light {
+  --modal-bg: #ffffff;
+  --modal-surface: #f4f4f5;
+  --modal-surface-2: #ededf0;
+  --modal-surface-3: #e6e6ea;
+  --modal-text: #1a1a1a;
+  --modal-text-muted: rgba(0, 0, 0, 0.55);
+  --modal-border: rgba(0, 0, 0, 0.08);
+
   background: #fff;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.2),
@@ -404,6 +484,8 @@ $blue: #3c82f7;
 
   .summaryValue {
     color: #1a1a1a;
+    background: rgba($blue, 0.12);
+    border-color: rgba($blue, 0.35);
   }
 
   .categoryCount {
@@ -412,6 +494,7 @@ $blue: #3c82f7;
 
   .preview {
     background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.06);
   }
 
   .previewTitle {
@@ -440,10 +523,12 @@ $blue: #3c82f7;
 
   .actions {
     border-top-color: rgba(0, 0, 0, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), transparent);
   }
 
   .cancelButton {
     color: rgba(0, 0, 0, 0.5);
+    border-color: rgba(0, 0, 0, 0.12);
 
     &:hover {
       background: rgba(0, 0, 0, 0.05);
@@ -464,9 +549,26 @@ $blue: #3c82f7;
     }
 
     &.selected {
-      background: rgba($blue, 0.08);
-      border-color: rgba($blue, 0.3);
+      background:
+        linear-gradient(140deg, rgba($blue, 0.18), rgba($blue, 0.02)),
+        #fff;
+      border-color: rgba($blue, 0.35);
+      box-shadow:
+        0 10px 24px rgba(60, 130, 247, 0.18),
+        0 0 0 1px rgba(60, 130, 247, 0.25) inset;
+
+      .formatIcon {
+        color: $blue;
+        border-color: rgba($blue, 0.25);
+        background: rgba($blue, 0.12);
+      }
     }
+  }
+
+  .formatIcon {
+    color: rgba(0, 0, 0, 0.7);
+    border-color: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.06);
   }
 
   .formatLabel {

@@ -9,6 +9,9 @@ import {
   IconExport,
   IconSun,
   IconMoon,
+  IconBug,
+  IconLightbulb,
+  IconQuestion,
 } from '../Icons';
 import { ExportModal } from '../ExportModal';
 import {
@@ -52,6 +55,8 @@ type PendingAnnotation = {
   target: HTMLElement;
   rect: DOMRect;
   isFixed: boolean;
+  scrollX: number;
+  scrollY: number;
 };
 
 // =============================================================================
@@ -67,10 +72,13 @@ export function FeedbackToolbar({
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isAddMode, setIsAddMode] = useState(false);
+  const [showCategoryPanel, setShowCategoryPanel] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<FeedbackCategory>('suggestion');
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [pendingAnnotation, setPendingAnnotation] = useState<PendingAnnotation | null>(
     null
   );
+  const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
@@ -141,18 +149,23 @@ export function FeedbackToolbar({
       // Calculate position
       const rect = target.getBoundingClientRect();
       const scrollTop = window.scrollY;
+      const scrollLeft = window.scrollX;
       const isFixed = hasFixedPositioning(target);
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
 
       const { name, path } = identifyElement(target);
 
       setPendingAnnotation({
-        x: (rect.left + rect.width / 2) / window.innerWidth,
-        y: isFixed ? rect.top + rect.height / 2 : rect.top + scrollTop + rect.height / 2,
+        x: isFixed ? centerX : centerX + scrollLeft,
+        y: isFixed ? centerY : centerY + scrollTop,
         element: name,
         elementPath: path,
         target,
         rect,
         isFixed,
+        scrollX: scrollLeft,
+        scrollY: scrollTop,
       });
 
       setIsAddMode(false);
@@ -218,7 +231,11 @@ export function FeedbackToolbar({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation(); // Prevent Escape from triggering host page behavior
-        if (pendingAnnotation) {
+        if (showCategoryPanel) {
+          setShowCategoryPanel(false);
+        } else if (selectedAnnotation) {
+          setSelectedAnnotation(null);
+        } else if (pendingAnnotation) {
           setPendingAnnotation(null);
         } else if (isAddMode) {
           setIsAddMode(false);
@@ -229,23 +246,59 @@ export function FeedbackToolbar({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isAddMode, pendingAnnotation]);
+  }, [isAddMode, pendingAnnotation, selectedAnnotation, showCategoryPanel]);
+
+  // Close active annotation when clicking outside of the annotation UI
+  useEffect(() => {
+    if (!selectedAnnotation) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const path = event.composedPath ? event.composedPath() : [];
+      const isInside = path.some((node) => {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.hasAttribute('data-annotation-popup')) return true;
+        if (node.hasAttribute('data-annotation-marker')) return true;
+        if (node.hasAttribute('data-toolbar')) return true;
+        return Boolean(
+          node.closest?.('[data-annotation-popup], [data-annotation-marker], [data-toolbar]')
+        );
+      });
+
+      if (!isInside) {
+        setSelectedAnnotation(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [selectedAnnotation]);
 
   // Handle annotation submit
   const handleAnnotationSubmit = useCallback(
-    async (comment: string, category: FeedbackCategory) => {
+    async (comment: string) => {
       if (!pendingAnnotation) return;
+
+      const scrollX = pendingAnnotation.scrollX;
+      const scrollY = pendingAnnotation.scrollY;
+      const rect = pendingAnnotation.rect;
+      const boundingBox = {
+        x: rect.left + scrollX,
+        y: rect.top + scrollY,
+        width: rect.width,
+        height: rect.height,
+      };
 
       const newAnnotation: Annotation = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
         x: pendingAnnotation.x,
         y: pendingAnnotation.y,
         comment,
-        category,
+        category: selectedCategory,
         element: pendingAnnotation.element,
         elementPath: pendingAnnotation.elementPath,
         timestamp: Date.now(),
         isFixed: pendingAnnotation.isFixed,
+        boundingBox,
       };
 
       try {
@@ -259,7 +312,7 @@ export function FeedbackToolbar({
 
       setPendingAnnotation(null);
     },
-    [pendingAnnotation, annotations]
+    [pendingAnnotation, annotations, selectedCategory]
   );
 
   // Handle annotation delete
@@ -288,11 +341,24 @@ export function FeedbackToolbar({
     }
   }, []);
 
-  // Toggle add mode
-  const toggleAddMode = useCallback(() => {
-    setIsAddMode((prev) => !prev);
-    setHoverInfo(null);
+  // Toggle category panel
+  const toggleCategoryPanel = useCallback(() => {
+    if (isAddMode) {
+      // If in add mode, cancel it
+      setIsAddMode(false);
+      setHoverInfo(null);
+    } else {
+      // Toggle the category panel
+      setShowCategoryPanel((prev) => !prev);
+    }
     setPendingAnnotation(null);
+  }, [isAddMode]);
+
+  // Handle category selection - enters add mode with selected category
+  const handleCategorySelect = useCallback((category: FeedbackCategory) => {
+    setSelectedCategory(category);
+    setShowCategoryPanel(false);
+    setIsAddMode(true);
   }, []);
 
   // Render marker tooltip content
@@ -304,7 +370,7 @@ export function FeedbackToolbar({
           {config.emoji} {config.label}
         </span>
         <span className={styles.markerNote}>{annotation.comment}</span>
-        <span className={styles.markerHint}>Click to delete</span>
+        <span className={styles.markerHint}>Click to view</span>
       </div>
     );
   };
@@ -328,13 +394,14 @@ export function FeedbackToolbar({
                 key={annotation.id}
                 className={`${styles.marker} ${entranceComplete ? '' : styles.enter}`}
                 style={{
-                  left: `${annotation.x * 100}%`,
+                  left: `${annotation.x}px`,
                   top: `${annotation.y}px`,
                   backgroundColor: config.color,
                 }}
+                data-annotation-marker
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
-                onClick={() => handleDeleteAnnotation(annotation.id)}
+                onClick={() => setSelectedAnnotation(annotation)}
               >
                 {index + 1}
                 {isHovered && renderMarkerTooltip(annotation)}
@@ -355,13 +422,14 @@ export function FeedbackToolbar({
                 key={annotation.id}
                 className={`${styles.marker} ${styles.fixed} ${entranceComplete ? '' : styles.enter}`}
                 style={{
-                  left: `${annotation.x * 100}%`,
+                  left: `${annotation.x}px`,
                   top: `${annotation.y}px`,
                   backgroundColor: config.color,
                 }}
+                data-annotation-marker
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
-                onClick={() => handleDeleteAnnotation(annotation.id)}
+                onClick={() => setSelectedAnnotation(annotation)}
               >
                 {globalIndex}
                 {isHovered && renderMarkerTooltip(annotation)}
@@ -375,7 +443,7 @@ export function FeedbackToolbar({
           <div
             className={`${styles.marker} ${styles.pending} ${pendingAnnotation.isFixed ? styles.fixed : ''}`}
             style={{
-              left: `${pendingAnnotation.x * 100}%`,
+              left: `${pendingAnnotation.x}px`,
               top: pendingAnnotation.isFixed
                 ? `${pendingAnnotation.rect.top + pendingAnnotation.rect.height / 2}px`
                 : `${pendingAnnotation.y}px`,
@@ -423,20 +491,43 @@ export function FeedbackToolbar({
       {/* Annotation markers */}
       {renderMarkers()}
 
-      {/* Annotation popup */}
+      {/* Annotation popup - create mode */}
       {pendingAnnotation && (
         <AnnotationPopup
           ref={popupRef}
+          mode="create"
           element={pendingAnnotation.element}
           onSubmit={handleAnnotationSubmit}
           onCancel={() => setPendingAnnotation(null)}
           lightMode={lightMode}
           style={{
-            left: `${pendingAnnotation.x * 100}%`,
+            left: `${pendingAnnotation.x}px`,
             top: pendingAnnotation.isFixed
               ? pendingAnnotation.rect.bottom + 16
               : pendingAnnotation.y + pendingAnnotation.rect.height / 2 + 16,
             position: pendingAnnotation.isFixed ? 'fixed' : 'absolute',
+          }}
+        />
+      )}
+
+      {/* Annotation popup - view mode */}
+      {selectedAnnotation && (
+        <AnnotationPopup
+          mode="view"
+          element={selectedAnnotation.element}
+          annotation={selectedAnnotation}
+          onDelete={() => {
+            handleDeleteAnnotation(selectedAnnotation.id);
+            setSelectedAnnotation(null);
+          }}
+          onCancel={() => setSelectedAnnotation(null)}
+          lightMode={lightMode}
+          style={{
+            left: `${selectedAnnotation.x}px`,
+            top: selectedAnnotation.isFixed
+              ? selectedAnnotation.y + 24
+              : selectedAnnotation.y + 24,
+            position: selectedAnnotation.isFixed ? 'fixed' : 'absolute',
           }}
         />
       )}
@@ -481,14 +572,51 @@ export function FeedbackToolbar({
             <div className={styles.buttonWrapper}>
               <button
                 className={`${styles.controlButton} ${lightMode ? styles.light : ''}`}
-                data-active={isAddMode}
-                onClick={toggleAddMode}
+                data-active={isAddMode || showCategoryPanel}
+                type="button"
+                aria-label={isAddMode ? 'Cancel add annotation' : 'Add annotation'}
+                aria-pressed={isAddMode || showCategoryPanel}
+                aria-expanded={showCategoryPanel}
+                onClick={toggleCategoryPanel}
               >
                 {isAddMode ? <IconClose size={18} /> : <IconList size={18} />}
               </button>
               <span className={`${styles.buttonTooltip} ${lightMode ? styles.light : ''}`}>
                 {isAddMode ? 'Cancel' : 'Add annotation'}
               </span>
+
+              {/* Category selection panel */}
+              {showCategoryPanel && (
+                <div className={`${styles.categoryPanel} ${lightMode ? styles.light : ''}`}>
+                  <button
+                    className={styles.categoryOption}
+                    type="button"
+                    onClick={() => handleCategorySelect('bug')}
+                    style={{ '--category-color': '#FF3B30' } as React.CSSProperties}
+                  >
+                    <IconBug size={20} />
+                    <span>Bug</span>
+                  </button>
+                  <button
+                    className={styles.categoryOption}
+                    type="button"
+                    onClick={() => handleCategorySelect('question')}
+                    style={{ '--category-color': '#FFD60A' } as React.CSSProperties}
+                  >
+                    <IconQuestion size={20} />
+                    <span>Question</span>
+                  </button>
+                  <button
+                    className={styles.categoryOption}
+                    type="button"
+                    onClick={() => handleCategorySelect('suggestion')}
+                    style={{ '--category-color': '#3C82F7' } as React.CSSProperties}
+                  >
+                    <IconLightbulb size={20} />
+                    <span>Suggestion</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className={`${styles.divider} ${lightMode ? styles.light : ''}`} />
@@ -497,6 +625,8 @@ export function FeedbackToolbar({
             <div className={styles.buttonWrapper}>
               <button
                 className={`${styles.controlButton} ${lightMode ? styles.light : ''}`}
+                type="button"
+                aria-label="Export feedback"
                 onClick={() => setShowExportModal(true)}
                 disabled={annotations.length === 0}
               >
@@ -512,6 +642,8 @@ export function FeedbackToolbar({
               <button
                 className={`${styles.controlButton} ${lightMode ? styles.light : ''}`}
                 data-danger
+                type="button"
+                aria-label="Clear all annotations"
                 onClick={handleClearAll}
                 disabled={annotations.length === 0}
               >
@@ -528,6 +660,8 @@ export function FeedbackToolbar({
             <div className={styles.buttonWrapper}>
               <button
                 className={`${styles.controlButton} ${lightMode ? styles.light : ''}`}
+                type="button"
+                aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                 onClick={() => onLightModeChange?.(!lightMode)}
               >
                 {lightMode ? <IconMoon size={18} /> : <IconSun size={18} />}
@@ -541,6 +675,8 @@ export function FeedbackToolbar({
             <div className={styles.buttonWrapper}>
               <button
                 className={`${styles.controlButton} ${lightMode ? styles.light : ''}`}
+                type="button"
+                aria-label="Minimize toolbar"
                 onClick={() => setIsExpanded(false)}
               >
                 <IconClose size={18} />

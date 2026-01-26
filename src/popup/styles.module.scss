@@ -2,42 +2,59 @@ $blue: #3c82f7;
 
 .popup {
   padding: 1rem;
-  min-width: 280px;
-  background: #1a1a1a;
-  color: #fff;
+  min-width: 300px;
+  background: var(--df-surface-gradient);
+  color: var(--df-text);
+  border: 1px solid var(--df-border);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: df-panel-in var(--dur-smooth) var(--ease-smooth) both;
 }
 
 .loading {
   text-align: center;
   padding: 2rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
+  animation: df-scale-in var(--dur-enter) var(--ease-pop) both;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--df-border);
 }
 
 .title {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
+  letter-spacing: 0.01em;
 }
 
 .version {
-  font-size: 0.6875rem;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 0.625rem 0.75rem;
+
   & + & {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 0.5rem;
   }
 }
 
@@ -46,6 +63,7 @@ $blue: #3c82f7;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   cursor: pointer;
 
   input {
@@ -58,16 +76,21 @@ $blue: #3c82f7;
 
 .toggleLabel {
   font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.86);
 }
 
 .toggleSwitch {
   position: relative;
   width: 36px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
   border-radius: 10px;
-  transition: background 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition:
+    background var(--dur-ui) var(--ease-smooth),
+    box-shadow var(--dur-ui) var(--ease-smooth);
 
   &::after {
     content: '';
@@ -76,13 +99,19 @@ $blue: #3c82f7;
     left: 2px;
     width: 16px;
     height: 16px;
-    background: #fff;
+    background: linear-gradient(180deg, #ffffff, #dcdcdc);
     border-radius: 50%;
-    transition: transform 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: transform var(--dur-ui) var(--ease-smooth);
+  }
+
+  input:focus-visible + & {
+    box-shadow: 0 0 0 2px rgba($blue, 0.55);
   }
 
   input:checked + & {
-    background: $blue;
+    background: linear-gradient(180deg, #4b8cff, #2d6fe8);
+    border-color: rgba(60, 130, 247, 0.6);
 
     &::after {
       transform: translateX(16px);
@@ -103,30 +132,58 @@ $blue: #3c82f7;
 }
 
 .statsCount {
-  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: $blue;
+  color: #dbe7ff;
+  background: rgba($blue, 0.18);
+  border: 1px solid rgba($blue, 0.4);
 }
 
 // Export button
 .exportButton {
   width: 100%;
   padding: 0.625rem 1rem;
-  background: $blue;
+  background: linear-gradient(135deg, #4b8cff, #2d6fe8);
   color: #fff;
   border: none;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  box-shadow:
+    0 10px 20px rgba(60, 130, 247, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    transform var(--dur-quick) var(--ease-smooth),
+    box-shadow var(--dur-ui) var(--ease-smooth),
+    filter var(--dur-ui) var(--ease-smooth),
+    opacity var(--dur-ui) var(--ease-smooth);
 
   &:hover:not(:disabled) {
-    filter: brightness(0.9);
+    transform: translateY(-1px);
+    box-shadow:
+      0 14px 24px rgba(60, 130, 247, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    filter: brightness(1.02);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($blue, 0.6);
+    outline-offset: 2px;
   }
 
   &:disabled {
     opacity: 0.4;
+    filter: grayscale(0.2);
     cursor: not-allowed;
   }
 }

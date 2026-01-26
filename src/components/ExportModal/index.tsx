@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Annotation, ExportFormat } from '@/types';
-import { exportAsHTML, exportAsImageWithNotes, getCategorySummary } from '@/utils/export';
-import { getCategoryConfig, CATEGORIES } from '@/shared/categories';
-import { IconClose, IconExport } from '../Icons';
-import { CategoryBadge } from '../CategorySelector';
+import { exportAsHTML, exportAsImageWithNotes } from '@/utils/export';
+import { getCategoryConfig } from '@/shared/categories';
+import { IconClose, IconExport, IconGlobe, IconImage } from '../Icons';
 import styles from './styles.module.scss';
 
 interface ExportModalProps {
@@ -16,7 +15,7 @@ type FormatOption = {
   id: ExportFormat;
   label: string;
   description: string;
-  icon: string;
+  icon: ReactNode;
 };
 
 const FORMAT_OPTIONS: FormatOption[] = [
@@ -24,13 +23,13 @@ const FORMAT_OPTIONS: FormatOption[] = [
     id: 'html',
     label: 'Interactive HTML',
     description: 'Single file with hoverable markers. Opens in any browser.',
-    icon: '🌐',
+    icon: <IconGlobe size={18} />,
   },
   {
     id: 'image-notes',
-    label: 'Image + Notes',
-    description: 'PNG with markers + Markdown notes. Great for sharing.',
-    icon: '🖼️',
+    label: 'Markdown Notes',
+    description: 'Markdown report only. Great for sharing in docs.',
+    icon: <IconImage size={18} />,
   },
 ];
 
@@ -38,8 +37,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
-
-  const summary = getCategorySummary(annotations);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -68,7 +65,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       >
         <div className={styles.header}>
           <h2 className={styles.title}>Export Feedback</h2>
-          <button className={styles.closeButton} onClick={onClose}>
+          <button className={styles.closeButton} type="button" aria-label="Close export dialog" onClick={onClose}>
             <IconClose size={18} />
           </button>
         </div>
@@ -79,29 +76,19 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               <span className={styles.summaryLabel}>Total annotations</span>
               <span className={styles.summaryValue}>{annotations.length}</span>
             </div>
-
-            <div className={styles.categories}>
-              {CATEGORIES.map((category) => {
-                const count = summary[category.id];
-                if (count === 0) return null;
-                return (
-                  <div key={category.id} className={styles.categoryItem}>
-                    <CategoryBadge category={category.id} size="small" />
-                    <span className={styles.categoryCount}>{count}</span>
-                  </div>
-                );
-              })}
-            </div>
           </div>
 
           {/* Format Selection */}
           <div className={styles.formatSection}>
             <h3 className={styles.formatTitle}>Export Format</h3>
-            <div className={styles.formatOptions}>
+            <div className={styles.formatOptions} role="radiogroup" aria-label="Export format">
               {FORMAT_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   className={`${styles.formatOption} ${selectedFormat === option.id ? styles.selected : ''}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedFormat === option.id}
                   onClick={() => setSelectedFormat(option.id)}
                 >
                   <span className={styles.formatIcon}>{option.icon}</span>
@@ -142,11 +129,12 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         </div>
 
         <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onClose}>
+          <button className={styles.cancelButton} type="button" onClick={onClose}>
             Cancel
           </button>
           <button
             className={`${styles.exportButton} ${isExporting ? styles.exporting : ''}`}
+            type="button"
             onClick={handleExport}
             disabled={isExporting || exportComplete}
           >

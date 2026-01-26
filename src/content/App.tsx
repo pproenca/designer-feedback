@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FeedbackToolbar } from '@/components/FeedbackToolbar';
+import { getStorageKey, getAnnotationCount } from '@/utils/storage';
 import type { Settings } from '@/types';
 
 interface AppProps {
@@ -20,11 +21,26 @@ export function App({ shadowRoot }: AppProps) {
       }
     });
 
-    // Listen for toggle messages from popup
-    const handleMessage = (message: { type: string; enabled?: boolean }) => {
+    // Listen for messages from popup
+    const handleMessage = (
+      message: { type: string; enabled?: boolean },
+      _sender: chrome.runtime.MessageSender,
+      sendResponse: (response: unknown) => void
+    ) => {
       if (message.type === 'TOGGLE_TOOLBAR' && message.enabled !== undefined) {
         setEnabled(message.enabled);
+        return false;
       }
+
+      if (message.type === 'GET_ANNOTATION_COUNT') {
+        const url = getStorageKey();
+        getAnnotationCount(url)
+          .then((count) => sendResponse({ count }))
+          .catch(() => sendResponse({ count: 0 }));
+        return true; // Keep channel open for async response
+      }
+
+      return false;
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);

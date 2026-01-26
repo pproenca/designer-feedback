@@ -6,7 +6,7 @@ export type FeedbackCategory = 'bug' | 'suggestion' | 'question' | 'accessibilit
 
 export type Annotation = {
   id: string;
-  x: number; // % of viewport width
+  x: number; // px from left of document (absolute) OR viewport (if isFixed)
   y: number; // px from top of document (absolute) OR viewport (if isFixed)
   comment: string;
   category: FeedbackCategory;

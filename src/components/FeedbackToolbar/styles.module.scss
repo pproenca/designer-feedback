@@ -106,7 +106,7 @@ $green: #34c759;
     0 2px 8px rgba(0, 0, 0, 0.2),
     0 4px 16px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
-  cursor: grab;
+  cursor: default;
   transition: width 0.4s cubic-bezier(0.19, 1, 0.22, 1);
 
   &.entrance {
@@ -310,6 +310,103 @@ $green: #34c759;
   height: 12px;
   background: rgba(255, 255, 255, 0.15);
   margin: 0 0.125rem;
+}
+
+// =============================================================================
+// Category Panel
+// =============================================================================
+
+@keyframes categoryPanelIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+}
+
+.categoryPanel {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: categoryPanelIn 0.15s ease-out forwards;
+  z-index: 100001;
+  min-width: 140px;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: #1a1a1a;
+    border-radius: 0 0 3px 0;
+  }
+
+  &.light {
+    background: #fff;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+
+    &::after {
+      background: #fff;
+    }
+
+    .categoryOption {
+      color: rgba(0, 0, 0, 0.7);
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.06);
+        color: rgba(0, 0, 0, 0.9);
+      }
+    }
+  }
+}
+
+.categoryOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+
+    svg {
+      color: var(--category-color);
+    }
+  }
+
+  svg {
+    transition: color 0.15s ease;
+  }
 }
 
 // =============================================================================

@@ -6,7 +6,6 @@ import { App } from './App';
 import contentStyles from './styles.scss?inline';
 import toolbarStyles from '@/components/FeedbackToolbar/styles.module.scss?inline';
 import popupStyles from '@/components/AnnotationPopup/styles.module.scss?inline';
-import categoryStyles from '@/components/CategorySelector/styles.module.scss?inline';
 import exportStyles from '@/components/ExportModal/styles.module.scss?inline';
 
 // =============================================================================
@@ -34,7 +33,6 @@ function injectContentScript() {
     contentStyles,
     toolbarStyles,
     popupStyles,
-    categoryStyles,
     exportStyles,
   ].join('\n');
   shadowRoot.appendChild(styleElement);

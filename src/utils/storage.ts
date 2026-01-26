@@ -85,7 +85,17 @@ export async function loadAnnotations(): Promise<Annotation[]> {
       const annotations = request.result as (Annotation & { url: string })[];
       // Filter out expired annotations
       const filtered = annotations.filter((a) => a.timestamp > cutoff);
-      resolve(filtered);
+      const normalized = filtered.map((annotation) => {
+        if (annotation.x >= 0 && annotation.x <= 1) {
+          const baseX = annotation.x * window.innerWidth;
+          return {
+            ...annotation,
+            x: annotation.isFixed ? baseX : baseX + window.scrollX,
+          };
+        }
+        return annotation;
+      });
+      resolve(normalized);
     };
 
     request.onerror = () => reject(new Error('Failed to load annotations'));

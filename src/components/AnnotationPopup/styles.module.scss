@@ -153,6 +153,18 @@ $green: #34c759;
 }
 
 // =============================================================================
+// Comment (view mode)
+// =============================================================================
+
+.comment {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+  padding: 0.5rem 0;
+  word-wrap: break-word;
+}
+
+// =============================================================================
 // Textarea
 // =============================================================================
 
@@ -248,6 +260,29 @@ $green: #34c759;
   }
 }
 
+.delete {
+  padding: 0.4rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 1rem;
+  border: none;
+  cursor: pointer;
+  background: #ef4444;
+  color: white;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:hover {
+    background: #dc2626;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(239, 68, 68, 0.5);
+    outline-offset: 2px;
+  }
+}
+
 // =============================================================================
 // Light Mode
 // =============================================================================
@@ -294,5 +329,9 @@ $green: #34c759;
       background: rgba(0, 0, 0, 0.06);
       color: rgba(0, 0, 0, 0.75);
     }
+  }
+
+  .comment {
+    color: rgba(0, 0, 0, 0.85);
   }
 }
