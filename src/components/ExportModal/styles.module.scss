@@ -1,0 +1,382 @@
+// Export Modal Styles
+
+$blue: #3c82f7;
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100010;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal {
+  background: #1a1a1a;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: modalSlideIn 0.25s ease-out;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: #fff;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(60, 130, 247, 0.5);
+    outline-offset: 2px;
+  }
+}
+
+.content {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.summary {
+  margin-bottom: 1.25rem;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.summaryLabel {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.summaryValue {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.categoryCount {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.preview {
+  margin-bottom: 1.25rem;
+  padding: 0.875rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.5rem;
+}
+
+.previewTitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.previewList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.previewItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.previewIndex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.previewElement {
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.previewComment {
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.previewMore {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  padding-top: 0.25rem;
+}
+
+.info {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 0.5rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+
+  strong {
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cancelButton,
+.exportButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid rgba(60, 130, 247, 0.5);
+    outline-offset: 2px;
+  }
+}
+
+.cancelButton {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: $blue;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.9);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.exporting {
+    background: linear-gradient(
+      90deg,
+      rgba($blue, 0.8) 25%,
+      rgba($blue, 1) 50%,
+      rgba($blue, 0.8) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+}
+
+// =============================================================================
+// Light Mode
+// =============================================================================
+
+.light {
+  background: #fff;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  .header {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .title {
+    color: #1a1a1a;
+  }
+
+  .closeButton {
+    color: rgba(0, 0, 0, 0.4);
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: #1a1a1a;
+    }
+  }
+
+  .summaryLabel {
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .summaryValue {
+    color: #1a1a1a;
+  }
+
+  .categoryCount {
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .preview {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .previewTitle {
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  .previewElement {
+    color: rgba(0, 0, 0, 0.75);
+  }
+
+  .previewComment {
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  .previewMore {
+    color: rgba(0, 0, 0, 0.35);
+  }
+
+  .info {
+    color: rgba(0, 0, 0, 0.5);
+
+    strong {
+      color: rgba(0, 0, 0, 0.75);
+    }
+  }
+
+  .actions {
+    border-top-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .cancelButton {
+    color: rgba(0, 0, 0, 0.5);
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: #1a1a1a;
+    }
+  }
+}

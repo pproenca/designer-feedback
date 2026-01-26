@@ -1,0 +1,593 @@
+// Page Feedback Toolbar - CSS-only version
+// Uses CSS animations for all transitions
+
+$blue: #3c82f7;
+$red: #ff3b30;
+$green: #34c759;
+
+// =============================================================================
+// Animation Keyframes
+// =============================================================================
+
+@keyframes toolbarEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.5) rotate(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes badgeEnter {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes markerIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes hoverHighlightIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hoverTooltipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(2px) scale(0.891);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(0.909);
+  }
+}
+
+// =============================================================================
+// Toolbar
+// =============================================================================
+
+.toolbar {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 100000;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  pointer-events: none;
+}
+
+.toolbarContainer {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+  cursor: grab;
+  transition: width 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+
+  &.entrance {
+    animation: toolbarEnter 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  }
+
+  &.collapsed {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    padding: 0;
+    cursor: pointer;
+
+    &:hover {
+      background: #2a2a2a;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &.expanded {
+    width: auto;
+    height: 44px;
+    border-radius: 1.5rem;
+    padding: 0.375rem;
+  }
+}
+
+.toggleContent {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.1s cubic-bezier(0.19, 1, 0.22, 1);
+
+  &.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  &.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.controlsContent {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition:
+    filter 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+
+  &.visible {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  &.hidden {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(0.4);
+    pointer-events: none;
+  }
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: $blue;
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+  &.entrance {
+    animation: badgeEnter 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) 0.4s both;
+  }
+}
+
+.controlButton {
+  position: relative;
+  cursor: pointer !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease,
+    opacity 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(60, 130, 247, 0.5);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+  }
+
+  &[data-active='true'] {
+    color: $blue;
+    background: rgba($blue, 0.25);
+  }
+
+  &[data-danger]:hover:not(:disabled) {
+    background: rgba($red, 0.25);
+    color: $red;
+  }
+}
+
+.buttonWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover .buttonTooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) scale(1);
+    transition-delay: 0.85s;
+  }
+
+  &:has(.controlButton:disabled):hover .buttonTooltip {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.buttonTooltip {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  padding: 6px 10px;
+  background: #1a1a1a;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 100001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition:
+    opacity 0.135s ease,
+    transform 0.135s ease,
+    visibility 0.135s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: calc(100% - 4px);
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    background: #1a1a1a;
+    border-radius: 0 0 2px 0;
+  }
+}
+
+.divider {
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 0.125rem;
+}
+
+// =============================================================================
+// Overlay
+// =============================================================================
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99997;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.hoverHighlight {
+  position: fixed;
+  border: 2px solid rgba($blue, 0.5);
+  border-radius: 4px;
+  pointer-events: none !important;
+  background: rgba($blue, 0.04);
+  box-sizing: border-box;
+  will-change: opacity;
+  contain: layout style;
+
+  &.enter {
+    animation: hoverHighlightIn 0.12s ease-out forwards;
+  }
+}
+
+.hoverTooltip {
+  position: fixed;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.375rem;
+  pointer-events: none !important;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &.enter {
+    animation: hoverTooltipIn 0.1s ease-out forwards;
+  }
+}
+
+// =============================================================================
+// Markers Layer
+// =============================================================================
+
+.markersLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 99998;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.fixedMarkersLayer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99998;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+// =============================================================================
+// Annotation Markers
+// =============================================================================
+
+.marker {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: $blue;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  cursor: pointer;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  user-select: none;
+  will-change: transform, opacity;
+  contain: layout style;
+  z-index: 1;
+
+  &:hover {
+    z-index: 2;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+
+  &.enter {
+    animation: markerIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  &.pending {
+    background: $blue;
+  }
+
+  &.fixed {
+    position: fixed;
+  }
+}
+
+.markerTooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.909);
+  z-index: 100002;
+  background: #1a1a1a;
+  padding: 8px 0.75rem;
+  border-radius: 0.75rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-weight: 400;
+  color: #fff;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  min-width: 120px;
+  max-width: 200px;
+  pointer-events: none;
+  cursor: default;
+
+  &.enter {
+    animation: tooltipIn 0.1s ease-out forwards;
+  }
+}
+
+.markerCategory {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.markerNote {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 2px;
+}
+
+.markerHint {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.375rem;
+  white-space: nowrap;
+}
+
+// =============================================================================
+// Light Mode
+// =============================================================================
+
+.light {
+  &.toolbarContainer {
+    background: #fff;
+    color: rgba(0, 0, 0, 0.85);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      0 4px 16px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(0, 0, 0, 0.04);
+
+    &.collapsed:hover {
+      background: #f5f5f5;
+    }
+  }
+
+  &.controlButton {
+    color: rgba(0, 0, 0, 0.5);
+
+    &:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    &[data-active='true'] {
+      color: $blue;
+      background: rgba($blue, 0.15);
+    }
+
+    &[data-danger]:hover:not(:disabled) {
+      background: rgba($red, 0.15);
+      color: $red;
+    }
+  }
+
+  &.buttonTooltip {
+    background: #fff;
+    color: rgba(0, 0, 0, 0.85);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      0 4px 16px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(0, 0, 0, 0.04);
+
+    &::after {
+      background: #fff;
+    }
+  }
+
+  &.divider {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  &.markerTooltip {
+    background: #fff;
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+
+    .markerNote {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    .markerHint {
+      color: rgba(0, 0, 0, 0.35);
+    }
+  }
+}
+
+// =============================================================================
+// Add Mode Cursor
+// =============================================================================
+
+:global(body.designer-feedback-add-mode) {
+  cursor: crosshair !important;
+
+  * {
+    cursor: crosshair !important;
+  }
+}
+
+// =============================================================================
+// Dragging State
+// =============================================================================
+
+.dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+
+  * {
+    cursor: grabbing !important;
+  }
+}
