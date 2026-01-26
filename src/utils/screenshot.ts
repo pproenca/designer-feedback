@@ -22,65 +22,96 @@ export async function captureScreenshot(): Promise<string> {
 }
 
 /**
- * Crop a screenshot to a specific region
+ * Capture full page by scrolling through the document and stitching screenshots
  */
-export async function cropScreenshot(
-  fullScreenshot: string,
-  bounds: { x: number; y: number; width: number; height: number },
-  padding = 20
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // Account for device pixel ratio
-      const dpr = window.devicePixelRatio || 1;
+export async function captureFullPage(): Promise<string> {
+  // Save original scroll position
+  const originalScrollY = window.scrollY;
 
-      // Calculate crop region with padding
-      const x = Math.max(0, (bounds.x - padding) * dpr);
-      const y = Math.max(0, (bounds.y - padding) * dpr);
-      const width = Math.min(img.width - x, (bounds.width + padding * 2) * dpr);
-      const height = Math.min(img.height - y, (bounds.height + padding * 2) * dpr);
+  // Get document dimensions
+  const docHeight = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight
+  );
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  const dpr = window.devicePixelRatio || 1;
 
-      // Create canvas for cropping
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+  // Calculate number of captures needed
+  const numCaptures = Math.ceil(docHeight / viewportHeight);
+  const screenshots: string[] = [];
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
+  // Capture each viewport section
+  for (let i = 0; i < numCaptures; i++) {
+    const scrollY = i * viewportHeight;
+    window.scrollTo(0, scrollY);
 
-      // Draw cropped region
-      ctx.drawImage(img, x, y, width, height, 0, 0, width, height);
+    // Wait for render
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Convert to data URL
-      resolve(canvas.toDataURL('image/png'));
-    };
+    const screenshot = await captureScreenshot();
+    screenshots.push(screenshot);
+  }
 
-    img.onerror = () => {
-      reject(new Error('Failed to load screenshot for cropping'));
-    };
+  // Restore scroll position
+  window.scrollTo(0, originalScrollY);
 
-    img.src = fullScreenshot;
-  });
+  // Stitch screenshots on canvas
+  return stitchScreenshots(screenshots, viewportWidth, viewportHeight, docHeight, dpr);
 }
 
 /**
- * Get element bounds relative to viewport
+ * Stitch multiple viewport screenshots into a single full-page image
  */
-export function getElementBounds(element: HTMLElement): {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-  };
+async function stitchScreenshots(
+  screenshots: string[],
+  viewportWidth: number,
+  viewportHeight: number,
+  totalHeight: number,
+  dpr: number
+): Promise<string> {
+  const canvas = document.createElement('canvas');
+  canvas.width = viewportWidth * dpr;
+  canvas.height = totalHeight * dpr;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Failed to get canvas context for stitching');
+  }
+
+  for (let i = 0; i < screenshots.length; i++) {
+    const img = await loadImage(screenshots[i]);
+    const y = i * viewportHeight * dpr;
+
+    // For the last image, only draw the remaining portion
+    const isLast = i === screenshots.length - 1;
+    const remainingHeight = totalHeight - i * viewportHeight;
+    const drawHeight = isLast ? remainingHeight * dpr : viewportHeight * dpr;
+
+    ctx.drawImage(
+      img,
+      0,
+      0,
+      img.width,
+      drawHeight, // source
+      0,
+      y,
+      img.width,
+      drawHeight // destination
+    );
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Load an image from a data URL
+ */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }

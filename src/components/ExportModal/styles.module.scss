@@ -149,6 +149,77 @@ $blue: #3c82f7;
   color: rgba(255, 255, 255, 0.6);
 }
 
+// Format Selection
+.formatSection {
+  margin-bottom: 1.25rem;
+}
+
+.formatTitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.formatOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formatOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &.selected {
+    background: rgba($blue, 0.1);
+    border-color: rgba($blue, 0.4);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(60, 130, 247, 0.5);
+    outline-offset: 2px;
+  }
+}
+
+.formatIcon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.formatContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+}
+
+.formatLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.formatDescription {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+}
+
 .preview {
   margin-bottom: 1.25rem;
   padding: 0.875rem;
@@ -378,5 +449,31 @@ $blue: #3c82f7;
       background: rgba(0, 0, 0, 0.05);
       color: #1a1a1a;
     }
+  }
+
+  .formatTitle {
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  .formatOption {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.08);
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    &.selected {
+      background: rgba($blue, 0.08);
+      border-color: rgba($blue, 0.3);
+    }
+  }
+
+  .formatLabel {
+    color: #1a1a1a;
+  }
+
+  .formatDescription {
+    color: rgba(0, 0, 0, 0.5);
   }
 }

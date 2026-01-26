@@ -74,6 +74,7 @@ export function FeedbackToolbar({
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   // Refs
   const popupRef = useRef<AnnotationPopupHandle>(null);
@@ -106,6 +107,20 @@ export function FeedbackToolbar({
     };
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, []);
+
+  // Listen for hide/show events from export functions
+  useEffect(() => {
+    const handleHide = () => setHidden(true);
+    const handleShow = () => setHidden(false);
+
+    document.addEventListener('designer-feedback:hide-ui', handleHide);
+    document.addEventListener('designer-feedback:show-ui', handleShow);
+
+    return () => {
+      document.removeEventListener('designer-feedback:hide-ui', handleHide);
+      document.removeEventListener('designer-feedback:show-ui', handleShow);
+    };
   }, []);
 
   // Handle element click in add mode
@@ -373,6 +388,11 @@ export function FeedbackToolbar({
       </>
     );
   };
+
+  // Hide all UI during screenshot capture
+  if (hidden) {
+    return null;
+  }
 
   return createPortal(
     <>

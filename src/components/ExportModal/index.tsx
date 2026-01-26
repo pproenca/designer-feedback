@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Annotation } from '@/types';
-import { exportFeedback, getCategorySummary } from '@/utils/export';
+import type { Annotation, ExportFormat } from '@/types';
+import { exportAsHTML, exportAsImageWithNotes, getCategorySummary } from '@/utils/export';
 import { getCategoryConfig, CATEGORIES } from '@/shared/categories';
 import { IconClose, IconExport } from '../Icons';
 import { CategoryBadge } from '../CategorySelector';
@@ -12,16 +12,43 @@ interface ExportModalProps {
   lightMode?: boolean;
 }
 
+type FormatOption = {
+  id: ExportFormat;
+  label: string;
+  description: string;
+  icon: string;
+};
+
+const FORMAT_OPTIONS: FormatOption[] = [
+  {
+    id: 'html',
+    label: 'Interactive HTML',
+    description: 'Single file with hoverable markers. Opens in any browser.',
+    icon: '🌐',
+  },
+  {
+    id: 'image-notes',
+    label: 'Image + Notes',
+    description: 'PNG with markers + Markdown notes. Great for sharing.',
+    icon: '🖼️',
+  },
+];
+
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
 
   const summary = getCategorySummary(annotations);
 
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      await exportFeedback(annotations);
+      if (selectedFormat === 'html') {
+        await exportAsHTML(annotations);
+      } else {
+        await exportAsImageWithNotes(annotations);
+      }
       setExportComplete(true);
       setTimeout(() => {
         onClose();
@@ -67,6 +94,26 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             </div>
           </div>
 
+          {/* Format Selection */}
+          <div className={styles.formatSection}>
+            <h3 className={styles.formatTitle}>Export Format</h3>
+            <div className={styles.formatOptions}>
+              {FORMAT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  className={`${styles.formatOption} ${selectedFormat === option.id ? styles.selected : ''}`}
+                  onClick={() => setSelectedFormat(option.id)}
+                >
+                  <span className={styles.formatIcon}>{option.icon}</span>
+                  <div className={styles.formatContent}>
+                    <span className={styles.formatLabel}>{option.label}</span>
+                    <span className={styles.formatDescription}>{option.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className={styles.preview}>
             <h3 className={styles.previewTitle}>Preview</h3>
             <div className={styles.previewList}>
@@ -92,17 +139,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               )}
             </div>
           </div>
-
-          <div className={styles.info}>
-            <p>
-              Your feedback will be exported as a ZIP file containing:
-            </p>
-            <ul>
-              <li><strong>feedback.json</strong> - Structured data for developers</li>
-              <li><strong>feedback.md</strong> - Markdown report with summary</li>
-              <li><strong>screenshots/</strong> - Element screenshots</li>
-            </ul>
-          </div>
         </div>
 
         <div className={styles.actions}>
@@ -121,7 +157,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             ) : (
               <>
                 <IconExport size={16} />
-                Download ZIP
+                Export
               </>
             )}
           </button>
