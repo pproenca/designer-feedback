@@ -13,7 +13,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROMO_DIR = path.resolve(__dirname, '../promo');
+const PROMO_DIR = path.resolve(__dirname, '../dist');
 
 // Design tokens
 const COLORS = {
