@@ -128,6 +128,47 @@ EXAMPLE.com`);
     await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
   });
 
+  test('happy path: add current site shortcut saves host', async ({ context, extensionId }) => {
+    const popupPage = await context.newPage();
+    await popupPage.addInitScript(({ url, tabId }) => {
+      if (!window.chrome) {
+        // @ts-expect-error - test-only shim.
+        window.chrome = {};
+      }
+      if (!window.chrome.tabs) {
+        // @ts-expect-error - test-only shim.
+        window.chrome.tabs = {};
+      }
+      window.chrome.tabs.query = (_queryInfo, callback) => {
+        callback([{ id: tabId, url }]);
+      };
+      window.chrome.tabs.sendMessage = (_id, _message, callback) => {
+        if (callback) {
+          callback({ count: 0 });
+        }
+      };
+    }, { url: 'https://example.com/admin', tabId: 777 });
+
+    await openPopup(popupPage, extensionId);
+    await popupPage.evaluate(async (settings) => {
+      await chrome.storage.sync.set(settings);
+    }, DEFAULT_TEST_SETTINGS);
+    await popupPage.reload();
+
+    const addButton = popupPage.getByRole('button', { name: 'Disable on this site' });
+    await expect(addButton).toBeEnabled();
+    await addButton.click();
+
+    await expect(popupPage.getByLabel('Blocked sites')).toHaveValue('example.com');
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(popupPage);
+      return settings.siteList;
+    }).toEqual(['example.com']);
+    await expect(popupPage.getByRole('status')).toHaveText('Saved');
+    await expect(popupPage.getByRole('button', { name: 'Saved' })).toBeDisabled();
+    await popupPage.close();
+  });
+
   test('sad path: ignores invalid site list entries', async ({ page }) => {
     const siteList = page.getByLabel('Blocked sites');
     await siteList.fill(`# comment
@@ -143,6 +184,45 @@ http://
       return settings.siteList;
     }).toEqual([]);
     await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
+  });
+
+  test('save status transitions from dirty to saved to idle', async ({ page }) => {
+    const siteList = page.getByLabel('Blocked sites');
+    await siteList.fill('example.com');
+
+    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
+    await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByRole('status')).toHaveText('Saved');
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeDisabled();
+
+    await expect.poll(async () => {
+      return (await page.getByRole('status').textContent())?.trim();
+    }).toBe('');
+    await expect(page.getByRole('button', { name: 'Save list' })).toBeDisabled();
+  });
+
+  test('mode switch toggles labels and storage', async ({ page }) => {
+    await page.getByRole('button', { name: 'Only allowlist' }).click();
+
+    await expect(page.getByText('Allowlist', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Allowed sites')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Allow this site' })).toBeVisible();
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(page);
+      return settings.siteListMode;
+    }).toBe('allowlist');
+
+    await page.getByRole('button', { name: 'All sites' }).click();
+
+    await expect(page.getByText('Blocklist', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Blocked sites')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Disable on this site' })).toBeVisible();
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(page);
+      return settings.siteListMode;
+    }).toBe('blocklist');
   });
 });
 
