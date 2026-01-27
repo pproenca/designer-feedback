@@ -5,6 +5,7 @@
 import JSZip from 'jszip';
 import type { Annotation, FeedbackExport, FeedbackCategory } from '@/types';
 import { getCategoryConfig, CATEGORIES } from '@/shared/categories';
+import { sendMessage } from '@/utils/messaging';
 import { captureFullPage } from './screenshot';
 
 /**
@@ -157,15 +158,70 @@ export async function createExportZip(annotations: Annotation[]): Promise<Blob> 
 /**
  * Download a blob as a file
  */
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
+type DownloadResponse = { ok: boolean; error?: string };
+
+function canUseBackgroundDownload(): boolean {
+  return typeof chrome !== 'undefined' && Boolean(chrome?.runtime?.id);
+}
+
+async function requestBackgroundDownload(dataUrl: string, filename: string): Promise<void> {
+  const response = await sendMessage<DownloadResponse>({
+    type: 'DOWNLOAD_FILE',
+    filename,
+    dataUrl,
+  });
+  if (!response?.ok) {
+    throw new Error(response?.error ?? 'Download failed');
+  }
+}
+
+function triggerAnchorDownload(url: string, filename: string): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
-  document.body.appendChild(link);
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  (document.body ?? document.documentElement).appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  link.remove();
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read download data'));
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
+  if (canUseBackgroundDownload()) {
+    try {
+      await requestBackgroundDownload(dataUrl, filename);
+      return;
+    } catch (error) {
+      console.warn('Background download failed, falling back to anchor download.', error);
+    }
+  }
+
+  triggerAnchorDownload(dataUrl, filename);
+}
+
+export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  if (canUseBackgroundDownload()) {
+    try {
+      const dataUrl = await blobToDataUrl(blob);
+      await requestBackgroundDownload(dataUrl, filename);
+      return;
+    } catch (error) {
+      console.warn('Background download failed, falling back to anchor download.', error);
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  triggerAnchorDownload(url, filename);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -190,18 +246,13 @@ async function copyToClipboard(text: string): Promise<void> {
   }
 }
 
-async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const response = await fetch(dataUrl);
-  return response.blob();
-}
-
 /**
  * Export and download feedback as ZIP (legacy)
  */
 export async function exportFeedback(annotations: Annotation[]): Promise<void> {
   const timestamp = new Date().toISOString().split('T')[0];
   const blob = await createExportZip(annotations);
-  downloadBlob(blob, `feedback-${timestamp}.zip`);
+  await downloadBlob(blob, `feedback-${timestamp}.zip`);
 }
 
 /**
@@ -238,7 +289,7 @@ export async function exportAsHTML(annotations: Annotation[]): Promise<void> {
     // Create blob and download
     const blob = new Blob([html], { type: 'text/html' });
     const timestamp = new Date().toISOString().split('T')[0];
-    downloadBlob(blob, `feedback-${timestamp}.html`);
+    await downloadBlob(blob, `feedback-${timestamp}.html`);
   } finally {
     showExtensionUI();
   }
@@ -262,9 +313,8 @@ export async function exportAsSnapshotImage(annotations: Annotation[]): Promise<
   }
 
   const composite = await createSnapshotImage(screenshot, annotations);
-  const blob = await dataUrlToBlob(composite);
   const timestamp = new Date().toISOString().split('T')[0];
-  downloadBlob(blob, `feedback-${timestamp}.png`);
+  await downloadDataUrl(composite, `feedback-${timestamp}.png`);
 }
 
 /**

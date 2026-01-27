@@ -63,6 +63,7 @@ export type ExportFormat = 'html' | 'image-notes' | 'snapshot';
 export type MessageType =
   | { type: 'CAPTURE_SCREENSHOT' }
   | { type: 'SCREENSHOT_CAPTURED'; data: string; error?: string }
+  | { type: 'DOWNLOAD_FILE'; filename: string; dataUrl: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SETTINGS_RESPONSE'; settings: Settings; error?: string }
   | { type: 'SAVE_SETTINGS'; settings: Settings }

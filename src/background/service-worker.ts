@@ -20,6 +20,29 @@ chrome.runtime.onMessage.addListener((message: MessageType, sender, sendResponse
     return true; // Keep message channel open for async response
   }
 
+  if (message.type === 'DOWNLOAD_FILE') {
+    chrome.downloads.download(
+      {
+        url: message.dataUrl,
+        filename: message.filename,
+        saveAs: false,
+      },
+      (downloadId) => {
+        if (chrome.runtime.lastError) {
+          console.error('Download failed:', chrome.runtime.lastError.message);
+          sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+          return;
+        }
+        if (downloadId === undefined) {
+          sendResponse({ ok: false, error: 'Download failed to start' });
+          return;
+        }
+        sendResponse({ ok: true, downloadId });
+      }
+    );
+    return true;
+  }
+
   if (message.type === 'GET_SETTINGS') {
     chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
       if (chrome.runtime.lastError) {

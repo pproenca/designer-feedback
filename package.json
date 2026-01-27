@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:e2e": "playwright test",
-    "pack": "npm run build && cd dist && zip -r designer-feedback.zip . -x \"*.DS_Store\" -x \"designer-feedback.zip\""
+    "pack": "npm run build && cd dist && zip -r designer-feedback.zip . -x \"*.DS_Store\" -x \"designer-feedback.zip\"",
+    "pack:crx": "node scripts/pack-crx.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.1",
