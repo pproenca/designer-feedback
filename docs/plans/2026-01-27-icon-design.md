@@ -82,7 +82,7 @@ export function AppIcon() {
 
 Add to package.json:
 ```json
-"generate-icons": "npx tsx scripts/render-icons.ts"
+"gen:icons": "npx tsx scripts/render-icons.ts"
 ```
 
 ## Output

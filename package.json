@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "generate-icons": "npx tsx scripts/render-icons.ts",
+    "gen:icons": "npx tsx scripts/render-icons.ts",
     "package": "npm run pack",
     "release": "npm version patch --no-git-tag-version && node scripts/sync-manifest-version.cjs && npm run package",
     "preview": "vite preview",
