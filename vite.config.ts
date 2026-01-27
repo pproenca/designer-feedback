@@ -18,6 +18,14 @@ export default defineConfig({
     modules: {
       localsConvention: 'camelCase',
     },
+    preprocessorOptions: {
+      scss: {
+        api: 'modern',
+      },
+      sass: {
+        api: 'modern',
+      },
+    },
   },
   optimizeDeps: {
     include: ['jszip', 'react', 'react-dom'],

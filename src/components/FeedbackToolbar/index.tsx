@@ -121,13 +121,16 @@ export function FeedbackToolbar({
   useEffect(() => {
     const handleHide = () => setHidden(true);
     const handleShow = () => setHidden(false);
+    const handleOpenExport = () => setShowExportModal(true);
 
     document.addEventListener('designer-feedback:hide-ui', handleHide);
     document.addEventListener('designer-feedback:show-ui', handleShow);
+    document.addEventListener('designer-feedback:open-export', handleOpenExport);
 
     return () => {
       document.removeEventListener('designer-feedback:hide-ui', handleHide);
       document.removeEventListener('designer-feedback:show-ui', handleShow);
+      document.removeEventListener('designer-feedback:open-export', handleOpenExport);
     };
   }, []);
 

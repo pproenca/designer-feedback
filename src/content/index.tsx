@@ -1,61 +1,73 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { App } from './App';
+import { getAnnotationCount, getStorageKey } from '@/utils/storage';
+import type { Settings } from '@/types';
+import { mountUI, unmountUI } from './mount';
 
-// Import all styles as inline strings for Shadow DOM injection
-import contentStyles from './styles.scss?inline';
-import toolbarStyles from '@/components/FeedbackToolbar/styles.module.scss?inline';
-import popupStyles from '@/components/AnnotationPopup/styles.module.scss?inline';
-import exportStyles from '@/components/ExportModal/styles.module.scss?inline';
+const DEFAULT_SETTINGS: Settings = {
+  enabled: true,
+  lightMode: false,
+};
 
-// =============================================================================
-// Shadow DOM Injection
-// =============================================================================
+let isInjected = false;
 
-const CONTAINER_ID = 'designer-feedback-root';
+async function ensureInjected(): Promise<void> {
+  if (isInjected) return;
+  await mountUI();
+  isInjected = true;
+}
 
-function injectContentScript() {
-  // Prevent double injection
-  if (document.getElementById(CONTAINER_ID)) {
-    return;
+function ensureUnmounted(): void {
+  if (!isInjected) return;
+  unmountUI();
+  isInjected = false;
+}
+
+function triggerExport(): void {
+  // Allow time for the UI to mount and register listeners.
+  window.setTimeout(() => {
+    document.dispatchEvent(new CustomEvent('designer-feedback:open-export'));
+  }, 0);
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === 'GET_ANNOTATION_COUNT') {
+    const url = getStorageKey();
+    getAnnotationCount(url)
+      .then((count) => sendResponse({ count }))
+      .catch(() => sendResponse({ count: 0 }));
+    return true;
   }
 
-  // Create container element
-  const container = document.createElement('div');
-  container.id = CONTAINER_ID;
+  if (message.type === 'TOGGLE_TOOLBAR' && message.enabled !== undefined) {
+    if (message.enabled) {
+      ensureInjected().catch((error) => {
+        console.error('Failed to inject toolbar:', error);
+      });
+    } else {
+      ensureUnmounted();
+    }
+    return false;
+  }
 
-  // Attach shadow DOM for style isolation
-  const shadowRoot = container.attachShadow({ mode: 'open' });
+  if (message.type === 'TRIGGER_EXPORT') {
+    ensureInjected()
+      .then(() => triggerExport())
+      .catch((error) => {
+        console.error('Failed to trigger export:', error);
+      });
+    return false;
+  }
 
-  // Inject all styles into shadow DOM
-  const styleElement = document.createElement('style');
-  styleElement.textContent = [
-    contentStyles,
-    toolbarStyles,
-    popupStyles,
-    exportStyles,
-  ].join('\n');
-  shadowRoot.appendChild(styleElement);
+  return false;
+});
 
-  // Create React mount point
-  const appRoot = document.createElement('div');
-  appRoot.id = 'app';
-  shadowRoot.appendChild(appRoot);
-
-  // Append to body
-  document.body.appendChild(container);
-
-  // Mount React app
-  ReactDOM.createRoot(appRoot).render(
-    <React.StrictMode>
-      <App shadowRoot={shadowRoot} />
-    </React.StrictMode>
-  );
-}
-
-// Inject when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', injectContentScript);
-} else {
-  injectContentScript();
-}
+chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
+  if (chrome.runtime.lastError) {
+    console.error('Failed to read settings:', chrome.runtime.lastError.message);
+    return;
+  }
+  if ((result as Settings).enabled) {
+    ensureInjected().catch((error) => {
+      console.error('Failed to inject toolbar:', error);
+    });
+  }
+});

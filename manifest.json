@@ -6,10 +6,7 @@
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
+    "tabs"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -30,17 +27,13 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
+  "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
+      "run_at": "document_idle",
       "js": ["src/content/index.tsx"],
       "css": []
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/*"],
-      "matches": ["<all_urls>"]
     }
   ]
 }

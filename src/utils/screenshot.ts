@@ -12,6 +12,10 @@ export async function captureScreenshot(): Promise<string> {
         reject(new Error(chrome.runtime.lastError.message || 'Message channel error'));
         return;
       }
+      if (response?.error) {
+        reject(new Error(response.error));
+        return;
+      }
       if (response?.data) {
         resolve(response.data);
       } else {

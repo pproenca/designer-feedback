@@ -11,9 +11,10 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 // Listen for messages from content scripts and popup
-chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: MessageType, sender, sendResponse) => {
   if (message.type === 'CAPTURE_SCREENSHOT') {
-    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+    const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
+    chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {
       if (chrome.runtime.lastError) {
         console.error('Screenshot capture failed:', chrome.runtime.lastError.message);
         sendResponse({ type: 'SCREENSHOT_CAPTURED', data: '', error: chrome.runtime.lastError.message });

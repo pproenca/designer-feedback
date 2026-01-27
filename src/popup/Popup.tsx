@@ -2,26 +2,25 @@ import { useState, useEffect } from 'react';
 import type { Settings } from '@/types';
 import styles from './styles.module.scss';
 
+const DEFAULT_SETTINGS: Settings = {
+  enabled: true,
+  lightMode: false,
+};
+
 export function Popup() {
   const [settings, setSettings] = useState<Settings>({
     enabled: true,
     lightMode: false,
   });
   const [annotationCount, setAnnotationCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     // Load settings
-    chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (response) => {
+    chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
       if (chrome.runtime.lastError) {
         console.error('Failed to get settings:', chrome.runtime.lastError.message);
-        setLoading(false);
         return;
       }
-      if (response?.settings) {
-        setSettings(response.settings);
-      }
-      setLoading(false);
+      setSettings(result as Settings);
     });
 
     // Get current tab's annotation count directly from content script
@@ -53,7 +52,7 @@ export function Popup() {
   const handleToggle = (enabled: boolean) => {
     const newSettings = { ...settings, enabled };
     setSettings(newSettings);
-    chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', settings: newSettings }, () => {
+    chrome.storage.sync.set(newSettings, () => {
       if (chrome.runtime.lastError) {
         console.error('Failed to save settings:', chrome.runtime.lastError.message);
       }
@@ -92,14 +91,6 @@ export function Popup() {
       }
     });
   };
-
-  if (loading) {
-    return (
-      <div className={styles.popup}>
-        <div className={styles.loading}>Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.popup}>

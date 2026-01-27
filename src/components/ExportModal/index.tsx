@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { Annotation, ExportFormat } from '@/types';
-import { exportAsHTML, exportAsImageWithNotes } from '@/utils/export';
+import { exportAsHTML, exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { getCategoryConfig } from '@/shared/categories';
-import { IconClose, IconExport, IconGlobe, IconImage } from '../Icons';
+import { IconClose, IconCopy, IconExport, IconGlobe, IconImage } from '../Icons';
 import styles from './styles.module.scss';
 
 interface ExportModalProps {
@@ -27,26 +27,40 @@ const FORMAT_OPTIONS: FormatOption[] = [
   },
   {
     id: 'image-notes',
-    label: 'Markdown Notes',
-    description: 'Markdown report only. Great for sharing in docs.',
+    label: 'Markdown (Clipboard)',
+    description: 'Copies a concise markdown report to your clipboard.',
+    icon: <IconCopy size={18} />,
+  },
+  {
+    id: 'snapshot',
+    label: 'Snapshot (Download)',
+    description: 'Full-page image with highlights and details sidebar.',
     icon: <IconImage size={18} />,
   },
 ];
 
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const [exportComplete, setExportComplete] = useState(false);
+  const [exportOutcome, setExportOutcome] = useState<'copied' | 'downloaded' | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
+  const isMarkdown = selectedFormat === 'image-notes';
+  const isSnapshot = selectedFormat === 'snapshot';
+  const isClipboardExport = isMarkdown;
 
   const handleExport = async () => {
     setIsExporting(true);
+    setExportOutcome(null);
     try {
       if (selectedFormat === 'html') {
         await exportAsHTML(annotations);
+        setExportOutcome('downloaded');
+      } else if (selectedFormat === 'snapshot') {
+        await exportAsSnapshotImage(annotations);
+        setExportOutcome('downloaded');
       } else {
         await exportAsImageWithNotes(annotations);
+        setExportOutcome('copied');
       }
-      setExportComplete(true);
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -136,16 +150,16 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             className={`${styles.exportButton} ${isExporting ? styles.exporting : ''}`}
             type="button"
             onClick={handleExport}
-            disabled={isExporting || exportComplete}
+            disabled={isExporting || exportOutcome !== null}
           >
-            {exportComplete ? (
-              '✓ Downloaded!'
+            {exportOutcome ? (
+              exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!'
             ) : isExporting ? (
-              'Exporting...'
+              isClipboardExport ? 'Copying...' : 'Exporting...'
             ) : (
               <>
                 <IconExport size={16} />
-                Export
+                {isSnapshot ? 'Download Snapshot' : isMarkdown ? 'Copy Markdown' : 'Export'}
               </>
             )}
           </button>

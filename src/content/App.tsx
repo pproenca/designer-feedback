@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { FeedbackToolbar } from '@/components/FeedbackToolbar';
-import { getStorageKey, getAnnotationCount } from '@/utils/storage';
 import type { Settings } from '@/types';
 
 interface AppProps {
@@ -13,38 +12,31 @@ export function App({ shadowRoot }: AppProps) {
 
   useEffect(() => {
     // Load initial settings
-    chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (response) => {
-      if (response?.settings) {
-        const settings = response.settings as Settings;
-        setEnabled(settings.enabled);
-        setLightMode(settings.lightMode);
+    chrome.storage.sync.get({ enabled: true, lightMode: false }, (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to get settings:', chrome.runtime.lastError.message);
+        return;
       }
+      const settings = result as Settings;
+      setEnabled(settings.enabled);
+      setLightMode(settings.lightMode);
     });
 
-    // Listen for messages from popup
-    const handleMessage = (
-      message: { type: string; enabled?: boolean },
-      _sender: chrome.runtime.MessageSender,
-      sendResponse: (response: unknown) => void
+    const handleStorageChanges = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      area: string
     ) => {
-      if (message.type === 'TOGGLE_TOOLBAR' && message.enabled !== undefined) {
-        setEnabled(message.enabled);
-        return false;
+      if (area !== 'sync') return;
+      if (changes.enabled) {
+        setEnabled(Boolean(changes.enabled.newValue));
       }
-
-      if (message.type === 'GET_ANNOTATION_COUNT') {
-        const url = getStorageKey();
-        getAnnotationCount(url)
-          .then((count) => sendResponse({ count }))
-          .catch(() => sendResponse({ count: 0 }));
-        return true; // Keep channel open for async response
+      if (changes.lightMode) {
+        setLightMode(Boolean(changes.lightMode.newValue));
       }
-
-      return false;
     };
 
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChanges);
   }, []);
 
   if (!enabled) {
