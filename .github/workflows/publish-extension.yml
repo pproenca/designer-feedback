@@ -63,8 +63,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
-
       - name: Get version from manifest
         id: version
         run: |
@@ -81,10 +79,12 @@ jobs:
             exit 1
           fi
 
-      - name: Create extension zip
+      - name: Build and package extension
+        run: npm run pack
+
+      - name: Normalize package name
         run: |
-          cd dist
-          zip -r "../${{ env.EXTENSION_ZIP }}" .
+          mv dist/designer-feedback.zip "${{ env.EXTENSION_ZIP }}"
 
       - uses: actions/upload-artifact@v4
         with:
