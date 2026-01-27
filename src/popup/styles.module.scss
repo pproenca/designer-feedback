@@ -1,15 +1,50 @@
 $blue: #3c82f7;
+$amber: #ffd60a;
+$green: #34c759;
+
+@keyframes attentionPulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes savedGlow {
+  0% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes statusIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
 .popup {
   padding: 1rem;
   min-width: 300px;
-  background: var(--df-surface-gradient);
+  background: var(--df-surface);
   color: var(--df-text);
   border: 1px solid var(--df-border);
-  border-radius: 16px;
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-radius: 0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   animation: df-panel-in var(--dur-smooth) var(--ease-smooth) both;
 }
 
@@ -38,7 +73,7 @@ $blue: #3c82f7;
 
 .version {
   font-size: 0.625rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.74);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 0.15rem 0.5rem;
@@ -48,14 +83,214 @@ $blue: #3c82f7;
 }
 
 .section {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
   padding: 0.625rem 0.75rem;
 
   & + & {
     margin-top: 0.5rem;
   }
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sectionMeta {
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.modeSwitch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.modeButton {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.45rem 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-ui) var(--ease-smooth),
+    background var(--dur-ui) var(--ease-smooth),
+    color var(--dur-ui) var(--ease-smooth),
+    transform var(--dur-quick) var(--ease-smooth);
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($blue, 0.6);
+    outline-offset: 2px;
+  }
+}
+
+.modeButton.active {
+  background: rgba(60, 130, 247, 0.2);
+  border-color: rgba(60, 130, 247, 0.6);
+  color: #dbe7ff;
+}
+
+.siteListLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.siteList {
+  width: 100%;
+  min-height: 72px;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+  transition:
+    border-color var(--dur-ui) var(--ease-smooth),
+    box-shadow var(--dur-ui) var(--ease-smooth);
+
+  &:focus {
+    border-color: rgba($blue, 0.6);
+    box-shadow: 0 0 0 2px rgba($blue, 0.2);
+  }
+}
+
+.siteListDirty {
+  border-color: rgba($amber, 0.7);
+  box-shadow: 0 0 0 2px rgba($amber, 0.18);
+}
+
+.siteListSaved {
+  border-color: rgba($green, 0.7);
+  box-shadow: 0 0 0 2px rgba($green, 0.18);
+}
+
+.siteActions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.secondaryButton {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-ui) var(--ease-smooth),
+    background var(--dur-ui) var(--ease-smooth),
+    transform var(--dur-quick) var(--ease-smooth);
+
+  &:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.saveButton {
+  position: relative;
+}
+
+.saveButtonDirty {
+  border-color: rgba($amber, 0.7);
+  background: rgba($amber, 0.16);
+  color: #fff4bf;
+  animation: attentionPulse 1.2s var(--ease-bounce) 2;
+  box-shadow: inset 0 0 0 1px rgba($amber, 0.2);
+}
+
+.saveButtonSaved {
+  border-color: rgba($green, 0.7);
+  background: rgba($green, 0.2);
+  color: #d7fbe3;
+  animation: savedGlow 0.8s var(--ease-pop) both;
+  box-shadow: inset 0 0 0 1px rgba($green, 0.25);
+  opacity: 1;
+}
+
+.saveStatus {
+  min-height: 0.9rem;
+  margin-top: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.saveStatusDirty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba($amber, 0.18);
+  border: 1px solid rgba($amber, 0.35);
+  color: #fff1b5;
+  animation: statusIn var(--dur-ui) var(--ease-pop) both;
+}
+
+.saveStatusSaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba($green, 0.2);
+  border: 1px solid rgba($green, 0.35);
+  color: #d7fbe3;
+  animation: statusIn var(--dur-ui) var(--ease-pop) both;
+}
+
+.helperText {
+  margin: 0.6rem 0 0;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 // Toggle switch
@@ -128,7 +363,7 @@ $blue: #3c82f7;
 
 .statsLabel {
   font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.74);
 }
 
 .statsCount {
@@ -151,7 +386,7 @@ $blue: #3c82f7;
   background: linear-gradient(135deg, #4b8cff, #2d6fe8);
   color: #fff;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;

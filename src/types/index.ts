@@ -33,9 +33,13 @@ export type Annotation = {
   isFixed?: boolean;
 };
 
+export type SiteListMode = 'allowlist' | 'blocklist';
+
 export type Settings = {
   enabled: boolean;
   lightMode: boolean;
+  siteListMode: SiteListMode;
+  siteList: string[];
 };
 
 export type FeedbackExport = {

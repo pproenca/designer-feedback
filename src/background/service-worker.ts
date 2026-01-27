@@ -3,12 +3,7 @@
 // =============================================================================
 
 import type { Settings, MessageType } from '@/types';
-
-// Default settings
-const DEFAULT_SETTINGS: Settings = {
-  enabled: true,
-  lightMode: false,
-};
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message: MessageType, sender, sendResponse) => {
