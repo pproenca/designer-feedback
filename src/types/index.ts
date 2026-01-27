@@ -61,7 +61,6 @@ export type ExportFormat = 'html' | 'image-notes' | 'snapshot';
 
 // Message types for content <-> background communication
 export type MessageType =
-  | { type: 'PING' }
   | { type: 'CAPTURE_SCREENSHOT' }
   | { type: 'SCREENSHOT_CAPTURED'; data: string; error?: string }
   | { type: 'GET_SETTINGS' }

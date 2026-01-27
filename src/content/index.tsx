@@ -55,11 +55,6 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
   };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'PING') {
-      sendResponse({ ok: true });
-      return true;
-    }
-
     if (message.type === 'GET_ANNOTATION_COUNT') {
       if (!shouldRunOnPage()) {
         sendResponse({ count: 0 });
