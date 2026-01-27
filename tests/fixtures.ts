@@ -1,7 +1,10 @@
 import { test as base, chromium, type BrowserContext } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const extensionPath = process.env.EXTENSION_PATH ?? path.join(__dirname, '..', 'dist');
 
 if (!fs.existsSync(extensionPath)) {
