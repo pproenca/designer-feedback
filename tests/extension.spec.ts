@@ -1,6 +1,13 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
+const DEFAULT_TEST_SETTINGS = {
+  enabled: true,
+  lightMode: false,
+  siteListMode: 'blocklist',
+  siteList: [],
+};
+
 async function openPopup(page: Page, extensionId: string) {
   await page.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
 }
@@ -28,6 +35,13 @@ async function clearAnnotationsDb(page: Page) {
         request.onblocked = () => resolve();
       })
   );
+}
+
+async function getStoredSettings(page: Page) {
+  return page.evaluate(async (defaults) => {
+    const result = await chrome.storage.sync.get(defaults);
+    return result;
+  }, DEFAULT_TEST_SETTINGS);
 }
 
 async function prepareContentPage(page: Page, context: BrowserContext, extensionId: string) {
@@ -58,9 +72,9 @@ async function createAnnotation(
 test.describe('Popup UI', () => {
   test.beforeEach(async ({ page, extensionId }) => {
     await openPopup(page, extensionId);
-    await page.evaluate(async () => {
-      await chrome.storage.sync.set({ enabled: true, lightMode: false });
-    });
+    await page.evaluate(async (settings) => {
+      await chrome.storage.sync.set(settings);
+    }, DEFAULT_TEST_SETTINGS);
     await page.reload();
   });
 
@@ -72,17 +86,63 @@ test.describe('Popup UI', () => {
 
     await expect(page.getByText('Annotations on this page')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export Feedback' })).toBeDisabled();
+
+    await expect(page.getByText('Site access')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'All sites' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(page.getByLabel('Blocked sites')).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Disable on this site' })).toBeDisabled();
   });
 
   test('toggle updates stored settings', async ({ page }) => {
     await page.getByText('Enable Toolbar').click();
 
     await expect.poll(async () => {
-      return page.evaluate(async () => {
-        const result = await chrome.storage.sync.get({ enabled: true });
-        return result.enabled;
-      });
+      const settings = await getStoredSettings(page);
+      return settings.enabled;
     }).toBe(false);
+  });
+
+  test('happy path: saves allowlist settings', async ({ page }) => {
+    await page.getByRole('button', { name: 'Only allowlist' }).click();
+
+    const siteList = page.getByLabel('Allowed sites');
+    await siteList.fill(`Example.com
+https://example.com/admin
+# comment
+/admin
+EXAMPLE.com`);
+    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(siteList).toHaveValue('example.com\nexample.com/admin');
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(page);
+      return { siteListMode: settings.siteListMode, siteList: settings.siteList };
+    }).toEqual({
+      siteListMode: 'allowlist',
+      siteList: ['example.com', 'example.com/admin'],
+    });
+    await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
+  });
+
+  test('sad path: ignores invalid site list entries', async ({ page }) => {
+    const siteList = page.getByLabel('Blocked sites');
+    await siteList.fill(`# comment
+/admin
+http://
+`);
+    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(siteList).toHaveValue('');
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(page);
+      return settings.siteList;
+    }).toEqual([]);
+    await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
   });
 });
 

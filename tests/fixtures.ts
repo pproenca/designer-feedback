@@ -1,5 +1,6 @@
 import { test as base, chromium, type BrowserContext } from '@playwright/test';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,10 +18,13 @@ export const test = base.extend<{
   context: BrowserContext;
   extensionId: string;
 }>({
-  context: async ({}, use) => {
+  context: async ({}, use, testInfo) => {
     const useHeadless = process.env.PWHEADLESS === '1';
+    const userDataDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), `designer-feedback-${testInfo.workerIndex}-`)
+    );
 
-    const context = await chromium.launchPersistentContext('', {
+    const context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       args: [
         useHeadless ? '--headless=new' : '',
@@ -31,6 +35,7 @@ export const test = base.extend<{
     });
     await use(context);
     await context.close();
+    await fs.promises.rm(userDataDir, { recursive: true, force: true });
   },
   extensionId: async ({ context }, use) => {
     let [serviceWorker] = context.serviceWorkers();
