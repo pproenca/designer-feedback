@@ -4,7 +4,7 @@ on:
   push:
     branches: ["master"]
     paths:
-      - "docs/**"
+      - "docs/privacy.html"
       - ".github/workflows/publish-pages.yml"
 
 permissions:
