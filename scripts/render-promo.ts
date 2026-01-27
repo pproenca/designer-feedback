@@ -30,20 +30,20 @@ const COLORS = {
 };
 
 // Marker component (matches app style)
-const marker = (number: number, color: string, top: string, left: string) => `
+const marker = (number: number, color: string, top: string, left: string, size = 28, fontSize = 14) => `
   <div style="
     position: absolute;
     top: ${top};
     left: ${left};
-    width: 28px;
-    height: 28px;
+    width: ${size}px;
+    height: ${size}px;
     background: ${color};
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: ${fontSize}px;
     font-weight: 600;
     font-family: system-ui, -apple-system, sans-serif;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
@@ -276,9 +276,9 @@ const marqueePromoHTML = `
         </div>
       </div>
     </div>
-    ${marker(1, COLORS.bug, '100px', '480px').replace('28px', '36px').replace('14px', '18px')}
-    ${marker(2, COLORS.suggestion, '280px', '850px').replace('28px', '36px').replace('14px', '18px')}
-    ${marker(3, COLORS.question, '320px', '130px').replace('28px', '36px').replace('14px', '18px')}
+    ${marker(1, COLORS.bug, '100px', '480px', 36, 18)}
+    ${marker(2, COLORS.suggestion, '280px', '850px', 36, 18)}
+    ${marker(3, COLORS.question, '320px', '130px', 36, 18)}
   </div>
 </body>
 </html>
