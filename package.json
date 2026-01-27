@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "package": "npm run build && cd dist && zip -r ../designer-feedback.zip . -x \"*.DS_Store\"",
+    "package": "npm run pack",
     "release": "npm version patch --no-git-tag-version && node scripts/sync-manifest-version.cjs && npm run package",
     "preview": "vite preview",
     "test": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "pack": "npm run build && cd dist && zip -r designer-feedback.zip . -x \"*.DS_Store\" -x \"designer-feedback.zip\""
   },
   "dependencies": {
     "jszip": "^3.10.1",

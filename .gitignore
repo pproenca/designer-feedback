@@ -1,6 +1,8 @@
 node_modules
-dist
+dist/*
+!dist/.gitkeep
 *.log
+*.zip
 .DS_Store
 .AppleDouble
 .LSOverride
