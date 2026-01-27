@@ -22,6 +22,71 @@ export function Popup() {
     () => (activeUrl ? isHttpUrl(activeUrl) : false),
     [activeUrl]
   );
+  const contentScriptFiles = ['assets/content-loader.js'];
+  const contentStyleFiles = ['assets/content.css'];
+
+  const queryActiveTab = () =>
+    new Promise<chrome.tabs.Tab | null>((resolve) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to query tabs:', chrome.runtime.lastError.message);
+          resolve(null);
+          return;
+        }
+        resolve(tabs[0] ?? null);
+      });
+    });
+
+  const sendMessageToTab = (tabId: number, message: unknown) =>
+    new Promise<{ response: unknown | null; error?: string }>((resolve) => {
+      chrome.tabs.sendMessage(tabId, message, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ response: null, error: chrome.runtime.lastError.message });
+          return;
+        }
+        resolve({ response });
+      });
+    });
+
+  const injectContentScript = async (tabId: number) => {
+    await new Promise<void>((resolve) => {
+      chrome.scripting.insertCSS({ target: { tabId }, files: contentStyleFiles }, () => {
+        void chrome.runtime.lastError;
+        resolve();
+      });
+    });
+
+    return new Promise<boolean>((resolve) => {
+      chrome.scripting.executeScript({ target: { tabId }, files: contentScriptFiles }, () => {
+        if (chrome.runtime.lastError) {
+          console.debug('Failed to inject content script:', chrome.runtime.lastError.message);
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    });
+  };
+
+  const ensureContentScript = async (tabId: number) => {
+    const ping = await sendMessageToTab(tabId, { type: 'PING' });
+    if (!ping.error) return true;
+    const injected = await injectContentScript(tabId);
+    if (!injected) return false;
+    const pingAfter = await sendMessageToTab(tabId, { type: 'PING' });
+    return !pingAfter.error;
+  };
+
+  const sendMessageToActiveTab = async (message: unknown) => {
+    const tab = await queryActiveTab();
+    const tabId = tab?.id;
+    if (!tabId) return null;
+    const ready = await ensureContentScript(tabId);
+    if (!ready) return null;
+    const { response, error } = await sendMessageToTab(tabId, message);
+    if (error) return null;
+    return response;
+  };
 
   useEffect(() => {
     // Load settings
@@ -39,38 +104,17 @@ export function Popup() {
     });
 
     // Load current tab URL
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      const url = tabs[0]?.url ?? null;
+    queryActiveTab().then((tab) => {
+      const url = tab?.url ?? null;
       setActiveUrl(url);
       setActiveHost(url ? getHostFromUrl(url) : null);
     });
 
     // Get current tab's annotation count directly from content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      const tabId = tabs[0]?.id;
-      if (tabId) {
-        chrome.tabs.sendMessage(
-          tabId,
-          { type: 'GET_ANNOTATION_COUNT' },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              // Content script may not be loaded on this page
-              console.debug('Could not get annotation count:', chrome.runtime.lastError.message);
-              return;
-            }
-            if (response?.count !== undefined) {
-              setAnnotationCount(response.count);
-            }
-          }
-        );
+    sendMessageToActiveTab({ type: 'GET_ANNOTATION_COUNT' }).then((response) => {
+      const count = (response as { count?: number } | null)?.count;
+      if (count !== undefined) {
+        setAnnotationCount(count);
       }
     });
   }, []);
@@ -113,36 +157,13 @@ export function Popup() {
     });
 
     // Notify content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          type: 'TOGGLE_TOOLBAR',
-          enabled,
-        }, () => {
-          // Ignore errors - content script may not be loaded
-          void chrome.runtime.lastError;
-        });
-      }
-    });
+    // Ignore errors - content script may not be loaded on this page
+    void sendMessageToActiveTab({ type: 'TOGGLE_TOOLBAR', enabled });
   };
 
   const handleExport = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'TRIGGER_EXPORT' }, () => {
-          // Ignore errors - content script may not be loaded
-          void chrome.runtime.lastError;
-        });
-        window.close();
-      }
+    sendMessageToActiveTab({ type: 'TRIGGER_EXPORT' }).finally(() => {
+      window.close();
     });
   };
 

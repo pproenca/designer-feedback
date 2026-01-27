@@ -5,7 +5,9 @@
   "description": "Annotate any webpage and share visual feedback with developers",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "activeTab",
+    "scripting"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -25,14 +27,5 @@
   "background": {
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
-  },
-  "host_permissions": ["http://*/*", "https://*/*"],
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "run_at": "document_idle",
-      "js": ["src/content/index.tsx"],
-      "css": []
-    }
-  ]
+  }
 }
