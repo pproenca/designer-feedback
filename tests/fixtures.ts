@@ -14,6 +14,19 @@ if (!fs.existsSync(extensionPath)) {
   );
 }
 
+async function createTestExtensionDir(workerIndex: number): Promise<string> {
+  const tempDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), `designer-feedback-ext-${workerIndex}-`)
+  );
+  await fs.promises.cp(extensionPath, tempDir, { recursive: true });
+
+  const manifestPath = path.join(tempDir, 'manifest.json');
+  const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf-8'));
+  manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+  return tempDir;
+}
+
 export const test = base.extend<{
   context: BrowserContext;
   extensionId: string;
@@ -23,19 +36,21 @@ export const test = base.extend<{
     const userDataDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), `designer-feedback-${testInfo.workerIndex}-`)
     );
+    const testExtensionPath = await createTestExtensionDir(testInfo.workerIndex);
 
     const context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       args: [
         useHeadless ? '--headless=new' : '',
-        `--disable-extensions-except=${extensionPath}`,
-        `--load-extension=${extensionPath}`,
+        `--disable-extensions-except=${testExtensionPath}`,
+        `--load-extension=${testExtensionPath}`,
         ...(process.env.CI ? ['--disable-gpu', '--no-sandbox'] : []),
       ].filter(Boolean),
     });
     await use(context);
     await context.close();
     await fs.promises.rm(userDataDir, { recursive: true, force: true });
+    await fs.promises.rm(testExtensionPath, { recursive: true, force: true });
   },
   extensionId: async ({ context }, use) => {
     let [serviceWorker] = context.serviceWorkers();

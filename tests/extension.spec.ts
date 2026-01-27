@@ -224,6 +224,50 @@ http://
       return settings.siteListMode;
     }).toBe('blocklist');
   });
+
+  test('permission callout requests all-sites access', async ({ context, extensionId }) => {
+    const popupPage = await context.newPage();
+    await popupPage.addInitScript(() => {
+      const win = window as Window & { __permissionRequests?: unknown[] };
+      win.__permissionRequests = [];
+      // Stub permissions to simulate missing host access.
+      chrome.permissions.contains = (_info, callback) => {
+        callback(false);
+      };
+      chrome.permissions.request = (info, callback) => {
+        win.__permissionRequests?.push(info);
+        callback(true);
+      };
+    });
+
+    await openPopup(popupPage, extensionId);
+    await popupPage.evaluate(async (settings) => {
+      await chrome.storage.sync.set(settings);
+    }, DEFAULT_TEST_SETTINGS);
+    await popupPage.reload();
+
+    await expect(
+      popupPage.getByText(
+        'Enable access for all sites to keep the toolbar on automatically.'
+      )
+    ).toBeVisible();
+
+    const enableButton = popupPage.getByRole('button', { name: 'Enable on all sites' });
+    await enableButton.click();
+
+    await expect(enableButton).toHaveCount(0);
+    await expect(
+      popupPage.getByText(
+        'Enable access for all sites to keep the toolbar on automatically.'
+      )
+    ).toHaveCount(0);
+
+    const permissionRequests = await popupPage.evaluate(
+      () => (window as Window & { __permissionRequests?: unknown[] }).__permissionRequests
+    );
+    expect(permissionRequests).toEqual([{ origins: ['http://*/*', 'https://*/*'] }]);
+    await popupPage.close();
+  });
 });
 
 test.describe('Content Script', () => {

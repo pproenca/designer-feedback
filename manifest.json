@@ -7,7 +7,8 @@
     "storage",
     "tabs",
     "downloads",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -28,13 +29,11 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
-  "host_permissions": ["<all_urls>"],
-  "content_scripts": [
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "web_accessible_resources": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "run_at": "document_idle",
-      "js": ["src/content/index.tsx"],
-      "css": []
+      "resources": ["assets/*.js", "assets/*.css"]
     }
   ]
 }

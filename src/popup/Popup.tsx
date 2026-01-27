@@ -6,8 +6,13 @@ import {
   getHostFromUrl,
   isHttpUrl,
   parseSiteListInput,
+  normalizeSiteList,
+  isUrlAllowed,
 } from '@/utils/site-access';
+import { getOriginPattern, siteListToOriginPatterns } from '@/utils/permissions';
 import styles from './styles.module.scss';
+
+const CONTENT_SCRIPT_FILE = 'assets/content-loader.js';
 
 export function Popup() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -16,12 +21,171 @@ export function Popup() {
   const [savedSiteListText, setSavedSiteListText] = useState('');
   const [siteListStatus, setSiteListStatus] = useState<'idle' | 'dirty' | 'saved'>('idle');
   const saveStatusTimeoutRef = useRef<number | null>(null);
+  const [activeTabId, setActiveTabId] = useState<number | null>(null);
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeHost, setActiveHost] = useState<string | null>(null);
+  const [hasSitePermission, setHasSitePermission] = useState(false);
+  const [hasAllSitesPermission, setHasAllSitesPermission] = useState(false);
+  const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
+  const [permissionRequesting, setPermissionRequesting] = useState(false);
   const canUseCurrentSite = useMemo(
     () => (activeUrl ? isHttpUrl(activeUrl) : false),
     [activeUrl]
   );
+  const isCurrentSiteAllowed = useMemo(
+    () => (activeUrl ? isUrlAllowed(activeUrl, settings) : false),
+    [activeUrl, settings]
+  );
+
+  const getActiveTab = () =>
+    new Promise<chrome.tabs.Tab | null>((resolve) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to query tabs:', chrome.runtime.lastError.message);
+          resolve(null);
+          return;
+        }
+        resolve(tabs[0] ?? null);
+      });
+    });
+
+  const refreshSitePermission = (url: string | null) => {
+    const originPattern = url ? getOriginPattern(url) : null;
+    if (!originPattern) {
+      setHasSitePermission(false);
+      return;
+    }
+    chrome.permissions.contains({ origins: [originPattern] }, (granted) => {
+      if (chrome.runtime.lastError) {
+        setHasSitePermission(false);
+        return;
+      }
+      setHasSitePermission(Boolean(granted));
+    });
+  };
+
+  const refreshAllSitesPermission = () => {
+    chrome.permissions.contains(
+      { origins: ['http://*/*', 'https://*/*'] },
+      (granted) => {
+        if (chrome.runtime.lastError) {
+          setHasAllSitesPermission(false);
+          return;
+        }
+        setHasAllSitesPermission(Boolean(granted));
+      }
+    );
+  };
+
+  const requestPermissions = (origins: string[]) =>
+    new Promise<boolean>((resolve) => {
+      if (origins.length === 0) {
+        resolve(false);
+        return;
+      }
+      chrome.permissions.request({ origins }, (granted) => {
+        if (chrome.runtime.lastError) {
+          console.error('Permission request failed:', chrome.runtime.lastError.message);
+          resolve(false);
+          return;
+        }
+        resolve(Boolean(granted));
+      });
+    });
+
+  const markInjectionIfNeeded = (tabId: number) =>
+    new Promise<boolean>((resolve) => {
+      chrome.scripting.executeScript(
+        {
+          target: { tabId },
+          func: () => {
+            const windowAny = window as Window & {
+              __designerFeedbackInjected?: boolean;
+              __designerFeedbackLoaderInjected?: boolean;
+            };
+            if (
+              windowAny.__designerFeedbackInjected ||
+              windowAny.__designerFeedbackLoaderInjected
+            ) {
+              return false;
+            }
+            windowAny.__designerFeedbackLoaderInjected = true;
+            return true;
+          },
+        },
+        (results) => {
+          if (chrome.runtime.lastError) {
+            resolve(false);
+            return;
+          }
+          resolve(Boolean(results?.[0]?.result));
+        }
+      );
+    });
+
+  const ensureContentScript = (tabId: number, url: string | null) =>
+    new Promise<void>((resolve) => {
+      if (!url || !isHttpUrl(url)) {
+        resolve();
+        return;
+      }
+      markInjectionIfNeeded(tabId)
+        .then((shouldInject) => {
+          if (!shouldInject) {
+            resolve();
+            return;
+          }
+          chrome.scripting.executeScript(
+            {
+              target: { tabId },
+              files: [CONTENT_SCRIPT_FILE],
+            },
+            () => {
+              if (chrome.runtime.lastError) {
+                console.debug('Could not inject content script:', chrome.runtime.lastError.message);
+              }
+              resolve();
+            }
+          );
+        })
+        .catch(() => resolve());
+    });
+
+  const requestCurrentSiteAccess = async () => {
+    if (!activeUrl) return false;
+    const originPattern = getOriginPattern(activeUrl);
+    if (!originPattern) return false;
+
+    setPermissionNotice(null);
+    setPermissionRequesting(true);
+    const granted = await requestPermissions([originPattern]);
+    setPermissionRequesting(false);
+    if (!granted) {
+      setPermissionNotice('Access was not granted for this site.');
+      return false;
+    }
+    setHasSitePermission(true);
+    if (activeTabId) {
+      await ensureContentScript(activeTabId, activeUrl);
+    }
+    return true;
+  };
+
+  const requestAllSitesAccess = async () => {
+    setPermissionNotice(null);
+    setPermissionRequesting(true);
+    const granted = await requestPermissions(['http://*/*', 'https://*/*']);
+    setPermissionRequesting(false);
+    if (!granted) {
+      setPermissionNotice('All sites access was not granted.');
+      return false;
+    }
+    setHasAllSitesPermission(true);
+    if (activeTabId && activeUrl) {
+      await ensureContentScript(activeTabId, activeUrl);
+    }
+    return true;
+  };
 
   useEffect(() => {
     // Load settings
@@ -37,28 +201,20 @@ export function Popup() {
       setSavedSiteListText(formattedList);
       setSiteListStatus('idle');
     });
+    refreshAllSitesPermission();
 
-    // Load current tab URL
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      const url = tabs[0]?.url ?? null;
+    const loadActiveTab = async () => {
+      const tab = await getActiveTab();
+      const url = tab?.url ?? null;
+      setActiveTabId(tab?.id ?? null);
       setActiveUrl(url);
       setActiveHost(url ? getHostFromUrl(url) : null);
-    });
+      refreshSitePermission(url);
 
-    // Get current tab's annotation count directly from content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      const tabId = tabs[0]?.id;
-      if (tabId) {
+      if (tab?.id) {
+        await ensureContentScript(tab.id, url);
         chrome.tabs.sendMessage(
-          tabId,
+          tab.id,
           { type: 'GET_ANNOTATION_COUNT' },
           (response) => {
             if (chrome.runtime.lastError) {
@@ -72,7 +228,9 @@ export function Popup() {
           }
         );
       }
-    });
+    };
+
+    void loadActiveTab();
   }, []);
 
   useEffect(() => {
@@ -103,7 +261,7 @@ export function Popup() {
     }
   };
 
-  const handleToggle = (enabled: boolean) => {
+  const handleToggle = async (enabled: boolean) => {
     const newSettings = { ...settings, enabled };
     setSettings(newSettings);
     chrome.storage.sync.set(newSettings, () => {
@@ -112,41 +270,41 @@ export function Popup() {
       }
     });
 
-    // Notify content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+    const tab = await getActiveTab();
+    if (tab?.id) {
+      await ensureContentScript(tab.id, tab.url ?? null);
+      chrome.tabs.sendMessage(
+        tab.id,
+        {
           type: 'TOGGLE_TOOLBAR',
           enabled,
-        }, () => {
+        },
+        () => {
           // Ignore errors - content script may not be loaded
           void chrome.runtime.lastError;
-        });
-      }
-    });
+        }
+      );
+    }
   };
 
-  const handleExport = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to query tabs:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'TRIGGER_EXPORT' }, () => {
-          // Ignore errors - content script may not be loaded
-          void chrome.runtime.lastError;
-        });
-        window.close();
-      }
-    });
+  const handleExport = async () => {
+    const tab = await getActiveTab();
+    if (tab?.id) {
+      await ensureContentScript(tab.id, tab.url ?? null);
+      chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_EXPORT' }, () => {
+        // Ignore errors - content script may not be loaded
+        void chrome.runtime.lastError;
+      });
+      window.close();
+    }
   };
 
-  const handleModeChange = (mode: SiteListMode) => {
+  const handleModeChange = async (mode: SiteListMode) => {
+    if (mode === 'blocklist' && !hasAllSitesPermission) {
+      const granted = await requestAllSitesAccess();
+      if (!granted) return;
+    }
+
     const newSettings = { ...settings, siteListMode: mode };
     setSettings(newSettings);
     chrome.storage.sync.set(newSettings, () => {
@@ -156,10 +314,24 @@ export function Popup() {
     });
   };
 
-  const handleSaveSiteList = () => {
-    const siteList = parseSiteListInput(siteListText);
-    const formattedList = formatSiteList(siteList);
-    const newSettings = { ...settings, siteList };
+  const handleSaveSiteList = async () => {
+    const parsedList = parseSiteListInput(siteListText);
+    const nextList = normalizeSiteList(parsedList);
+    const formattedList = formatSiteList(nextList);
+    const previousList = normalizeSiteList(settings.siteList);
+    const addedEntries = nextList.filter((entry) => !previousList.includes(entry));
+
+    if (settings.siteListMode === 'allowlist' && addedEntries.length > 0) {
+      setPermissionNotice(null);
+      setPermissionRequesting(true);
+      const granted = await requestPermissions(siteListToOriginPatterns(addedEntries));
+      setPermissionRequesting(false);
+      if (!granted) {
+        setPermissionNotice('Access was not granted for all added sites.');
+      }
+    }
+
+    const newSettings = { ...settings, siteList: nextList };
     setSettings(newSettings);
     setSiteListText(formattedList);
     chrome.storage.sync.set(newSettings, () => {
@@ -172,8 +344,10 @@ export function Popup() {
     });
   };
 
-  const handleAddCurrentSite = () => {
-    if (!activeHost) return;
+  const handleAddCurrentSite = async () => {
+    if (!activeHost || !activeUrl) return;
+    await requestCurrentSiteAccess();
+
     const nextList = parseSiteListInput(`${siteListText}\n${activeHost}`);
     const formattedList = formatSiteList(nextList);
     const newSettings = { ...settings, siteList: nextList };
@@ -200,6 +374,16 @@ export function Popup() {
       : siteListStatus === 'dirty'
         ? 'Save changes'
         : 'Save list';
+  const needsAllSitesAccess =
+    settings.siteListMode === 'blocklist' && !hasAllSitesPermission;
+  const needsCurrentSiteAccess =
+    settings.siteListMode === 'allowlist' && isCurrentSiteAllowed && !hasSitePermission;
+  const accessNoticeText = needsAllSitesAccess
+    ? 'Enable access for all sites to keep the toolbar on automatically.'
+    : needsCurrentSiteAccess
+      ? 'Enable access for this site to keep the toolbar on automatically.'
+      : null;
+  const accessButtonLabel = needsAllSitesAccess ? 'Enable on all sites' : 'Enable on this site';
 
   return (
     <div className={styles.popup}>
@@ -207,6 +391,33 @@ export function Popup() {
         <h1 className={styles.title}>Designer Feedback</h1>
         <span className={styles.version}>v1.0.0</span>
       </div>
+
+      {(accessNoticeText || permissionNotice) && (
+        <div className={`${styles.section} ${styles.accessSection}`}>
+          <div className={styles.accessHeader}>
+            <span className={styles.accessTitle}>Access required</span>
+            <span className={styles.accessPill}>
+              {needsAllSitesAccess ? 'All sites' : 'This site'}
+            </span>
+          </div>
+          {accessNoticeText && (
+            <p className={styles.accessText}>{accessNoticeText}</p>
+          )}
+          {permissionNotice && (
+            <p className={styles.accessSubtext}>{permissionNotice}</p>
+          )}
+          {accessNoticeText && (
+            <button
+              type="button"
+              className={styles.accessPrimaryButton}
+              onClick={needsAllSitesAccess ? requestAllSitesAccess : requestCurrentSiteAccess}
+              disabled={permissionRequesting}
+            >
+              {permissionRequesting ? 'Requesting...' : accessButtonLabel}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className={styles.section}>
         <label className={styles.toggle}>
@@ -287,7 +498,7 @@ export function Popup() {
             type="button"
             className={styles.secondaryButton}
             onClick={handleAddCurrentSite}
-            disabled={!canUseCurrentSite || !activeHost}
+            disabled={!canUseCurrentSite || !activeHost || permissionRequesting}
           >
             {siteActionLabel}
           </button>
@@ -301,7 +512,7 @@ export function Popup() {
                   : ''
             }`}
             onClick={handleSaveSiteList}
-            disabled={siteListStatus !== 'dirty'}
+            disabled={siteListStatus !== 'dirty' || permissionRequesting}
           >
             {saveButtonLabel}
           </button>

@@ -32,9 +32,16 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
+    assetsInlineLimit: 0,
+    cssCodeSplit: false,
+    modulePreload: false,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
+        'content-loader': resolve(__dirname, 'src/content/loader.ts'),
+      },
+      output: {
+        entryFileNames: 'assets/[name].js',
       },
     },
   },

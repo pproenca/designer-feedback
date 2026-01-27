@@ -7,6 +7,7 @@ import { mountUI, unmountUI } from './mount';
 declare global {
   interface Window {
     __designerFeedbackInjected?: boolean;
+    __designerFeedbackLoaderInjected?: boolean;
   }
 }
 

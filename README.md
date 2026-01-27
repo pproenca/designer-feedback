@@ -47,7 +47,8 @@ See `docs/privacy.html` for the full policy.
 
 - `storage` to save annotations and settings locally.
 - `tabs` to read the current tab URL and title for export metadata.
-- `host_permissions` for `http` and `https` so the toolbar can run on pages you choose.
+- `activeTab` + `scripting` to inject the toolbar on the current page when you use the extension.
+- `optional_host_permissions` for `http` and `https`, requested only when you allow specific sites or all sites.
 
 ## installation
 
