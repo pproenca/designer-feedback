@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "gen:icons": "npx tsx scripts/render-icons.ts",
+    "gen:promo": "npx tsx scripts/render-promo.ts",
     "package": "npm run pack",
     "release": "npm version patch --no-git-tag-version && node scripts/sync-manifest-version.cjs && npm run package",
     "preview": "vite preview",
