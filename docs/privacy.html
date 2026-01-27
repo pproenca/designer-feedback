@@ -119,62 +119,58 @@
 
       <section class="card">
         <p class="callout">
-          Designer Feedback stores your annotations and settings locally on your device and runs
-          on pages you visit where the toolbar is enabled. You can restrict sites in the extension
-          settings. We do not operate any servers and do not collect analytics.
+          Designer Feedback is an on-page annotation tool. It stores your annotations and settings
+          locally on your device and only uses data needed to provide its user-facing features. We
+          do not operate servers and do not collect analytics.
         </p>
       </section>
 
       <section class="card">
-        <h2>Information we handle</h2>
-        <p>
-          The extension runs on pages you visit and helps you capture feedback. The data below is
-          processed locally to provide the core functionality:
-        </p>
+        <h2>Information we collect</h2>
+        <p>We process the following data on your device to provide the extension’s features:</p>
         <ul>
-          <li>Web history: page URL and title for the annotation you create.</li>
-          <li>User activity: clicks, annotation positions, and timestamps.</li>
-          <li>
-            Website content: element labels/paths and page screenshots when you export a report.
-          </li>
-        </ul>
-        <p>
-          <strong>Permissions used:</strong> The extension requests the <code>tabs</code> permission
-          to read the current page URL and title, the <code>storage</code> permission to save
-          annotations locally, and broad <code>host_permissions</code> to inject content scripts
-          that enable annotation on any website you choose to use it on.
-        </p>
-      </section>
-
-      <section class="card">
-        <h2>How we use this information</h2>
-        <ul>
-          <li>To place and render annotations on the current page.</li>
-          <li>To generate exports (HTML, image, or ZIP) when you choose to export.</li>
-          <li>To show an annotation count badge.</li>
+          <li><strong>Web history:</strong> page URL and title for each annotated page.</li>
+          <li><strong>User activity:</strong> clicks, annotation positions, and timestamps.</li>
+          <li><strong>Website content:</strong> element labels/paths and page screenshots when you export.</li>
         </ul>
       </section>
 
       <section class="card">
-        <h2>Storage and syncing</h2>
+        <h2>How we collect and use data</h2>
+        <p>We collect and use this data only to deliver the extension’s single purpose:</p>
+        <ul>
+          <li>Create, display, and manage annotations on the current page.</li>
+          <li>Generate exports (HTML, image, or ZIP) when you choose to export.</li>
+          <li>Show an annotation count badge.</li>
+        </ul>
+        <p>
+          Web browsing activity (page URL/title) is used only to associate annotations with the
+          page you are actively annotating.
+        </p>
+        <p>
+          <strong>Permissions used:</strong> The extension requests <code>tabs</code> to read the
+          current page URL and title, <code>storage</code> to save data locally, and
+          <code>host_permissions</code> to inject content scripts on sites you choose to use it on.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Sharing and disclosure</h2>
+        <p>
+          We do not sell, transfer, or share user data with third parties. The only time data
+          leaves the extension is when you choose to download an export to your own device.
+        </p>
+        <p><strong>Parties data is shared with:</strong> None.</p>
+      </section>
+
+      <section class="card">
+        <h2>Storage, syncing, and retention</h2>
         <p>
           Annotations are stored locally in your browser storage. Extension settings are stored
           using Chrome Sync (chrome.storage.sync), which may sync those settings across your Chrome
           profiles if you have sync enabled. We do not access or process this data outside your
           browser.
         </p>
-      </section>
-
-      <section class="card">
-        <h2>Sharing</h2>
-        <p>
-          We do not sell, transfer, or share your data with third parties. Data is only exported
-          when you choose to download a report to your device.
-        </p>
-      </section>
-
-      <section class="card">
-        <h2>Retention</h2>
         <p>
           Data remains in your browser storage until you delete it using the extension or clear
           your browser data.
@@ -189,7 +185,7 @@
       </section>
 
       <section class="card">
-        <h2>Chrome Web Store Compliance</h2>
+        <h2>Chrome Web Store compliance</h2>
         <p>
           The use of information received from Google APIs will adhere to the
           <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data-faq"
