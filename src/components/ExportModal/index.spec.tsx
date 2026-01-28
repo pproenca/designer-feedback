@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { ExportModal } from './index';
+import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
+import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
 import type { Annotation } from '@/types';
 
 // Mock export utilities
 vi.mock('@/utils/export', () => ({
   exportAsImageWithNotes: vi.fn().mockResolvedValue(undefined),
-  exportAsSnapshotImage: vi.fn().mockResolvedValue({ usedPlaceholder: false }),
+  exportAsSnapshotImage: vi.fn().mockResolvedValue({ captureMode: 'full' }),
 }));
 
 vi.mock('@/utils/permissions', () => ({
@@ -30,8 +32,18 @@ const mockAnnotations: Annotation[] = [
 ];
 
 describe('ExportModal', () => {
+  const mockedExportAsImageWithNotes = vi.mocked(exportAsImageWithNotes);
+  const mockedExportAsSnapshotImage = vi.mocked(exportAsSnapshotImage);
+  const mockedHasScreenshotPermission = vi.mocked(hasScreenshotPermission);
+  const mockedRequestScreenshotPermission = vi.mocked(requestScreenshotPermission);
+
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.clearAllMocks();
+    mockedExportAsImageWithNotes.mockResolvedValue(undefined);
+    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'full' });
+    mockedHasScreenshotPermission.mockResolvedValue(true);
+    mockedRequestScreenshotPermission.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -113,5 +125,130 @@ describe('ExportModal', () => {
 
     // onClose should have been called by the timer
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('downloads snapshot and auto-closes on success', async () => {
+    const onClose = vi.fn();
+
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+
+    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(mockedRequestScreenshotPermission).toHaveBeenCalled();
+    expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations, {
+      hasPermission: true,
+    });
+    expect(screen.getByText(/snapshot downloaded\./i)).toBeVisible();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows warning when snapshot uses placeholder and does not auto-close', async () => {
+    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'placeholder' });
+    const onClose = vi.fn();
+
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+
+    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(screen.getByText(/snapshot downloaded, but the screenshot was unavailable/i)).toBeVisible();
+    vi.advanceTimersByTime(2000);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows warning when snapshot falls back to viewport capture', async () => {
+    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'viewport' });
+    const onClose = vi.fn();
+
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+
+    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(
+      screen.getByText(/only the visible area was captured/i)
+    ).toBeVisible();
+    vi.advanceTimersByTime(2000);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('exports markdown to clipboard and auto-closes', async () => {
+    const onClose = vi.fn();
+
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+
+    const markdownButton = screen.getByRole('button', { name: /markdown/i });
+    await act(async () => {
+      fireEvent.click(markdownButton);
+    });
+
+    const exportButton = screen.getByRole('button', { name: /copy markdown/i });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(mockedExportAsImageWithNotes).toHaveBeenCalledWith(mockAnnotations);
+    expect(screen.getByText(/markdown copied to clipboard/i)).toBeVisible();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows permission callout when permission is denied', async () => {
+    mockedHasScreenshotPermission.mockResolvedValue(false);
+
+    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(screen.getByRole('button', { name: /grant access/i })).toBeVisible();
+  });
+
+  it('handles permission request success', async () => {
+    mockedHasScreenshotPermission.mockResolvedValue(false);
+    mockedRequestScreenshotPermission.mockResolvedValue(true);
+
+    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    const grantButton = screen.getByRole('button', { name: /grant access/i });
+    await act(async () => {
+      fireEvent.click(grantButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(mockedRequestScreenshotPermission).toHaveBeenCalled();
+    expect(screen.getByText(/permission granted/i)).toBeVisible();
+  });
+
+  it('shows error when permission is denied on export', async () => {
+    mockedRequestScreenshotPermission.mockResolvedValue(false);
+    const onClose = vi.fn();
+
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+
+    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(mockedExportAsSnapshotImage).not.toHaveBeenCalled();
+    expect(screen.getByText(/screenshot permission is required/i)).toBeVisible();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

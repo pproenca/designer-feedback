@@ -158,12 +158,6 @@ chrome.action.onClicked.addListener(async (tab) => {
     return;
   }
 
-  try {
-    await injectContentScripts(tab.id);
-  } catch (error) {
-    console.warn('Content script injection failed:', error);
-  }
-
   // Track this tab for same-origin persistence
   activatedTabs.set(tab.id, getOrigin(tab.url));
   persistActivatedTabs();

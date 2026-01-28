@@ -3,6 +3,7 @@
  * Tests for icon click behavior and tab tracking
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 
 // Extended mock for service worker testing
 const createMockChrome = () => ({
@@ -449,5 +450,202 @@ describe('Service Worker - Same-Origin Tab Tracking', () => {
     onUpdatedHandler?.(123, { status: 'loading' }, { ...tab, url: 'https://example.com/page2' });
 
     expect(mockChrome.tabs.sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('Service Worker - Message Handling', () => {
+  let mockChrome: ReturnType<typeof createMockChrome>;
+  let onMessageHandler:
+    | ((
+        message: { type: string; [key: string]: unknown },
+        sender: chrome.runtime.MessageSender,
+        sendResponse: (response?: unknown) => void
+      ) => boolean | void)
+    | null = null;
+
+  beforeEach(() => {
+    vi.resetModules();
+    mockChrome = createMockChrome();
+    onMessageHandler = null;
+
+    mockChrome.runtime.onMessage.addListener.mockImplementation((handler) => {
+      onMessageHandler = handler as typeof onMessageHandler;
+    });
+
+    Object.defineProperty(globalThis, 'chrome', {
+      value: mockChrome,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  const importServiceWorker = async () => {
+    await import('./service-worker');
+  };
+
+  it('handles CAPTURE_SCREENSHOT messages', async () => {
+    mockChrome.tabs.captureVisibleTab.mockImplementation((_windowId, _opts, callback) => {
+      callback('data:image/png;base64,abc');
+    });
+
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    const result = onMessageHandler?.(
+      { type: 'CAPTURE_SCREENSHOT' },
+      { tab: { windowId: 5 } } as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    expect(result).toBe(true);
+    await Promise.resolve();
+
+    expect(mockChrome.tabs.captureVisibleTab).toHaveBeenCalledWith(
+      5,
+      { format: 'png' },
+      expect.any(Function)
+    );
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SCREENSHOT_CAPTURED',
+      data: 'data:image/png;base64,abc',
+    });
+  });
+
+  it('returns error when screenshot capture fails', async () => {
+    mockChrome.tabs.captureVisibleTab.mockImplementation((_windowId, _opts, callback) => {
+      mockChrome.runtime.lastError = { message: 'capture failed' };
+      callback(null);
+    });
+
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    onMessageHandler?.(
+      { type: 'CAPTURE_SCREENSHOT' },
+      { tab: { windowId: 7 } } as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SCREENSHOT_CAPTURED',
+      data: '',
+      error: 'capture failed',
+    });
+  });
+
+  it('handles CHECK_SCREENSHOT_PERMISSION', async () => {
+    mockChrome.permissions.contains.mockImplementation((_perms, callback) => callback(true));
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    onMessageHandler?.(
+      { type: 'CHECK_SCREENSHOT_PERMISSION', origin: 'https://example.com/*' },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SCREENSHOT_PERMISSION_STATUS',
+      granted: true,
+    });
+  });
+
+  it('handles REQUEST_SCREENSHOT_PERMISSION', async () => {
+    mockChrome.permissions.request.mockImplementation((_perms, callback) => callback(true));
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    onMessageHandler?.(
+      { type: 'REQUEST_SCREENSHOT_PERMISSION', origin: 'https://example.com/*' },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SCREENSHOT_PERMISSION_RESPONSE',
+      granted: true,
+    });
+  });
+
+  it('handles DOWNLOAD_FILE messages', async () => {
+    mockChrome.downloads.download.mockImplementation((_options, callback) => {
+      callback(42);
+    });
+
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    onMessageHandler?.(
+      { type: 'DOWNLOAD_FILE', filename: 'test.png', dataUrl: 'data:' },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, downloadId: 42 });
+  });
+
+  it('handles GET_SETTINGS messages', async () => {
+    mockChrome.storage.sync.get.mockImplementation((_defaults, callback) => {
+      callback({ ...DEFAULT_SETTINGS, lightMode: false });
+    });
+
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    onMessageHandler?.(
+      { type: 'GET_SETTINGS' },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SETTINGS_RESPONSE',
+      settings: { ...DEFAULT_SETTINGS, lightMode: false },
+    });
+  });
+
+  it('handles SAVE_SETTINGS messages', async () => {
+    mockChrome.storage.sync.set.mockImplementation((_data, callback) => callback());
+
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    const settings = { ...DEFAULT_SETTINGS, enabled: false };
+    onMessageHandler?.(
+      { type: 'SAVE_SETTINGS', settings },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    await Promise.resolve();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'SETTINGS_RESPONSE',
+      settings,
+    });
+  });
+
+  it('updates badge on UPDATE_BADGE messages', async () => {
+    await importServiceWorker();
+
+    const sendResponse = vi.fn();
+    const result = onMessageHandler?.(
+      { type: 'UPDATE_BADGE', count: 4 },
+      {} as chrome.runtime.MessageSender,
+      sendResponse
+    );
+
+    expect(result).toBe(false);
+    expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '4' });
   });
 });

@@ -39,6 +39,7 @@
         "assets/content.js",
         "assets/content-*.js",
         "assets/index-*.js",
+        "assets/settings-*.js",
         "assets/client-*.js",
         "assets/style-*.css",
         "assets/*.woff2"

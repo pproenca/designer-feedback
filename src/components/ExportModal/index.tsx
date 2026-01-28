@@ -169,19 +169,22 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         }
         setPermissionDenied(false);
         const result = await exportAsSnapshotImage(annotations, { hasPermission });
-        if (result.usedPlaceholder) {
-          setStatusMessage({
-            type: 'warning',
-            text:
-              'Snapshot downloaded, but the screenshot was unavailable. Try again or check site restrictions.',
-          });
-        } else {
+        if (result.captureMode === 'full') {
           setExportOutcome('downloaded');
           setStatusMessage({ type: 'success', text: 'Snapshot downloaded.' });
           autoCloseTimerRef.current = setTimeout(() => {
             onClose();
           }, 1500);
+          return;
         }
+
+        setStatusMessage({
+          type: 'warning',
+          text:
+            result.captureMode === 'viewport'
+              ? 'Snapshot downloaded, but only the visible area was captured. Try again or reduce page length.'
+              : 'Snapshot downloaded, but the screenshot was unavailable. Try again or check site restrictions.',
+        });
       } else {
         await exportAsImageWithNotes(annotations);
         setExportOutcome('copied');

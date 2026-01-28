@@ -186,7 +186,7 @@ function showExtensionUI(): void {
 export async function exportAsSnapshotImage(
   annotations: Annotation[],
   options: { hasPermission?: boolean } = {}
-): Promise<{ usedPlaceholder: boolean; error?: string }> {
+): Promise<{ captureMode: 'full' | 'viewport' | 'placeholder'; error?: string }> {
   // Hide UI before capture
   hideExtensionUI();
 
@@ -194,12 +194,12 @@ export async function exportAsSnapshotImage(
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   let screenshot: string;
-  let usedPlaceholder = false;
+  let captureMode: 'full' | 'viewport' | 'placeholder' = 'full';
   let captureError: string | undefined;
   try {
     const capture = await captureFullPage({ hasPermission: options.hasPermission });
     screenshot = capture.dataUrl;
-    usedPlaceholder = capture.isPlaceholder;
+    captureMode = capture.mode;
     captureError = capture.error;
   } finally {
     showExtensionUI();
@@ -208,7 +208,7 @@ export async function exportAsSnapshotImage(
   const composite = await createSnapshotImage(screenshot, annotations);
   const timestamp = new Date().toISOString().split('T')[0];
   await downloadDataUrl(composite, `feedback-${timestamp}.png`);
-  return { usedPlaceholder, error: captureError };
+  return { captureMode, error: captureError };
 }
 
 /**

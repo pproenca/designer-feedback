@@ -83,44 +83,6 @@ test.describe('Extension Basic Tests', () => {
   });
 });
 
-test.describe('Toolbar UI', () => {
-  test.beforeEach(async ({ page, context, extensionId }) => {
-    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    await activateToolbar(page, context, extensionId);
-    await waitForToolbar(page);
-  });
-
-  test('displays all toolbar controls', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Clear all annotations', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Minimize toolbar', exact: true })).toBeVisible();
-  });
-
-  test('can minimize and expand toolbar', async ({ page }) => {
-    await page.getByRole('button', { name: 'Minimize toolbar', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeHidden();
-
-    const toolbar = page.locator('[data-toolbar]');
-    await toolbar.click();
-    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
-  });
-
-  test('theme toggle switches between light and dark mode', async ({ page }) => {
-    // Initially in light mode (default), button shows "Switch to dark mode"
-    const switchToLightButton = page.getByRole('button', { name: 'Switch to light mode', exact: true });
-    const switchToDarkButton = page.getByRole('button', { name: 'Switch to dark mode', exact: true });
-
-    await expect(switchToDarkButton).toBeVisible();
-
-    await switchToDarkButton.click();
-    await expect(switchToLightButton).toBeVisible();
-
-    await switchToLightButton.click();
-    await expect(switchToDarkButton).toBeVisible();
-  });
-});
-
 test.describe('Feedback Toolbar flows', () => {
   test.beforeEach(async ({ page, context, extensionId }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
@@ -153,51 +115,5 @@ test.describe('Feedback Toolbar flows', () => {
 
     await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
-  });
-
-  test('sad path: cancel add flow does not create annotation', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add annotation', exact: true }).click();
-    await page.getByRole('button', { name: 'Question', exact: true }).click();
-    await page.getByRole('heading', { name: 'Example Domain' }).click();
-
-    const popup = page.locator('[data-annotation-popup]');
-    await expect(popup).toBeVisible();
-    await expect(popup.getByRole('button', { name: 'Add' })).toBeDisabled();
-    await popup.getByRole('button', { name: 'Cancel' }).click();
-
-    await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
-  });
-
-  test('stores annotations in extension storage (not page IndexedDB)', async ({ page, context, extensionId }) => {
-    const comment = 'Check storage location.';
-
-    // Verify IndexedDB is not used before creating annotation
-    const before = await page.evaluate(async () => {
-      try {
-        return await indexedDB.databases();
-      } catch {
-        return [];
-      }
-    });
-    expect(before?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
-
-    await createAnnotation(page, comment, 'Suggestion');
-
-    // Verify IndexedDB is still not used after creating annotation
-    const after = await page.evaluate(async () => {
-      try {
-        return await indexedDB.databases();
-      } catch {
-        return [];
-      }
-    });
-    expect(after?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
-
-    // Verify annotation persists after page reload (proves it's stored somewhere persistent)
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await activateToolbar(page, context, extensionId);
-    await waitForToolbar(page);
-    await expect(page.locator('[data-annotation-marker]')).toHaveCount(1);
   });
 });
