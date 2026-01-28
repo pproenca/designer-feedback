@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getOriginPattern,
-  siteListToOriginPatterns,
-  sitePatternToOriginPatterns,
-} from './permissions';
+import { getOriginPattern, siteListToOriginPatterns } from './permissions';
 
 describe('permissions helpers', () => {
   it('builds origin patterns from valid http/https URLs only', () => {
@@ -14,23 +10,24 @@ describe('permissions helpers', () => {
   });
 
   it('converts site patterns into origin match patterns', () => {
-    expect(sitePatternToOriginPatterns('example.com')).toEqual([
+    // Test sitePatternToOriginPatterns behavior via siteListToOriginPatterns
+    expect(siteListToOriginPatterns(['example.com'])).toEqual([
       'http://example.com/*',
       'https://example.com/*',
     ]);
 
-    expect(sitePatternToOriginPatterns('https://example.com/admin')).toEqual([
+    expect(siteListToOriginPatterns(['https://example.com/admin'])).toEqual([
       'https://example.com/*',
     ]);
 
-    expect(sitePatternToOriginPatterns('*.example.com')).toEqual([
+    expect(siteListToOriginPatterns(['*.example.com'])).toEqual([
       'http://*.example.com/*',
       'https://*.example.com/*',
     ]);
 
-    expect(sitePatternToOriginPatterns('*')).toEqual(['http://*/*', 'https://*/*']);
-    expect(sitePatternToOriginPatterns('# comment')).toEqual([]);
-    expect(sitePatternToOriginPatterns('http://')).toEqual([]);
+    expect(siteListToOriginPatterns(['*'])).toEqual(['http://*/*', 'https://*/*']);
+    expect(siteListToOriginPatterns(['# comment'])).toEqual([]);
+    expect(siteListToOriginPatterns(['http://'])).toEqual([]);
   });
 
   it('dedupes origin patterns from a list', () => {

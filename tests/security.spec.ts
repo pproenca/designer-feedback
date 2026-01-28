@@ -18,6 +18,7 @@ test('manifest does not expose web accessible resources', () => {
         'assets/index-*.js',
         'assets/client-*.js',
         'assets/site-access-*.js',
+        'assets/style-*.css',
         'assets/*.woff2',
       ]),
     })

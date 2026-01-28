@@ -32,37 +32,9 @@ export async function captureFullPage(): Promise<string> {
   try {
     return await captureFullPageFromExtension();
   } catch (error) {
-    console.warn('Extension screenshot capture failed, falling back to DOM capture.', error);
-    try {
-      return await captureFullPageFromDom();
-    } catch (domError) {
-      console.warn('DOM screenshot capture failed, using placeholder.', domError);
-      return createPlaceholderScreenshot();
-    }
+    console.warn('Extension screenshot capture failed, using placeholder.', error);
+    return createPlaceholderScreenshot();
   }
-}
-
-async function captureFullPageFromDom(): Promise<string> {
-  const { default: html2canvas } = await import('html2canvas');
-  const { width, height } = getDocumentSize();
-  const scale = window.devicePixelRatio || 1;
-  const backgroundColor = getPageBackgroundColor();
-
-  const canvas = await html2canvas(document.documentElement, {
-    scale,
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    backgroundColor,
-    width,
-    height,
-    windowWidth: width,
-    windowHeight: height,
-    scrollX: -window.scrollX,
-    scrollY: -window.scrollY,
-  });
-
-  return canvas.toDataURL('image/png');
 }
 
 async function captureFullPageFromExtension(): Promise<string> {
@@ -195,27 +167,6 @@ function getDocumentSize(): { width: number; height: number } {
   );
 
   return { width, height };
-}
-
-function isTransparent(color: string): boolean {
-  const normalized = color.trim().toLowerCase();
-  return normalized === 'transparent' || normalized === 'rgba(0, 0, 0, 0)';
-}
-
-function getPageBackgroundColor(): string {
-  const bodyColor = document.body ? getComputedStyle(document.body).backgroundColor : '';
-  if (bodyColor && !isTransparent(bodyColor)) {
-    return bodyColor;
-  }
-
-  const htmlColor = document.documentElement
-    ? getComputedStyle(document.documentElement).backgroundColor
-    : '';
-  if (htmlColor && !isTransparent(htmlColor)) {
-    return htmlColor;
-  }
-
-  return '#ffffff';
 }
 
 function createPlaceholderScreenshot(): string {

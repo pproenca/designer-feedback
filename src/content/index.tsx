@@ -66,15 +66,39 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     }, 0);
   }
 
-  const shouldRunOnPage = () =>
-    currentSettings.enabled &&
-    isUrlAllowed(window.location.href, {
+  /**
+   * Check if the toolbar should auto-mount on this page based on settings.
+   * In "click" mode, this returns false - user must manually activate via popup.
+   */
+  const shouldAutoMount = () => {
+    if (!currentSettings.enabled) return false;
+    // Click mode: don't auto-mount, wait for manual activation
+    if (currentSettings.siteListMode === 'click') return false;
+    // For allowlist/blocklist modes, check URL
+    return isUrlAllowed(window.location.href, {
       siteListMode: currentSettings.siteListMode,
       siteList: currentSettings.siteList,
     });
+  };
+
+  /**
+   * Check if the toolbar is allowed to run on this page (for manual activation).
+   * This is more permissive than shouldAutoMount.
+   */
+  const canRunOnPage = () => {
+    if (!currentSettings.enabled) return false;
+    // In click mode, we can run on any HTTP page
+    if (currentSettings.siteListMode === 'click') {
+      return window.location.protocol === 'http:' || window.location.protocol === 'https:';
+    }
+    return isUrlAllowed(window.location.href, {
+      siteListMode: currentSettings.siteListMode,
+      siteList: currentSettings.siteList,
+    });
+  };
 
   const applySettings = async () => {
-    if (shouldRunOnPage()) {
+    if (shouldAutoMount()) {
       await ensureInjected();
     } else {
       ensureUnmounted();
@@ -84,7 +108,7 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
   // Create and store message listener reference
   messageListener = (message: ContentMessage, _sender, sendResponse) => {
     if (message.type === 'GET_ANNOTATION_COUNT') {
-      if (!shouldRunOnPage()) {
+      if (!canRunOnPage()) {
         sendResponse({ count: 0 });
         return true;
       }
@@ -104,7 +128,7 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     }
 
     if (message.type === 'TRIGGER_EXPORT') {
-      if (shouldRunOnPage()) {
+      if (canRunOnPage()) {
         ensureInjected()
           .then(() => triggerExport())
           .catch((error) => {
@@ -112,6 +136,21 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
           });
       }
       return false;
+    }
+
+    // Handle manual activation from popup (for click mode)
+    if (message.type === 'ACTIVATE_TOOLBAR') {
+      if (canRunOnPage()) {
+        ensureInjected()
+          .then(() => sendResponse({ success: true }))
+          .catch((error) => {
+            console.error('Failed to activate toolbar:', error);
+            sendResponse({ success: false, error: String(error) });
+          });
+        return true;
+      }
+      sendResponse({ success: false, error: 'Cannot run on this page' });
+      return true;
     }
 
     return false;

@@ -14,7 +14,7 @@ export function getOriginPattern(url: string): string | null {
   }
 }
 
-export function sitePatternToOriginPatterns(raw: string): string[] {
+function sitePatternToOriginPatterns(raw: string): string[] {
   const trimmed = raw.trim().toLowerCase();
   if (!trimmed || trimmed.startsWith('#')) return [];
 

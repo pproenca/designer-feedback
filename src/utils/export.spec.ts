@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { downloadBlob, downloadDataUrl, exportAsImageWithNotes } from './export';
+import { downloadDataUrl, exportAsImageWithNotes } from './export';
 import { mockChrome } from '../test/setup';
 
 const mockAnnotations = [
@@ -61,24 +61,6 @@ describe('export utilities', () => {
 
     expect(mockChrome.runtime.sendMessage).toHaveBeenCalled();
     expect(clickSpy).not.toHaveBeenCalled();
-  });
-
-  it('revokes object URLs after blob downloads', async () => {
-    delete (mockChrome.runtime as { id?: string }).id;
-
-    const createObjectURL = vi.fn(() => 'blob:mock');
-    const revokeObjectURL = vi.fn();
-    Object.defineProperty(URL, 'createObjectURL', { value: createObjectURL, writable: true });
-    Object.defineProperty(URL, 'revokeObjectURL', { value: revokeObjectURL, writable: true });
-
-    const blob = new Blob(['hello'], { type: 'text/plain' });
-    await downloadBlob(blob, 'test.txt');
-
-    vi.advanceTimersByTime(1000);
-
-    expect(createObjectURL).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
-    expect(clickSpy).toHaveBeenCalled();
   });
 
   it('falls back to execCommand copy when clipboard API is unavailable', async () => {

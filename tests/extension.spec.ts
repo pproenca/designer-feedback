@@ -6,6 +6,7 @@ const DEFAULT_TEST_SETTINGS = {
   lightMode: false,
   siteListMode: 'blocklist',
   siteList: [],
+  onboardingComplete: true,
 };
 
 async function openPopup(page: Page, extensionId: string) {
@@ -52,11 +53,18 @@ async function getStoredSettings(page: Page) {
 }
 
 async function prepareContentPage(page: Page, context: BrowserContext, extensionId: string) {
-  await setExtensionSettings(context, extensionId, { enabled: true, lightMode: false });
+  await setExtensionSettings(context, extensionId, {
+    enabled: true,
+    lightMode: false,
+    siteListMode: 'blocklist',
+    siteList: [],
+    onboardingComplete: true,
+  });
   await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
   await clearAnnotationsStorage(context, extensionId);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#designer-feedback-root')).toHaveCount(1);
+  // Content script is injected via webNavigation.onCompleted, may take a moment
+  await expect(page.locator('#designer-feedback-root')).toHaveCount(1, { timeout: 5000 });
 }
 
 async function createAnnotation(
@@ -115,7 +123,7 @@ test.describe('Popup UI', () => {
 
   test('happy path: saves allowlist settings', async ({ page }) => {
     await openSiteAccess(page);
-    await page.getByRole('button', { name: 'Only allowlist' }).click();
+    await page.getByRole('button', { name: 'Allowlist', exact: true }).click();
 
     const siteList = page.getByLabel('Allowed sites');
     await siteList.fill(`Example.com
@@ -217,7 +225,7 @@ http://
 
   test('mode switch toggles labels and storage', async ({ page }) => {
     await openSiteAccess(page);
-    await page.getByRole('button', { name: 'Only allowlist' }).click();
+    await page.getByRole('button', { name: 'Allowlist', exact: true }).click();
 
     await expect(page.getByText('Allowlist', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Allowed sites')).toBeVisible();
@@ -229,13 +237,22 @@ http://
 
     await page.getByRole('button', { name: 'All sites', exact: true }).click();
 
-    await expect(page.getByText('Blocklist', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('All sites', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Blocked sites')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Disable on this site', exact: true })).toBeVisible();
     await expect.poll(async () => {
       const settings = await getStoredSettings(page);
       return settings.siteListMode;
     }).toBe('blocklist');
+
+    await page.getByRole('button', { name: 'Click', exact: true }).click();
+
+    await expect(page.getByText('Click to activate', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('In click mode, click')).toBeVisible();
+    await expect.poll(async () => {
+      const settings = await getStoredSettings(page);
+      return settings.siteListMode;
+    }).toBe('click');
   });
 
   test('permission callout requests all-sites access', async ({ context, extensionId }) => {
@@ -284,17 +301,45 @@ http://
 });
 
 test.describe('Content Script', () => {
-  test('injects UI container on pages', async ({ context, extensionId }) => {
+  test('injects UI container on pages when blocklist mode with all-sites permission', async ({ context, extensionId }) => {
     const settingsPage = await context.newPage();
     await openPopup(settingsPage, extensionId);
     await settingsPage.evaluate(async () => {
-      await chrome.storage.sync.set({ enabled: true, lightMode: false });
+      await chrome.storage.sync.set({
+        enabled: true,
+        lightMode: false,
+        siteListMode: 'blocklist',
+        siteList: [],
+        onboardingComplete: true,
+      });
     });
     await settingsPage.close();
 
     const page = await context.newPage();
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('#designer-feedback-root')).toHaveCount(1);
+    // Content script runs via static manifest declaration and auto-mounts in blocklist mode
+    await expect(page.locator('#designer-feedback-root')).toHaveCount(1, { timeout: 5000 });
+  });
+
+  test('click mode does not auto-mount toolbar', async ({ context, extensionId }) => {
+    const settingsPage = await context.newPage();
+    await openPopup(settingsPage, extensionId);
+    await settingsPage.evaluate(async () => {
+      await chrome.storage.sync.set({
+        enabled: true,
+        lightMode: false,
+        siteListMode: 'click',
+        siteList: [],
+        onboardingComplete: true,
+      });
+    });
+    await settingsPage.close();
+
+    const page = await context.newPage();
+    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    // In click mode, content script runs but doesn't auto-mount the toolbar
+    // Give it a moment to potentially mount (which it shouldn't)
+    await expect(page.locator('#designer-feedback-root')).toHaveCount(0, { timeout: 2000 });
   });
 });
 

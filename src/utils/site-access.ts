@@ -100,6 +100,10 @@ export function getHostFromUrl(url: string): string | null {
 
 export function isUrlAllowed(url: string, settings: SiteAccessSettings): boolean {
   if (!isHttpUrl(url)) return false;
+
+  // Click mode: URLs are never "auto-allowed" - user must click to activate
+  if (settings.siteListMode === 'click') return false;
+
   const parsed = new URL(url);
   const hostname = parsed.hostname.toLowerCase();
   const path = `${parsed.pathname}${parsed.search}`;

@@ -22,7 +22,9 @@ async function createTestExtensionDir(workerIndex: number): Promise<string> {
 
   const manifestPath = path.join(tempDir, 'manifest.json');
   const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf-8'));
+  // Grant full host permissions for testing (removes optional to avoid overlap)
   manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  delete manifest.optional_host_permissions;
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
   return tempDir;
 }

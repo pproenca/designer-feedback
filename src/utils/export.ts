@@ -2,7 +2,6 @@
 // Export Utilities
 // =============================================================================
 
-import JSZip from 'jszip';
 import type { Annotation, FeedbackExport } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { sendMessage } from '@/utils/messaging';
@@ -104,40 +103,6 @@ export function generateMarkdownExport(annotations: Annotation[]): string {
   return lines.join('\n');
 }
 
-/**
- * Create ZIP file with all export data
- */
-export async function createExportZip(annotations: Annotation[]): Promise<Blob> {
-  const zip = new JSZip();
-  const timestamp = new Date().toISOString().split('T')[0];
-  const folderName = `feedback-${timestamp}`;
-  const folder = zip.folder(folderName)!;
-
-  // Add JSON export
-  const jsonExport = generateJSONExport(annotations);
-  folder.file('feedback.json', JSON.stringify(jsonExport, null, 2));
-
-  // Add Markdown export
-  const markdownExport = generateMarkdownExport(annotations);
-  folder.file('feedback.md', markdownExport);
-
-  // Add screenshots folder
-  const screenshotsFolder = folder.folder('screenshots')!;
-  annotations.forEach((annotation, index) => {
-    if (annotation.screenshot) {
-      // Convert base64 data URL to binary
-      const base64Data = annotation.screenshot.split(',')[1];
-      screenshotsFolder.file(`${index + 1}.png`, base64Data, { base64: true });
-    }
-  });
-
-  // Generate ZIP blob
-  return zip.generateAsync({ type: 'blob' });
-}
-
-/**
- * Download a blob as a file
- */
 type DownloadResponse = { ok: boolean; error?: string };
 
 function canUseBackgroundDownload(): boolean {
@@ -166,15 +131,6 @@ function triggerAnchorDownload(url: string, filename: string): void {
   link.remove();
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Failed to read download data'));
-    reader.onload = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
-}
-
 export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
   if (canUseBackgroundDownload()) {
     try {
@@ -186,22 +142,6 @@ export async function downloadDataUrl(dataUrl: string, filename: string): Promis
   }
 
   triggerAnchorDownload(dataUrl, filename);
-}
-
-export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
-  if (canUseBackgroundDownload()) {
-    try {
-      const dataUrl = await blobToDataUrl(blob);
-      await requestBackgroundDownload(dataUrl, filename);
-      return;
-    } catch (error) {
-      console.warn('Background download failed, falling back to anchor download.', error);
-    }
-  }
-
-  const url = URL.createObjectURL(blob);
-  triggerAnchorDownload(url, filename);
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -224,15 +164,6 @@ async function copyToClipboard(text: string): Promise<void> {
   if (!copied) {
     throw new Error('Clipboard copy failed');
   }
-}
-
-/**
- * Export and download feedback as ZIP (legacy)
- */
-export async function exportFeedback(annotations: Annotation[]): Promise<void> {
-  const timestamp = new Date().toISOString().split('T')[0];
-  const blob = await createExportZip(annotations);
-  await downloadBlob(blob, `feedback-${timestamp}.zip`);
 }
 
 /**

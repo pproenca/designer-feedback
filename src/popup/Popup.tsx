@@ -28,6 +28,7 @@ export function Popup() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [accessDetailsOpen, setAccessDetailsOpen] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
 
   // Cache the active tab to avoid redundant chrome.tabs.query calls
   const cachedTabRef = useRef<chrome.tabs.Tab | null>(null);
@@ -186,6 +187,7 @@ export function Popup() {
             }
           }
         );
+
       }
     };
 
@@ -269,6 +271,33 @@ export function Popup() {
         console.error('Failed to update site list mode:', chrome.runtime.lastError.message);
       }
     });
+  };
+
+  const handleActivateOnTab = async () => {
+    const tab = await getActiveTab();
+    if (!tab?.id) return;
+
+    setIsActivating(true);
+    setPermissionNotice(null);
+
+    // Send message to content script to activate toolbar
+    chrome.tabs.sendMessage(
+      tab.id,
+      { type: 'ACTIVATE_TOOLBAR' },
+      (response) => {
+        setIsActivating(false);
+        if (chrome.runtime.lastError) {
+          setPermissionNotice('Failed to activate: ' + chrome.runtime.lastError.message);
+          return;
+        }
+        if (response?.success) {
+          // Close popup to show the toolbar on the page
+          window.close();
+        } else {
+          setPermissionNotice(response?.error || 'Failed to activate on this page.');
+        }
+      }
+    );
   };
 
   const handleSaveSiteList = async () => {
@@ -367,6 +396,17 @@ export function Popup() {
     markOnboardingComplete();
   };
 
+  const handleOnboardingClickMode = () => {
+    const nextSettings = { ...settings, siteListMode: 'click' as const };
+    setSettings(nextSettings);
+    chrome.storage.sync.set(nextSettings, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to update site list mode:', chrome.runtime.lastError.message);
+      }
+    });
+    markOnboardingComplete();
+  };
+
   const handleOnboardingSkip = () => {
     markOnboardingComplete();
   };
@@ -394,6 +434,14 @@ export function Popup() {
   const accessButtonLabel = needsAllSitesAccess ? 'Enable on all sites' : 'Enable on this site';
   const showOnboarding = onboardingLoaded && !onboardingComplete;
   const showAccessSection = !showOnboarding && (accessNoticeText || permissionNotice);
+  const isClickMode = settings.siteListMode === 'click';
+  const showActivateSection = isClickMode && canUseCurrentSite;
+  const siteAccessModeSummary =
+    settings.siteListMode === 'click'
+      ? 'Click to activate'
+      : settings.siteListMode === 'allowlist'
+        ? 'Allowlist'
+        : 'All sites';
 
   return (
     <div className={styles.popup}>
@@ -430,6 +478,14 @@ export function Popup() {
               disabled={!canUseCurrentSite || permissionRequesting}
             >
               Only allow this site
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={handleOnboardingClickMode}
+              disabled={permissionRequesting}
+            >
+              Click each time
             </button>
             <button
               type="button"
@@ -470,6 +526,29 @@ export function Popup() {
         </div>
       )}
 
+      {showActivateSection && (
+        <div className={`${styles.section} ${styles.accessSection}`} aria-label="Activate toolbar">
+          <div className={styles.accessHeader}>
+            <span className={styles.accessTitle}>Activate toolbar</span>
+            <span className={styles.accessPill}>This page</span>
+          </div>
+          <p className={styles.accessText}>
+            Click to activate the toolbar on this page. No permissions needed.
+          </p>
+          {permissionNotice && (
+            <p className={styles.accessSubtext}>{permissionNotice}</p>
+          )}
+          <button
+            type="button"
+            className={styles.accessPrimaryButton}
+            onClick={handleActivateOnTab}
+            disabled={isActivating}
+          >
+            {isActivating ? 'Activating...' : 'Activate on this page'}
+          </button>
+        </div>
+      )}
+
       <div className={`${styles.section} ${styles.summarySection}`}>
         <div className={styles.summaryRow}>
           <label className={styles.toggle}>
@@ -506,14 +585,14 @@ export function Popup() {
         <summary className={styles.accessSummary}>
           <span className={styles.accessSummaryTitle}>Site access</span>
           <span className={styles.accessSummaryMeta} aria-hidden="true">
-            {settings.siteListMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+            {siteAccessModeSummary}
           </span>
         </summary>
         <div className={styles.accessPanel}>
           <div className={styles.sectionHeader}>
             <span className={styles.sectionTitle}>Scope</span>
             <span className={styles.sectionMeta}>
-              {settings.siteListMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+              {siteAccessModeSummary}
             </span>
           </div>
 
@@ -532,70 +611,87 @@ export function Popup() {
               onClick={() => handleModeChange('allowlist')}
               aria-pressed={settings.siteListMode === 'allowlist'}
             >
-              Only allowlist
-            </button>
-          </div>
-
-          <label className={styles.siteListLabel}>
-            {siteListLabel}
-            <textarea
-              className={`${styles.siteList} ${
-                siteListStatus === 'dirty'
-                  ? styles.siteListDirty
-                  : siteListStatus === 'saved'
-                    ? styles.siteListSaved
-                    : ''
-              }`}
-              rows={4}
-              value={siteListText}
-              onChange={(e) => handleSiteListChange(e.target.value)}
-              placeholder="example.com&#10;*.example.com&#10;https://example.com/admin"
-            />
-          </label>
-
-          <div className={styles.siteActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={handleAddCurrentSite}
-              disabled={!canUseCurrentSite || !activeHost || permissionRequesting}
-            >
-              {siteActionLabel}
+              Allowlist
             </button>
             <button
               type="button"
-              className={`${styles.secondaryButton} ${styles.saveButton} ${
-                siteListStatus === 'dirty'
-                  ? styles.saveButtonDirty
-                  : siteListStatus === 'saved'
-                    ? styles.saveButtonSaved
-                    : ''
-              }`}
-              onClick={handleSaveSiteList}
-              disabled={siteListStatus !== 'dirty' || permissionRequesting}
+              className={`${styles.modeButton} ${settings.siteListMode === 'click' ? styles.active : ''}`}
+              onClick={() => handleModeChange('click')}
+              aria-pressed={settings.siteListMode === 'click'}
             >
-              {saveButtonLabel}
+              Click
             </button>
           </div>
 
-          <div
-            className={`${styles.saveStatus} ${
-              siteListStatus === 'dirty'
-                ? styles.saveStatusDirty
-                : siteListStatus === 'saved'
-                  ? styles.saveStatusSaved
-                  : ''
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            {siteListStatus === 'dirty' && 'Unsaved changes'}
-            {siteListStatus === 'saved' && 'Saved'}
-          </div>
+          {isClickMode ? (
+            <p className={styles.helperText}>
+              In click mode, click &quot;Activate on this page&quot; each time you want to use the
+              toolbar. No site permissions are required.
+            </p>
+          ) : (
+            <>
+              <label className={styles.siteListLabel}>
+                {siteListLabel}
+                <textarea
+                  className={`${styles.siteList} ${
+                    siteListStatus === 'dirty'
+                      ? styles.siteListDirty
+                      : siteListStatus === 'saved'
+                        ? styles.siteListSaved
+                        : ''
+                  }`}
+                  rows={4}
+                  value={siteListText}
+                  onChange={(e) => handleSiteListChange(e.target.value)}
+                  placeholder="example.com&#10;*.example.com&#10;https://example.com/admin"
+                />
+              </label>
 
-          <p className={styles.helperText}>
-            One host or URL prefix per line. Supports wildcards like *.example.com.
-          </p>
+              <div className={styles.siteActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleAddCurrentSite}
+                  disabled={!canUseCurrentSite || !activeHost || permissionRequesting}
+                >
+                  {siteActionLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.secondaryButton} ${styles.saveButton} ${
+                    siteListStatus === 'dirty'
+                      ? styles.saveButtonDirty
+                      : siteListStatus === 'saved'
+                        ? styles.saveButtonSaved
+                        : ''
+                  }`}
+                  onClick={handleSaveSiteList}
+                  disabled={siteListStatus !== 'dirty' || permissionRequesting}
+                >
+                  {saveButtonLabel}
+                </button>
+              </div>
+
+              <div
+                className={`${styles.saveStatus} ${
+                  siteListStatus === 'dirty'
+                    ? styles.saveStatusDirty
+                    : siteListStatus === 'saved'
+                      ? styles.saveStatusSaved
+                      : ''
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                {siteListStatus === 'dirty' && 'Unsaved changes'}
+                {siteListStatus === 'saved' && 'Saved'}
+              </div>
+
+              <p className={styles.helperText}>
+                One host or URL prefix per line. Supports wildcards like *.example.com.
+              </p>
+            </>
+          )}
         </div>
       </details>
     </div>
