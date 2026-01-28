@@ -6,6 +6,87 @@ import type { Settings, MessageType } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 
 // =============================================================================
+// Tab Tracking for Same-Origin Persistence
+// =============================================================================
+
+const activatedTabs = new Map<number, string>(); // tabId -> origin
+
+/**
+ * Check if a URL is injectable (http/https only)
+ */
+function isInjectableUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://');
+}
+
+/**
+ * Get origin from URL
+ */
+function getOrigin(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Show toolbar on the given tab.
+ * Content script is already injected via manifest's content_scripts.
+ */
+async function showToolbar(tabId: number): Promise<void> {
+  try {
+    // Tell content script to show toolbar
+    await chrome.tabs.sendMessage(tabId, { type: 'SHOW_TOOLBAR' });
+  } catch (error) {
+    // Content script might not be ready yet, or page doesn't support it
+    console.error('Failed to show toolbar:', error);
+  }
+}
+
+// =============================================================================
+// Icon Click Handler (1-Click Activation)
+// =============================================================================
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id || !tab.url) return;
+
+  // Only inject on http/https pages
+  if (!isInjectableUrl(tab.url)) {
+    return;
+  }
+
+  // Track this tab for same-origin persistence
+  activatedTabs.set(tab.id, getOrigin(tab.url));
+
+  await showToolbar(tab.id);
+});
+
+// =============================================================================
+// Same-Origin Navigation Persistence
+// =============================================================================
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.url) return;
+
+  const previousOrigin = activatedTabs.get(tabId);
+  if (!previousOrigin) return;
+
+  const currentOrigin = getOrigin(tab.url);
+  if (currentOrigin === previousOrigin) {
+    // Same origin - re-inject
+    showToolbar(tabId);
+  } else {
+    // Different origin - clear tracking
+    activatedTabs.delete(tabId);
+  }
+});
+
+// Clean up on tab close
+chrome.tabs.onRemoved.addListener((tabId) => {
+  activatedTabs.delete(tabId);
+});
+
+// =============================================================================
 // Promise Wrappers for Chrome APIs
 // =============================================================================
 

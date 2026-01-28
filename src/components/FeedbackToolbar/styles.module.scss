@@ -681,3 +681,30 @@ $green: #34c759;
     cursor: grabbing !important;
   }
 }
+
+// =============================================================================
+// Smart Expansion Direction
+// =============================================================================
+
+// When toolbar is on the right side of viewport, it expands to the left
+// The right edge stays fixed, width grows leftward
+.expandLeft {
+  // Use right positioning when in this mode
+  // The toolbar container will set right offset, and left: auto
+
+  .toolbarContainer {
+    // Container expands leftward by having its right edge fixed
+    // and left edge moving as width increases
+  }
+}
+
+// When toolbar is on the left side of viewport, it expands to the right
+// The left edge stays fixed, width grows rightward (default behavior)
+.expandRight {
+  // Use left positioning when in this mode
+  // The toolbar container will set left offset, and right: auto
+
+  .toolbarContainer {
+    // Container expands rightward (default CSS behavior for width transitions)
+  }
+}

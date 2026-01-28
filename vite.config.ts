@@ -56,10 +56,11 @@ export default defineConfig({
     modulePreload: false,
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, 'src/popup/index.html'),
+        content: resolve(__dirname, 'src/content/index.tsx'),
       },
       output: {
         entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
       },
     },
   },

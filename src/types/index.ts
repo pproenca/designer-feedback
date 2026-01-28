@@ -33,13 +33,9 @@ export type Annotation = {
   isFixed?: boolean;
 };
 
-export type SiteListMode = 'click' | 'allowlist' | 'blocklist';
-
 export type Settings = {
   enabled: boolean;
   lightMode: boolean;
-  siteListMode: SiteListMode;
-  siteList: string[];
 };
 
 export type FeedbackExport = {
@@ -72,7 +68,4 @@ export type MessageType =
   | { type: 'UPDATE_BADGE'; count: number }
   | { type: 'TRIGGER_EXPORT' }
   | { type: 'TOGGLE_TOOLBAR'; enabled: boolean }
-  | { type: 'INJECT_CONTENT_SCRIPT'; tabId: number }
-  | { type: 'CONTENT_SCRIPT_INJECTED'; tabId: number; success: boolean; error?: string }
-  | { type: 'CHECK_INJECTION_STATUS'; tabId: number }
-  | { type: 'INJECTION_STATUS_RESPONSE'; tabId: number; injected: boolean };
+  | { type: 'SHOW_TOOLBAR' };

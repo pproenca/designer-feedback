@@ -277,4 +277,183 @@ describe('useDraggable', () => {
       expect(result.current.position).toBeNull();
     });
   });
+
+  describe('expandDirection', () => {
+    it('should return "left" when position is on right side of viewport (past center)', () => {
+      const { result } = renderHook(() =>
+        useDraggable({ elementWidth: 100, elementHeight: 44 })
+      );
+
+      // Drag to right side of viewport (x > 512, which is center of 1024)
+      act(() => {
+        result.current.onMouseDown({
+          clientX: 700,
+          clientY: 100,
+          preventDefault: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 750,
+          clientY: 100,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'));
+      });
+
+      expect(result.current.expandDirection).toBe('left');
+    });
+
+    it('should return "right" when position is on left side of viewport (before center)', () => {
+      const { result } = renderHook(() =>
+        useDraggable({ elementWidth: 100, elementHeight: 44 })
+      );
+
+      // Drag to left side of viewport (x < 512)
+      act(() => {
+        result.current.onMouseDown({
+          clientX: 100,
+          clientY: 100,
+          preventDefault: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 150,
+          clientY: 100,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'));
+      });
+
+      expect(result.current.expandDirection).toBe('right');
+    });
+
+    it('should default to "left" when no position (initial state, toolbar on right)', () => {
+      const { result } = renderHook(() => useDraggable());
+
+      expect(result.current.expandDirection).toBe('left');
+    });
+  });
+
+  describe('initialPosition', () => {
+    it('should use provided initial position', () => {
+      const { result } = renderHook(() =>
+        useDraggable({
+          elementWidth: 100,
+          elementHeight: 44,
+          initialPosition: { x: 200, y: 150 },
+        })
+      );
+
+      expect(result.current.position).toEqual({ x: 200, y: 150 });
+    });
+
+    it('should calculate expandDirection based on initial position', () => {
+      // Position on left side (x=200 < center of 512)
+      const { result: leftResult } = renderHook(() =>
+        useDraggable({
+          elementWidth: 100,
+          elementHeight: 44,
+          initialPosition: { x: 200, y: 150 },
+        })
+      );
+
+      expect(leftResult.current.expandDirection).toBe('right');
+
+      // Position on right side (x=700 > center of 512)
+      const { result: rightResult } = renderHook(() =>
+        useDraggable({
+          elementWidth: 100,
+          elementHeight: 44,
+          initialPosition: { x: 700, y: 150 },
+        })
+      );
+
+      expect(rightResult.current.expandDirection).toBe('left');
+    });
+  });
+
+  describe('onPositionChange callback', () => {
+    it('should call onPositionChange when drag ends', () => {
+      const onPositionChange = vi.fn();
+      const { result } = renderHook(() =>
+        useDraggable({
+          elementWidth: 100,
+          elementHeight: 44,
+          onPositionChange,
+        })
+      );
+
+      // Start dragging
+      act(() => {
+        result.current.onMouseDown({
+          clientX: 100,
+          clientY: 100,
+          preventDefault: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      // Move past threshold
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 200,
+          clientY: 200,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      // Release mouse
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'));
+      });
+
+      expect(onPositionChange).toHaveBeenCalledTimes(1);
+      expect(onPositionChange).toHaveBeenCalledWith(result.current.position);
+    });
+
+    it('should not call onPositionChange if drag did not exceed threshold', () => {
+      const onPositionChange = vi.fn();
+      const { result } = renderHook(() =>
+        useDraggable({
+          elementWidth: 100,
+          elementHeight: 44,
+          onPositionChange,
+        })
+      );
+
+      // Start dragging
+      act(() => {
+        result.current.onMouseDown({
+          clientX: 100,
+          clientY: 100,
+          preventDefault: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      // Small movement (under threshold)
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 102,
+          clientY: 100,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      // Release mouse
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'));
+      });
+
+      expect(onPositionChange).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef, useMemo, type CSSProperties }
 import { createPortal } from 'react-dom';
 
 import { AnnotationPopup, AnnotationPopupHandle } from '../AnnotationPopup';
-import { useDraggable } from '@/hooks/useDraggable';
+import { useDraggable, type Position } from '@/hooks/useDraggable';
+import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import {
   IconList,
   IconClose,
@@ -89,19 +90,30 @@ export function FeedbackToolbar({
   const [showExportModal, setShowExportModal] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [savedPosition, setSavedPosition] = useState<Position | null>(null);
 
   // Refs
   const popupRef = useRef<AnnotationPopupHandle>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
+  // Handle position persistence
+  const handlePositionChange = useCallback((position: Position) => {
+    saveToolbarPosition(position).catch((error) => {
+      console.error('Failed to save toolbar position:', error);
+    });
+  }, []);
+
   // Draggable toolbar
   const {
     position: dragPosition,
     isDragging,
+    expandDirection,
     onMouseDown: handleDragMouseDown,
   } = useDraggable({
     elementWidth: isExpanded ? 280 : 44,
     elementHeight: 44,
+    initialPosition: savedPosition,
+    onPositionChange: handlePositionChange,
   });
 
   // Debounced badge update to prevent rapid updates during operations
@@ -116,6 +128,19 @@ export function FeedbackToolbar({
       debouncedUpdateBadge.cancel();
     };
   }, [debouncedUpdateBadge]);
+
+  // Load saved toolbar position on mount
+  useEffect(() => {
+    const loadPosition = async () => {
+      try {
+        const position = await loadToolbarPosition();
+        setSavedPosition(position);
+      } catch (error) {
+        console.error('Failed to load toolbar position:', error);
+      }
+    };
+    loadPosition();
+  }, []);
 
   // Load annotations on mount
   useEffect(() => {
@@ -600,15 +625,28 @@ export function FeedbackToolbar({
       {/* Toolbar */}
       <div
         ref={toolbarRef}
-        className={`${styles.toolbar} ${isDragging ? styles.dragging : ''}`}
+        className={`${styles.toolbar} ${isDragging ? styles.dragging : ''} ${
+          expandDirection === 'left' ? styles.expandLeft : styles.expandRight
+        }`}
         data-toolbar
         style={
           dragPosition
-            ? {
-                top: dragPosition.y,
-                right: 'auto',
-                left: dragPosition.x,
-              }
+            ? expandDirection === 'left'
+              ? {
+                  // When expanding left, anchor from right edge
+                  // The right offset = viewport_width - (left_edge + collapsed_width)
+                  // We use collapsed width (44) as the reference point because that's
+                  // where the user placed the collapsed toolbar
+                  top: dragPosition.y,
+                  right: window.innerWidth - dragPosition.x - 44,
+                  left: 'auto',
+                }
+              : {
+                  // When expanding right, anchor from left edge (default)
+                  top: dragPosition.y,
+                  right: 'auto',
+                  left: dragPosition.x,
+                }
             : undefined
         }
       >

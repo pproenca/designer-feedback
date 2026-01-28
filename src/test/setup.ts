@@ -45,10 +45,11 @@ const mockChrome = {
   },
 };
 
-// Assign to global
+// Assign to global (configurable so tests can override)
 Object.defineProperty(globalThis, 'chrome', {
   value: mockChrome,
   writable: true,
+  configurable: true,
 });
 
 // Reset mocks between tests

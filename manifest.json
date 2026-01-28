@@ -7,13 +7,14 @@
     "storage",
     "tabs",
     "downloads",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none';"
   },
   "action": {
-    "default_popup": "src/popup/index.html",
+    "default_title": "Click to activate Designer Feedback",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -38,14 +39,13 @@
       "run_at": "document_idle"
     }
   ],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "web_accessible_resources": [
     {
       "matches": ["http://*/*", "https://*/*"],
       "resources": [
+        "assets/content-*.js",
         "assets/index-*.js",
         "assets/client-*.js",
-        "assets/site-access-*.js",
         "assets/style-*.css",
         "assets/*.woff2"
       ]

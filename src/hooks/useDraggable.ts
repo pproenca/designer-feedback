@@ -7,23 +7,35 @@ export interface Position {
   y: number;
 }
 
+export type ExpandDirection = 'left' | 'right';
+
 export interface UseDraggableOptions {
   elementWidth?: number;
   elementHeight?: number;
+  initialPosition?: Position | null;
+  onPositionChange?: (position: Position) => void;
 }
 
 export interface UseDraggableReturn {
   position: Position | null;
   isDragging: boolean;
+  expandDirection: ExpandDirection;
   onMouseDown: (e: React.MouseEvent) => void;
   reset: () => void;
 }
 
 export function useDraggable(options: UseDraggableOptions = {}): UseDraggableReturn {
-  const { elementWidth = 0, elementHeight = 0 } = options;
+  const { elementWidth = 0, elementHeight = 0, initialPosition, onPositionChange } = options;
 
-  const [position, setPosition] = useState<Position | null>(null);
+  const [position, setPosition] = useState<Position | null>(initialPosition ?? null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Sync position with initialPosition when it changes (e.g., loaded from storage)
+  useEffect(() => {
+    if (initialPosition && !position) {
+      setPosition(initialPosition);
+    }
+  }, [initialPosition, position]);
 
   const dragStateRef = useRef<{
     startX: number;
@@ -32,6 +44,19 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     startPosY: number;
     hasMoved: boolean;
   } | null>(null);
+
+  // Calculate expand direction based on position
+  // When position is null (initial state), default to 'left' (toolbar starts on right)
+  // When position is on right side of viewport (> center), expand left
+  // When position is on left side of viewport (< center), expand right
+  const expandDirection: ExpandDirection = (() => {
+    if (!position) {
+      return 'left'; // Default: toolbar starts on right, expands left
+    }
+    const viewportCenter = window.innerWidth / 2;
+    const elementCenter = position.x + elementWidth / 2;
+    return elementCenter > viewportCenter ? 'left' : 'right';
+  })();
 
   const clampPosition = useCallback(
     (x: number, y: number): Position => {
@@ -73,9 +98,20 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
   );
 
   const handleMouseUp = useCallback(() => {
+    const wasDragging = dragStateRef.current?.hasMoved ?? false;
     dragStateRef.current = null;
     setIsDragging(false);
-  }, []);
+
+    // Call onPositionChange callback if drag actually happened
+    if (wasDragging && onPositionChange) {
+      setPosition((currentPosition) => {
+        if (currentPosition) {
+          onPositionChange(currentPosition);
+        }
+        return currentPosition;
+      });
+    }
+  }, [onPositionChange]);
 
   // Set up global listeners when drag starts
   useEffect(() => {
@@ -120,6 +156,7 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
   return {
     position,
     isDragging,
+    expandDirection,
     onMouseDown,
     reset,
   };
