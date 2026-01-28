@@ -187,7 +187,7 @@ describe('ExportModal', () => {
 
     render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
 
-    const markdownButton = screen.getByRole('button', { name: /markdown/i });
+    const markdownButton = screen.getByRole('radio', { name: /markdown/i });
     await act(async () => {
       fireEvent.click(markdownButton);
     });

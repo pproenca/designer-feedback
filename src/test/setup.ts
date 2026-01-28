@@ -2,6 +2,7 @@
  * Vitest setup file for unit tests
  * Provides Chrome extension API mocks
  */
+import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // Mock chrome.runtime API
