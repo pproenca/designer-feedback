@@ -2,7 +2,9 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useCallback,
+  useMemo,
   forwardRef,
   useImperativeHandle,
   type CSSProperties,
@@ -66,6 +68,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       'initial'
     );
     const [isFocused, setIsFocused] = useState(false);
+    const [offset, setOffset] = useState({ x: 0, y: 0 });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
 
@@ -147,6 +150,42 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       [handleSubmit, handleCancel]
     );
 
+    const updateOffset = useCallback(() => {
+      const popup = popupRef.current;
+      if (!popup) return;
+
+      const rect = popup.getBoundingClientRect();
+      const padding = 8;
+      const maxX = window.innerWidth - padding;
+      const maxY = window.innerHeight - padding;
+
+      let dx = 0;
+      let dy = 0;
+
+      if (rect.left < padding) {
+        dx = padding - rect.left;
+      } else if (rect.right > maxX) {
+        dx = maxX - rect.right;
+      }
+
+      if (rect.top < padding) {
+        dy = padding - rect.top;
+      } else if (rect.bottom > maxY) {
+        dy = maxY - rect.bottom;
+      }
+
+      setOffset((prev) => (prev.x === dx && prev.y === dy ? prev : { x: dx, y: dy }));
+    }, []);
+
+    useLayoutEffect(() => {
+      updateOffset();
+    }, [updateOffset, style?.left, style?.top, text, annotation?.comment, selectedText, mode]);
+
+    useEffect(() => {
+      window.addEventListener('resize', updateOffset);
+      return () => window.removeEventListener('resize', updateOffset);
+    }, [updateOffset]);
+
     const popupClassName = [
       styles.popup,
       lightMode ? styles.light : '',
@@ -158,6 +197,33 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       .filter(Boolean)
       .join(' ');
 
+    const resolvedStyle = useMemo(() => {
+      if (!style) return style;
+
+      const hasLeft = style.left !== undefined && style.left !== null;
+      const hasTop = style.top !== undefined && style.top !== null;
+      const baseLeft = hasLeft
+        ? typeof style.left === 'number'
+          ? style.left
+          : parseFloat(String(style.left))
+        : NaN;
+      const baseTop = hasTop
+        ? typeof style.top === 'number'
+          ? style.top
+          : parseFloat(String(style.top))
+        : NaN;
+
+      const left =
+        hasLeft && Number.isFinite(baseLeft) ? `${baseLeft + offset.x}px` : style.left;
+      const top = hasTop && Number.isFinite(baseTop) ? `${baseTop + offset.y}px` : style.top;
+
+      return {
+        ...style,
+        left,
+        top,
+      };
+    }, [style, offset]);
+
     // View mode: show annotation details with delete option
     if (mode === 'view' && annotation) {
       return (
@@ -165,7 +231,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
           ref={popupRef}
           className={popupClassName}
           data-annotation-popup
-          style={style}
+          style={resolvedStyle}
           role="dialog"
           aria-label="Annotation details"
           tabIndex={-1}
@@ -198,7 +264,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         ref={popupRef}
         className={popupClassName}
         data-annotation-popup
-        style={style}
+        style={resolvedStyle}
         role="dialog"
         aria-label="Create annotation"
         tabIndex={-1}

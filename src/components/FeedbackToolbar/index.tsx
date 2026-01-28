@@ -13,6 +13,7 @@ import {
   IconBug,
   IconLightbulb,
   IconQuestion,
+  IconAccessibility,
   IconExport,
 } from '../Icons';
 import { ExportModal } from '../ExportModal';
@@ -104,13 +105,15 @@ export function FeedbackToolbar({
   }, []);
 
   // Draggable toolbar
+  // Always use collapsed width (44px) for position clamping since that's
+  // the anchor point. Expansion happens visually in the appropriate direction.
   const {
     position: dragPosition,
     isDragging,
     expandDirection,
     onMouseDown: handleDragMouseDown,
   } = useDraggable({
-    elementWidth: isExpanded ? 280 : 44,
+    elementWidth: 44,
     elementHeight: 44,
     initialPosition: savedPosition,
     onPositionChange: handlePositionChange,
@@ -665,8 +668,8 @@ export function FeedbackToolbar({
             }
           }}
           onMouseDown={(e) => {
-            // Only start drag if clicking directly on the container, not on buttons
-            if ((e.target as HTMLElement).closest('button')) return;
+            // Always initiate drag tracking - the hook uses a threshold
+            // so clicks on buttons still work (drag only starts after 5px movement)
             handleDragMouseDown(e);
           }}
           role="button"
@@ -735,6 +738,15 @@ export function FeedbackToolbar({
                   >
                     <IconLightbulb size={20} />
                     <span>Suggestion</span>
+                  </button>
+                  <button
+                    className={styles.categoryOption}
+                    type="button"
+                    onClick={() => handleCategorySelect('accessibility')}
+                    style={{ '--category-color': '#AF52DE' } as CSSProperties}
+                  >
+                    <IconAccessibility size={20} />
+                    <span>Accessibility</span>
                   </button>
                 </div>
               )}

@@ -34,6 +34,7 @@ describe('useDraggable', () => {
       // Simulate mousedown
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -59,6 +60,7 @@ describe('useDraggable', () => {
       // Simulate mousedown
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -85,6 +87,7 @@ describe('useDraggable', () => {
 
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -108,6 +111,7 @@ describe('useDraggable', () => {
 
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 500,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -131,6 +135,7 @@ describe('useDraggable', () => {
 
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -154,6 +159,7 @@ describe('useDraggable', () => {
 
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 500,
           preventDefault: vi.fn(),
@@ -180,6 +186,7 @@ describe('useDraggable', () => {
       // Start dragging
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -212,6 +219,7 @@ describe('useDraggable', () => {
       // Start dragging
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -246,6 +254,7 @@ describe('useDraggable', () => {
       // Start dragging
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -287,6 +296,7 @@ describe('useDraggable', () => {
       // Drag to right side of viewport (x > 512, which is center of 1024)
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 700,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -316,6 +326,7 @@ describe('useDraggable', () => {
       // Drag to left side of viewport (x < 512)
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -396,6 +407,7 @@ describe('useDraggable', () => {
       // Start dragging
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),
@@ -433,6 +445,7 @@ describe('useDraggable', () => {
       // Start dragging
       act(() => {
         result.current.onMouseDown({
+          button: 0,
           clientX: 100,
           clientY: 100,
           preventDefault: vi.fn(),

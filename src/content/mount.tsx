@@ -9,6 +9,7 @@ import popupStyles from '@/components/AnnotationPopup/styles.module.scss?inline'
 import exportStyles from '@/components/ExportModal/styles.module.scss?inline';
 
 const CONTAINER_ID = 'designer-feedback-root';
+const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
 const sourceSansUrl = new URL(
   '../assets/fonts/source-sans-3/SourceSans3-Variable.woff2',
   import.meta.url
@@ -24,6 +25,7 @@ const fontFaces = `@font-face {
 let root: ReactDOM.Root | null = null;
 let container: HTMLElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
+let globalStyleElement: HTMLStyleElement | null = null;
 
 function waitForDomReady(): Promise<void> {
   if (document.readyState !== 'loading') {
@@ -34,12 +36,28 @@ function waitForDomReady(): Promise<void> {
   });
 }
 
+function ensureGlobalStyles(): void {
+  if (document.getElementById(GLOBAL_STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = GLOBAL_STYLE_ID;
+  style.textContent = `
+    body.designer-feedback-add-mode,
+    body.designer-feedback-add-mode * {
+      cursor: crosshair !important;
+    }
+  `;
+  document.head.appendChild(style);
+  globalStyleElement = style;
+}
+
 export async function mountUI(): Promise<ShadowRoot> {
   if (container && shadowRoot) {
     return shadowRoot;
   }
 
   await waitForDomReady();
+  ensureGlobalStyles();
 
   const existing = document.getElementById(CONTAINER_ID);
   if (existing && existing.shadowRoot) {
@@ -83,7 +101,9 @@ export async function mountUI(): Promise<ShadowRoot> {
 export function unmountUI(): void {
   root?.unmount();
   container?.remove();
+  globalStyleElement?.remove();
   root = null;
   container = null;
   shadowRoot = null;
+  globalStyleElement = null;
 }

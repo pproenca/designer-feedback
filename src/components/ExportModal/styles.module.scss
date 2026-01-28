@@ -28,13 +28,29 @@ $blue: #3c82f7;
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px) saturate(1.05);
+  background: rgba(10, 10, 10, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100010;
   animation: df-overlay-in 0.2s ease-out;
+  will-change: opacity;
+  contain: strict;
+
+  &.lightOverlay {
+    background: rgba(250, 250, 250, 0.88);
+  }
+}
+
+.overlayDismiss {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 0;
 }
 
 .modal {
@@ -48,6 +64,7 @@ $blue: #3c82f7;
   --modal-glow: rgba(60, 130, 247, 0.35);
 
   position: relative;
+  z-index: 1;
   background: var(--modal-bg);
   border-radius: 18px;
   width: 90%;
@@ -61,6 +78,8 @@ $blue: #3c82f7;
     0 0 0 1px var(--modal-border);
   animation: df-modal-in 0.35s cubic-bezier(0.19, 1, 0.22, 1);
   font-family: inherit;
+  will-change: transform, opacity;
+  contain: layout style;
 }
 
 .header {
@@ -111,12 +130,11 @@ $blue: #3c82f7;
 }
 
 .summary {
-  margin-bottom: 0.85rem;
-  padding: 0.65rem 0.8rem;
-  background: var(--modal-surface);
-  border-radius: 12px;
-  border: 1px solid var(--modal-border);
-  box-shadow: none;
+  margin-bottom: 1rem;
+  padding: 0 0.25rem;
+  background: transparent;
+  border-radius: 0;
+  border: none;
 }
 
 .summaryItem {
@@ -134,11 +152,10 @@ $blue: #3c82f7;
 .summaryValue {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #cfe0ff;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  background: rgba($blue, 0.14);
-  border: 1px solid rgba($blue, 0.28);
+  color: var(--modal-text);
+  padding: 0;
+  background: none;
+  border: none;
 }
 
 .categories {
@@ -183,8 +200,8 @@ $blue: #3c82f7;
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.8rem 0.9rem;
-  background: var(--modal-surface);
-  border: 1px solid var(--modal-border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 10px;
   cursor: pointer;
   text-align: left;
@@ -192,30 +209,27 @@ $blue: #3c82f7;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    box-shadow 0.2s ease,
     transform 0.15s ease;
 
   &:hover {
-    background: var(--modal-surface-2);
-    transform: translateY(-1px);
+    background: var(--modal-surface);
+    border-color: transparent;
   }
 
   &:active {
-    transform: translateY(0) scale(0.99);
+    transform: scale(0.99);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
 
   &.selected {
-    background: linear-gradient(
-        90deg,
-        rgba($blue, 0.35) 0,
-        rgba($blue, 0.12) 4px,
-        rgba(60, 130, 247, 0.08) 4px
-      ),
-      var(--modal-surface-2);
-    border-color: rgba($blue, 0.28);
-    box-shadow: 0 6px 14px rgba(60, 130, 247, 0.12);
-    border-left-width: 2px;
-    border-left-color: rgba($blue, 0.55);
+    background: var(--modal-surface);
+    border-color: var(--modal-border);
+    border-left: 2px solid $blue;
 
     .formatIcon {
       color: #d5e3ff;
@@ -263,11 +277,12 @@ $blue: #3c82f7;
 }
 
 .preview {
+  margin-top: 0.5rem;
   margin-bottom: 0.9rem;
-  padding: 0.7rem 0.8rem;
-  background: var(--modal-surface);
-  border-radius: 10px;
-  border: 1px solid var(--modal-border);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
 }
 
 .previewTitle {
@@ -291,8 +306,13 @@ $blue: #3c82f7;
   font-size: 0.8rem;
   padding: 0.35rem 0.45rem;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  border: none;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--modal-surface);
+  }
 }
 
 .previewIndex {
@@ -332,6 +352,107 @@ $blue: #3c82f7;
   padding-top: 0.25rem;
 }
 
+.permissionCallout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.9rem;
+  border-radius: 12px;
+  background: var(--modal-surface);
+  border: 1px solid var(--modal-border);
+}
+
+.permissionError {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.permissionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.permissionTitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--modal-text);
+  letter-spacing: 0.02em;
+}
+
+.permissionBody {
+  font-size: 0.72rem;
+  color: var(--modal-text-muted);
+  line-height: 1.4;
+}
+
+.permissionButton {
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(60, 130, 247, 0.35);
+  background: rgba(60, 130, 247, 0.18);
+  color: #d5e3ff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(60, 130, 247, 0.28);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(60, 130, 247, 0.5);
+    outline-offset: 2px;
+  }
+}
+
+.status {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.success {
+  color: #bff1c9;
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.warning {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.error {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.info {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
 .info {
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.6);
@@ -362,7 +483,7 @@ $blue: #3c82f7;
   gap: 0.5rem;
   padding: 0.85rem 1.1rem 1rem;
   border-top: 1px solid var(--modal-border);
-  background: rgba(0, 0, 0, 0.1);
+  background: transparent;
 }
 
 .cancelButton,
@@ -407,15 +528,15 @@ $blue: #3c82f7;
   gap: 0.375rem;
   background: #3c82f7;
   color: #fff;
-  box-shadow: 0 10px 22px rgba(60, 130, 247, 0.24);
+  border-radius: 8px;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 14px 26px rgba(60, 130, 247, 0.32);
+    box-shadow: 0 4px 12px rgba(60, 130, 247, 0.25);
   }
 
   &:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
+    transform: scale(0.98);
   }
 
   &:disabled {
@@ -476,8 +597,8 @@ $blue: #3c82f7;
 
   .summaryValue {
     color: #1a1a1a;
-    background: rgba($blue, 0.12);
-    border-color: rgba($blue, 0.28);
+    background: none;
+    border: none;
   }
 
   .categoryCount {
@@ -485,8 +606,8 @@ $blue: #3c82f7;
   }
 
   .preview {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.06);
+    background: transparent;
+    border: none;
   }
 
   .previewTitle {
@@ -506,8 +627,12 @@ $blue: #3c82f7;
   }
 
   .previewItem {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.06);
+    background: transparent;
+    border: none;
+
+    &:hover {
+      background: var(--modal-surface);
+    }
   }
 
   .info {
@@ -520,7 +645,7 @@ $blue: #3c82f7;
 
   .actions {
     border-top-color: rgba(0, 0, 0, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), transparent);
+    background: transparent;
   }
 
   .cancelButton {
@@ -538,21 +663,17 @@ $blue: #3c82f7;
   }
 
   .formatOption {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.08);
+    background: transparent;
+    border-color: transparent;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.06);
+      background: var(--modal-surface);
     }
 
     &.selected {
-      background:
-        linear-gradient(90deg, rgba($blue, 0.35) 0, rgba($blue, 0.08) 4px, rgba($blue, 0.02) 4px),
-        #fff;
-      border-color: rgba($blue, 0.28);
-      box-shadow:
-        0 8px 18px rgba(60, 130, 247, 0.16),
-        0 0 0 1px rgba(60, 130, 247, 0.18) inset;
+      background: var(--modal-surface);
+      border-color: var(--modal-border);
+      border-left: 2px solid $blue;
 
       .formatIcon {
         color: $blue;
@@ -574,5 +695,68 @@ $blue: #3c82f7;
 
   .formatDescription {
     color: rgba(0, 0, 0, 0.5);
+  }
+
+  .permissionCallout {
+    background: var(--modal-surface);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .permissionError {
+    border-color: rgba(220, 38, 38, 0.35);
+    background: rgba(220, 38, 38, 0.08);
+  }
+
+  .permissionTitle {
+    color: #1a1a1a;
+  }
+
+  .permissionBody {
+    color: rgba(0, 0, 0, 0.55);
+  }
+
+  .permissionButton {
+    color: #1e40af;
+    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.12);
+
+    &:hover:not(:disabled) {
+      background: rgba(37, 99, 235, 0.18);
+    }
+  }
+
+  .status {
+    color: rgba(0, 0, 0, 0.7);
+  }
+
+  .success {
+    color: #166534;
+    background: rgba(22, 163, 74, 0.12);
+    border-color: rgba(22, 163, 74, 0.3);
+  }
+
+  .warning {
+    color: #92400e;
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+
+  .error {
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.3);
+  }
+
+  .info {
+    color: rgba(0, 0, 0, 0.65);
+    background: rgba(37, 99, 235, 0.1);
+    border-color: rgba(37, 99, 235, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .modal {
+    animation: none;
   }
 }

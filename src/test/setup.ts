@@ -9,6 +9,7 @@ const mockChrome = {
   runtime: {
     lastError: null as { message?: string } | null,
     sendMessage: vi.fn(),
+    getManifest: vi.fn(() => ({})),
     onMessage: {
       addListener: vi.fn(),
       removeListener: vi.fn(),

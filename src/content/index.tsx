@@ -1,6 +1,4 @@
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
-import type { Settings } from '@/types';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
 import { mountUI } from './mount';
 
 declare global {
@@ -75,20 +73,6 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     return false;
   };
   chrome.runtime.onMessage.addListener(messageListener);
-
-  // Auto-mount toolbar if enabled in settings
-  chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
-    if (chrome.runtime.lastError) {
-      console.error('Failed to read settings:', chrome.runtime.lastError.message);
-      return;
-    }
-    const settings = result as Settings;
-    if (settings.enabled) {
-      ensureInjected().catch((error) => {
-        console.error('Failed to auto-mount toolbar:', error);
-      });
-    }
-  });
 
   // Clean up listener on page unload to prevent memory leaks
   window.addEventListener('beforeunload', cleanup);

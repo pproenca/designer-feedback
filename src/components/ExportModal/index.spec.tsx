@@ -6,7 +6,12 @@ import type { Annotation } from '@/types';
 // Mock export utilities
 vi.mock('@/utils/export', () => ({
   exportAsImageWithNotes: vi.fn().mockResolvedValue(undefined),
-  exportAsSnapshotImage: vi.fn().mockResolvedValue(undefined),
+  exportAsSnapshotImage: vi.fn().mockResolvedValue({ usedPlaceholder: false }),
+}));
+
+vi.mock('@/utils/permissions', () => ({
+  hasScreenshotPermission: vi.fn().mockResolvedValue(true),
+  requestScreenshotPermission: vi.fn().mockResolvedValue(true),
 }));
 
 const mockAnnotations: Annotation[] = [

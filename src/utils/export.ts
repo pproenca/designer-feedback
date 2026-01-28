@@ -183,7 +183,10 @@ function showExtensionUI(): void {
 /**
  * Export full-page snapshot with markers + details sidebar to clipboard
  */
-export async function exportAsSnapshotImage(annotations: Annotation[]): Promise<void> {
+export async function exportAsSnapshotImage(
+  annotations: Annotation[],
+  options: { hasPermission?: boolean } = {}
+): Promise<{ usedPlaceholder: boolean; error?: string }> {
   // Hide UI before capture
   hideExtensionUI();
 
@@ -191,8 +194,13 @@ export async function exportAsSnapshotImage(annotations: Annotation[]): Promise<
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   let screenshot: string;
+  let usedPlaceholder = false;
+  let captureError: string | undefined;
   try {
-    screenshot = await captureFullPage();
+    const capture = await captureFullPage({ hasPermission: options.hasPermission });
+    screenshot = capture.dataUrl;
+    usedPlaceholder = capture.isPlaceholder;
+    captureError = capture.error;
   } finally {
     showExtensionUI();
   }
@@ -200,6 +208,7 @@ export async function exportAsSnapshotImage(annotations: Annotation[]): Promise<
   const composite = await createSnapshotImage(screenshot, annotations);
   const timestamp = new Date().toISOString().split('T')[0];
   await downloadDataUrl(composite, `feedback-${timestamp}.png`);
+  return { usedPlaceholder, error: captureError };
 }
 
 /**

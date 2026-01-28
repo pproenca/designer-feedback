@@ -5,6 +5,9 @@ import { mockChrome } from '../test/setup';
 describe('permissions utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockChrome.runtime.getManifest = vi.fn(() => ({
+      optional_host_permissions: ['<all_urls>'],
+    }));
   });
 
   describe('hasScreenshotPermission', () => {
@@ -27,6 +30,14 @@ describe('permissions utilities', () => {
       const result = await hasScreenshotPermission();
       expect(result).toBe(false);
     });
+
+    it('returns true when optional host permissions are not declared', async () => {
+      mockChrome.runtime.getManifest = vi.fn(() => ({}));
+
+      const result = await hasScreenshotPermission();
+      expect(result).toBe(true);
+      expect(mockChrome.permissions.contains).not.toHaveBeenCalled();
+    });
   });
 
   describe('requestScreenshotPermission', () => {
@@ -48,6 +59,14 @@ describe('permissions utilities', () => {
 
       const result = await requestScreenshotPermission();
       expect(result).toBe(false);
+    });
+
+    it('returns true when optional host permissions are not declared', async () => {
+      mockChrome.runtime.getManifest = vi.fn(() => ({}));
+
+      const result = await requestScreenshotPermission();
+      expect(result).toBe(true);
+      expect(mockChrome.permissions.request).not.toHaveBeenCalled();
     });
   });
 });

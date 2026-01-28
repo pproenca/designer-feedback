@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, BrowserContext } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 /**
@@ -8,6 +8,43 @@ async function waitForToolbar(page: Page) {
   await expect(page.locator('#designer-feedback-root')).toBeAttached({ timeout: 10000 });
   await expect(page.locator('#designer-feedback-root [data-toolbar]')).toBeVisible({
     timeout: 10000,
+  });
+}
+
+async function activateToolbar(page: Page, context: BrowserContext, extensionId: string) {
+  const targetUrl = page.url();
+  const activationPage = await context.newPage();
+  await activationPage.goto(
+    `chrome-extension://${extensionId}/test-activate.html?target=${encodeURIComponent(targetUrl)}`
+  );
+  await activationPage.waitForLoadState('domcontentloaded');
+  try {
+    await activationPage.waitForFunction(() => {
+      const status = window['__dfActivateStatus'];
+      return status === 'done' || (typeof status === 'string' && status.startsWith('error:'));
+    }, { timeout: 2000 });
+  } catch {
+    const diagnostics = await activationPage.evaluate(() => ({
+      status: window['__dfActivateStatus'],
+      debug: window['__dfActivateDebug'],
+      hasChrome: Boolean(window.chrome),
+      hasScripting: Boolean(window.chrome?.scripting),
+      url: window.location.href,
+    }));
+    throw new Error(`Activation timed out: ${JSON.stringify(diagnostics)}`);
+  }
+  const status = await activationPage.evaluate(() => window['__dfActivateStatus']);
+  if (status !== 'done') {
+    const diagnostics = await activationPage.evaluate(() => ({
+      status: window['__dfActivateStatus'],
+      debug: window['__dfActivateDebug'],
+    }));
+    throw new Error(`Activation failed: ${JSON.stringify(diagnostics)}`);
+  }
+  await activationPage.close();
+  await page.bringToFront();
+  await page.waitForFunction(() => window.__designerFeedbackInjected === true, {
+    timeout: 2000,
   });
 }
 
@@ -54,8 +91,9 @@ async function dragToolbar(page: Page, targetX: number, targetY: number) {
 }
 
 test.describe('Toolbar Drag Behavior', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context, extensionId }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
   });
 
@@ -167,6 +205,7 @@ test.describe('Toolbar Drag Behavior', () => {
   test('toolbar position is per-origin (different on different sites)', async ({
     page,
     context,
+    extensionId,
   }) => {
     // Drag toolbar on example.com
     await dragToolbar(page, 100, 100);
@@ -175,6 +214,7 @@ test.describe('Toolbar Drag Behavior', () => {
     // Open a different site
     const newPage = await context.newPage();
     await newPage.goto('https://www.iana.org', { waitUntil: 'domcontentloaded' });
+    await activateToolbar(newPage, context, extensionId);
     await waitForToolbar(newPage);
 
     // Toolbar should be at default position (not the dragged position)
@@ -192,6 +232,7 @@ test.describe('Toolbar Drag Behavior', () => {
     // Go back to example.com and verify position is preserved
     await page.bringToFront();
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
 
     const exampleReloadBounds = await getToolbarBounds(page);

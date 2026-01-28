@@ -2,6 +2,14 @@
 // Screenshot Utilities
 // =============================================================================
 
+import { hasScreenshotPermission } from './permissions';
+
+export type FullPageCaptureResult = {
+  dataUrl: string;
+  isPlaceholder: boolean;
+  error?: string;
+};
+
 /**
  * Capture the visible tab screenshot via the background service worker
  */
@@ -28,12 +36,31 @@ export async function captureScreenshot(): Promise<string> {
 /**
  * Capture full page by scrolling through the document and stitching screenshots
  */
-export async function captureFullPage(): Promise<string> {
+export async function captureFullPage(
+  options: { hasPermission?: boolean } = {}
+): Promise<FullPageCaptureResult> {
+  const hasPermission = options.hasPermission ?? (await hasScreenshotPermission());
+
+  if (!hasPermission) {
+    return {
+      dataUrl: createPlaceholderScreenshot(
+        'Grant permission to capture screenshots',
+        'Click Export again after granting permission.'
+      ),
+      isPlaceholder: true,
+      error: 'permission-required',
+    };
+  }
+
   try {
-    return await captureFullPageFromExtension();
+    return { dataUrl: await captureFullPageFromExtension(), isPlaceholder: false };
   } catch (error) {
     console.warn('Extension screenshot capture failed, using placeholder.', error);
-    return createPlaceholderScreenshot();
+    return {
+      dataUrl: createPlaceholderScreenshot(),
+      isPlaceholder: true,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -169,7 +196,10 @@ function getDocumentSize(): { width: number; height: number } {
   return { width, height };
 }
 
-function createPlaceholderScreenshot(): string {
+function createPlaceholderScreenshot(
+  message = 'Screenshot unavailable',
+  subtitle = 'Export includes annotations and layout metadata.'
+): string {
   const { width, height } = getDocumentSize();
   const scale = window.devicePixelRatio || 1;
   const canvas = document.createElement('canvas');
@@ -186,10 +216,10 @@ function createPlaceholderScreenshot(): string {
 
   ctx.fillStyle = '#111827';
   ctx.font = `${Math.max(12, Math.round(14 * scale))}px "Segoe UI", sans-serif`;
-  ctx.fillText('Screenshot unavailable', Math.round(24 * scale), Math.round(48 * scale));
+  ctx.fillText(message, Math.round(24 * scale), Math.round(48 * scale));
   ctx.fillStyle = '#6b7280';
   ctx.font = `${Math.max(10, Math.round(12 * scale))}px "Segoe UI", sans-serif`;
-  ctx.fillText('Export includes annotations and layout metadata.', Math.round(24 * scale), Math.round(70 * scale));
+  ctx.fillText(subtitle, Math.round(24 * scale), Math.round(70 * scale));
 
   return canvas.toDataURL('image/png');
 }

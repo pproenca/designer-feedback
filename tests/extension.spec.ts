@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, BrowserContext } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 /**
@@ -12,6 +12,43 @@ async function waitForToolbar(page: Page) {
   await expect(page.locator('#designer-feedback-root')).toBeAttached({ timeout: 10000 });
   // Wait for the actual toolbar inside the shadow DOM to be visible
   await expect(page.locator('#designer-feedback-root [data-toolbar]')).toBeVisible({ timeout: 10000 });
+}
+
+async function activateToolbar(page: Page, context: BrowserContext, extensionId: string) {
+  const targetUrl = page.url();
+  const activationPage = await context.newPage();
+  await activationPage.goto(
+    `chrome-extension://${extensionId}/test-activate.html?target=${encodeURIComponent(targetUrl)}`
+  );
+  await activationPage.waitForLoadState('domcontentloaded');
+  try {
+    await activationPage.waitForFunction(() => {
+      const status = window['__dfActivateStatus'];
+      return status === 'done' || (typeof status === 'string' && status.startsWith('error:'));
+    }, { timeout: 2000 });
+  } catch {
+    const diagnostics = await activationPage.evaluate(() => ({
+      status: window['__dfActivateStatus'],
+      debug: window['__dfActivateDebug'],
+      hasChrome: Boolean(window.chrome),
+      hasScripting: Boolean(window.chrome?.scripting),
+      url: window.location.href,
+    }));
+    throw new Error(`Activation timed out: ${JSON.stringify(diagnostics)}`);
+  }
+  const status = await activationPage.evaluate(() => window['__dfActivateStatus']);
+  if (status !== 'done') {
+    const diagnostics = await activationPage.evaluate(() => ({
+      status: window['__dfActivateStatus'],
+      debug: window['__dfActivateDebug'],
+    }));
+    throw new Error(`Activation failed: ${JSON.stringify(diagnostics)}`);
+  }
+  await activationPage.close();
+  await page.bringToFront();
+  await page.waitForFunction(() => window.__designerFeedbackInjected === true, {
+    timeout: 2000,
+  });
 }
 
 async function createAnnotation(
@@ -38,16 +75,18 @@ test.describe('Extension Basic Tests', () => {
     expect(serviceWorkers.some((sw) => sw.url().includes(extensionId))).toBe(true);
   });
 
-  test('content script injects toolbar on page load', async ({ page }) => {
+  test('toolbar activates on action click', async ({ page, context, extensionId }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
     await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
   });
 });
 
 test.describe('Toolbar UI', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context, extensionId }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
   });
 
@@ -83,8 +122,9 @@ test.describe('Toolbar UI', () => {
 });
 
 test.describe('Feedback Toolbar flows', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context, extensionId }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
     // Note: Each test runs in a fresh browser context, so storage is already clean
   });
@@ -129,7 +169,7 @@ test.describe('Feedback Toolbar flows', () => {
     await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
   });
 
-  test('stores annotations in extension storage (not page IndexedDB)', async ({ page }) => {
+  test('stores annotations in extension storage (not page IndexedDB)', async ({ page, context, extensionId }) => {
     const comment = 'Check storage location.';
 
     // Verify IndexedDB is not used before creating annotation
@@ -156,6 +196,7 @@ test.describe('Feedback Toolbar flows', () => {
 
     // Verify annotation persists after page reload (proves it's stored somewhere persistent)
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await activateToolbar(page, context, extensionId);
     await waitForToolbar(page);
     await expect(page.locator('[data-annotation-marker]')).toHaveCount(1);
   });

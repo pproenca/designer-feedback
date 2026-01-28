@@ -10,6 +10,9 @@ const createMockChrome = () => ({
     id: 'test-extension-id',
     lastError: null as { message?: string } | null,
     sendMessage: vi.fn(),
+    getManifest: vi.fn(() => ({
+      content_scripts: [{ js: ['src/content/index.tsx'] }],
+    })),
     onMessage: {
       addListener: vi.fn(),
       removeListener: vi.fn(),
@@ -50,6 +53,10 @@ const createMockChrome = () => ({
   },
   scripting: {
     executeScript: vi.fn(),
+  },
+  permissions: {
+    contains: vi.fn((_perms, callback) => callback(true)),
+    request: vi.fn((_perms, callback) => callback(true)),
   },
   downloads: {
     download: vi.fn(),
@@ -232,7 +239,6 @@ describe('Service Worker - Icon Click Handler', () => {
   });
 
   it('should handle sendMessage errors gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockChrome.tabs.sendMessage.mockRejectedValueOnce(new Error('Could not establish connection'));
 
     await importServiceWorker();
@@ -254,9 +260,8 @@ describe('Service Worker - Icon Click Handler', () => {
 
     // Should not throw
     await expect(onClickedHandler?.(tab)).resolves.not.toThrow();
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to show toolbar:', expect.any(Error));
-
-    consoleSpy.mockRestore();
+    expect(mockChrome.scripting.executeScript).toHaveBeenCalled();
+    expect(mockChrome.tabs.sendMessage).toHaveBeenCalledTimes(2);
   });
 });
 

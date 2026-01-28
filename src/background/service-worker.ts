@@ -10,6 +10,66 @@ import { DEFAULT_SETTINGS } from '@/shared/settings';
 // =============================================================================
 
 const activatedTabs = new Map<number, string>(); // tabId -> origin
+const ACTIVATED_TABS_KEY = 'designer-feedback:activated-tabs';
+
+function canUseSessionStorage(): boolean {
+  return typeof chrome !== 'undefined' && Boolean(chrome.storage?.session);
+}
+
+function persistActivatedTabs(): void {
+  if (!canUseSessionStorage()) return;
+  const payload: Record<string, string> = {};
+  activatedTabs.forEach((origin, tabId) => {
+    payload[String(tabId)] = origin;
+  });
+  chrome.storage.session.set({ [ACTIVATED_TABS_KEY]: payload }, () => {
+    if (chrome.runtime.lastError) {
+      console.warn('Failed to persist activated tabs:', chrome.runtime.lastError.message);
+    }
+  });
+}
+
+async function restoreActivatedTabs(): Promise<void> {
+  if (!canUseSessionStorage()) return;
+  return new Promise((resolve) => {
+    chrome.storage.session.get({ [ACTIVATED_TABS_KEY]: {} }, (result) => {
+      if (chrome.runtime.lastError) {
+        console.warn('Failed to restore activated tabs:', chrome.runtime.lastError.message);
+        resolve();
+        return;
+      }
+      const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+      Object.entries(stored ?? {}).forEach(([tabId, origin]) => {
+        const id = Number(tabId);
+        if (Number.isFinite(id) && origin) {
+          activatedTabs.set(id, origin);
+        }
+      });
+      chrome.tabs.query({}, (tabs) => {
+        if (chrome.runtime.lastError) {
+          resolve();
+          return;
+        }
+        const validIds = new Set(tabs.map((tab) => tab.id).filter(Boolean) as number[]);
+        let changed = false;
+        for (const id of activatedTabs.keys()) {
+          if (!validIds.has(id)) {
+            activatedTabs.delete(id);
+            changed = true;
+          }
+        }
+        if (changed) {
+          persistActivatedTabs();
+        }
+        resolve();
+      });
+    });
+  });
+}
+
+restoreActivatedTabs().catch((error) => {
+  console.warn('Failed to restore activated tabs:', error);
+});
 
 /**
  * Check if a URL is injectable (http/https only)
@@ -29,15 +89,58 @@ function getOrigin(url: string): string {
   }
 }
 
+function getContentScriptFiles(): string[] {
+  const manifest = chrome.runtime.getManifest();
+  const scripts = manifest.content_scripts ?? [];
+  const files = scripts.flatMap((script) => script.js ?? []);
+  const uniqueFiles = Array.from(new Set(files));
+  if (uniqueFiles.length > 0) {
+    return uniqueFiles;
+  }
+  // Fallback for programmatic-only injection (no manifest content_scripts)
+  return ['assets/content.js'];
+}
+
+async function injectContentScripts(tabId: number): Promise<boolean> {
+  if (!chrome.scripting?.executeScript) return false;
+  const files = getContentScriptFiles();
+  if (!files.length) return false;
+  await chrome.scripting.executeScript({ target: { tabId }, files });
+  return true;
+}
+
+async function sendShowToolbar(tabId: number): Promise<void> {
+  await chrome.tabs.sendMessage(tabId, { type: 'SHOW_TOOLBAR' });
+}
+
+async function sendShowToolbarWithRetry(tabId: number): Promise<void> {
+  try {
+    await sendShowToolbar(tabId);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await sendShowToolbar(tabId);
+  }
+}
+
 /**
  * Show toolbar on the given tab.
- * Content script is already injected via manifest's content_scripts.
+ * Injects content scripts on-demand when needed.
  */
 async function showToolbar(tabId: number): Promise<void> {
   try {
     // Tell content script to show toolbar
-    await chrome.tabs.sendMessage(tabId, { type: 'SHOW_TOOLBAR' });
+    await sendShowToolbarWithRetry(tabId);
   } catch (error) {
+    try {
+      const injected = await injectContentScripts(tabId);
+      if (injected) {
+        await sendShowToolbarWithRetry(tabId);
+        return;
+      }
+    } catch (retryError) {
+      console.error('Failed to show toolbar after injection:', retryError);
+      return;
+    }
     // Content script might not be ready yet, or page doesn't support it
     console.error('Failed to show toolbar:', error);
   }
@@ -55,8 +158,15 @@ chrome.action.onClicked.addListener(async (tab) => {
     return;
   }
 
+  try {
+    await injectContentScripts(tab.id);
+  } catch (error) {
+    console.warn('Content script injection failed:', error);
+  }
+
   // Track this tab for same-origin persistence
   activatedTabs.set(tab.id, getOrigin(tab.url));
+  persistActivatedTabs();
 
   await showToolbar(tab.id);
 });
@@ -78,12 +188,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   } else {
     // Different origin - clear tracking
     activatedTabs.delete(tabId);
+    persistActivatedTabs();
   }
 });
 
 // Clean up on tab close
 chrome.tabs.onRemoved.addListener((tabId) => {
   activatedTabs.delete(tabId);
+  persistActivatedTabs();
 });
 
 // =============================================================================
@@ -209,6 +321,56 @@ chrome.runtime.onMessage.addListener((message: MessageType, sender, sendResponse
         sendResponse({ type: 'SCREENSHOT_CAPTURED', data: '', error: String(error) });
       });
     return true; // Keep message channel open for async response
+  }
+
+  // Handle screenshot permission status
+  if (message.type === 'CHECK_SCREENSHOT_PERMISSION') {
+    if (!chrome.permissions) {
+      sendResponse({
+        type: 'SCREENSHOT_PERMISSION_STATUS',
+        granted: false,
+        error: 'Permissions API unavailable',
+      });
+      return true;
+    }
+    const origin = message.origin && message.origin.trim().length > 0 ? message.origin : '<all_urls>';
+    chrome.permissions.contains({ origins: [origin] }, (granted) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({
+          type: 'SCREENSHOT_PERMISSION_STATUS',
+          granted: false,
+          error: chrome.runtime.lastError.message,
+        });
+        return;
+      }
+      sendResponse({ type: 'SCREENSHOT_PERMISSION_STATUS', granted: Boolean(granted) });
+    });
+    return true;
+  }
+
+  // Handle screenshot permission request
+  if (message.type === 'REQUEST_SCREENSHOT_PERMISSION') {
+    if (!chrome.permissions) {
+      sendResponse({
+        type: 'SCREENSHOT_PERMISSION_RESPONSE',
+        granted: false,
+        error: 'Permissions API unavailable',
+      });
+      return true;
+    }
+    const origin = message.origin && message.origin.trim().length > 0 ? message.origin : '<all_urls>';
+    chrome.permissions.request({ origins: [origin] }, (granted) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({
+          type: 'SCREENSHOT_PERMISSION_RESPONSE',
+          granted: false,
+          error: chrome.runtime.lastError.message,
+        });
+        return;
+      }
+      sendResponse({ type: 'SCREENSHOT_PERMISSION_RESPONSE', granted: Boolean(granted) });
+    });
+    return true;
   }
 
   // Handle file download
