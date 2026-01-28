@@ -5,6 +5,8 @@ import {
   useCallback,
   forwardRef,
   useImperativeHandle,
+  type CSSProperties,
+  type KeyboardEvent,
 } from 'react';
 import type { Annotation } from '@/types';
 import styles from './styles.module.scss';
@@ -24,7 +26,7 @@ export interface AnnotationPopupProps {
   onSubmit?: (text: string) => void;
   onDelete?: () => void;
   onCancel: () => void;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   accentColor?: string;
   isExiting?: boolean;
   lightMode?: boolean;
@@ -130,7 +132,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
 
     // Handle keyboard
     const handleKeyDown = useCallback(
-      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      (e: KeyboardEvent<HTMLTextAreaElement>) => {
         e.stopPropagation(); // Prevent keyboard events from bubbling to host page
         if (e.nativeEvent.isComposing) return;
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -164,7 +166,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
           className={popupClassName}
           data-annotation-popup
           style={style}
-          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="Annotation details"
+          tabIndex={-1}
         >
           <div className={styles.header}>
             <span className={styles.element}>{element}</span>
@@ -195,7 +199,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         className={popupClassName}
         data-annotation-popup
         style={style}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Create annotation"
+        tabIndex={-1}
       >
         <div className={styles.header}>
           <span className={styles.element}>{element}</span>

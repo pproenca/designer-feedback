@@ -44,16 +44,3 @@ export function sendMessage<T>(message: unknown, timeoutMs = DEFAULT_TIMEOUT_MS)
   });
 }
 
-/**
- * Listen for messages from background or popup
- */
-export function addMessageListener(
-  callback: (
-    message: unknown,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void
-  ) => void
-): () => void {
-  chrome.runtime.onMessage.addListener(callback);
-  return () => chrome.runtime.onMessage.removeListener(callback);
-}

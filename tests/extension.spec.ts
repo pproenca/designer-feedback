@@ -351,18 +351,25 @@ test.describe('Feedback Toolbar flows', () => {
   }) => {
     const comment = 'Check storage location.';
 
-    const supportsDatabases = await page.evaluate(() => 'databases' in indexedDB);
-    if (supportsDatabases) {
-      const before = await page.evaluate(async () => indexedDB.databases());
-      expect(before?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
-    }
+    const before = await page.evaluate(async () => {
+      try {
+        return await indexedDB.databases();
+      } catch {
+        return [];
+      }
+    });
+    expect(before?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
 
     await createAnnotation(page, comment, 'Suggestion');
 
-    if (supportsDatabases) {
-      const after = await page.evaluate(async () => indexedDB.databases());
-      expect(after?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
-    }
+    const after = await page.evaluate(async () => {
+      try {
+        return await indexedDB.databases();
+      } catch {
+        return [];
+      }
+    });
+    expect(after?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
 
     const storagePage = await context.newPage();
     await openPopup(storagePage, extensionId);

@@ -25,6 +25,7 @@ export function throttle<T extends (...args: any[]) => any>(
     const timeSinceLastCall = now - lastCallTime;
 
     // Store context and args for potential trailing call
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     trailingThis = this;
     trailingArgs = args;
 
@@ -80,6 +81,7 @@ export function debounce<T extends (...args: any[]) => any>(
 
   const debounced = function (this: unknown, ...args: Parameters<T>) {
     pendingArgs = args;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     pendingThis = this;
 
     // Clear previous timeout

@@ -3,7 +3,7 @@
 // =============================================================================
 
 import JSZip from 'jszip';
-import type { Annotation, FeedbackExport, FeedbackCategory } from '@/types';
+import type { Annotation, FeedbackExport } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { sendMessage } from '@/utils/messaging';
 import { captureFullPage } from './screenshot';
@@ -102,26 +102,6 @@ export function generateMarkdownExport(annotations: Annotation[]): string {
   });
 
   return lines.join('\n');
-}
-
-/**
- * Generate category summary for markdown
- */
-export function getCategorySummary(
-  annotations: Annotation[]
-): Record<FeedbackCategory, number> {
-  const summary: Record<FeedbackCategory, number> = {
-    bug: 0,
-    suggestion: 0,
-    question: 0,
-    accessibility: 0,
-  };
-
-  annotations.forEach((annotation) => {
-    summary[annotation.category]++;
-  });
-
-  return summary;
 }
 
 /**

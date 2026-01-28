@@ -89,7 +89,7 @@ describe('sendMessage', () => {
   });
 
   it('clears timeout when response is received', async () => {
-    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const expectedResponse = { data: 'test' };
 
     mockChrome.runtime.sendMessage.mockImplementation(

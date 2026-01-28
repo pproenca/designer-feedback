@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AnnotationPopup, AnnotationPopupHandle } from '../AnnotationPopup';
@@ -429,6 +429,15 @@ export function FeedbackToolbar({
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
                 onClick={() => setSelectedAnnotation(annotation)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedAnnotation(annotation);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Annotation ${index + 1} (${config.label})`}
               >
                 {index + 1}
                 {isHovered && renderMarkerTooltip(annotation)}
@@ -457,6 +466,15 @@ export function FeedbackToolbar({
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
                 onClick={() => setSelectedAnnotation(annotation)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedAnnotation(annotation);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Annotation ${globalIndex} (${config.label})`}
               >
                 {globalIndex}
                 {isHovered && renderMarkerTooltip(annotation)}
@@ -578,6 +596,15 @@ export function FeedbackToolbar({
             ${!entranceComplete ? styles.entrance : ''}
           `}
           onClick={() => !isExpanded && setIsExpanded(true)}
+          onKeyDown={(event) => {
+            if (!isExpanded && (event.key === 'Enter' || event.key === ' ')) {
+              event.preventDefault();
+              setIsExpanded(true);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isExpanded}
         >
           {/* Collapsed state: show icon + badge */}
           <div
@@ -619,7 +646,7 @@ export function FeedbackToolbar({
                     className={styles.categoryOption}
                     type="button"
                     onClick={() => handleCategorySelect('bug')}
-                    style={{ '--category-color': '#FF3B30' } as React.CSSProperties}
+                    style={{ '--category-color': '#FF3B30' } as CSSProperties}
                   >
                     <IconBug size={20} />
                     <span>Bug</span>
@@ -628,7 +655,7 @@ export function FeedbackToolbar({
                     className={styles.categoryOption}
                     type="button"
                     onClick={() => handleCategorySelect('question')}
-                    style={{ '--category-color': '#FFD60A' } as React.CSSProperties}
+                    style={{ '--category-color': '#FFD60A' } as CSSProperties}
                   >
                     <IconQuestion size={20} />
                     <span>Question</span>
@@ -637,7 +664,7 @@ export function FeedbackToolbar({
                     className={styles.categoryOption}
                     type="button"
                     onClick={() => handleCategorySelect('suggestion')}
-                    style={{ '--category-color': '#3C82F7' } as React.CSSProperties}
+                    style={{ '--category-color': '#3C82F7' } as CSSProperties}
                   >
                     <IconLightbulb size={20} />
                     <span>Suggestion</span>

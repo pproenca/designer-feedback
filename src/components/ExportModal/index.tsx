@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import {
+  useState,
+  useRef,
+  useEffect,
+  type ReactNode,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { getCategoryConfig } from '@/shared/categories';
@@ -75,11 +82,33 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     }
   };
 
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    onClose();
+  };
+
+  const handleOverlayKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div
+      className={styles.overlay}
+      onClick={handleOverlayClick}
+      onKeyDown={handleOverlayKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="Close export dialog"
+    >
       <div
         className={`${styles.modal} ${lightMode ? styles.light : ''}`}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export feedback"
+        tabIndex={-1}
       >
         <div className={styles.header}>
           <h2 className={styles.title}>Export Feedback</h2>

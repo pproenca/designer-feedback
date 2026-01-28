@@ -4,6 +4,7 @@ import { mockChrome } from '../test/setup';
 describe('Storage Quota Validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
   it('should check bytes in use before saving', async () => {
@@ -63,6 +64,7 @@ describe('Storage Quota Validation', () => {
   });
 
   it('should prevent saves that would exceed quota', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // Reset mock for this specific test
     mockChrome.storage.local.getBytesInUse.mockReset();
     mockChrome.storage.local.getBytesInUse.mockImplementation(
@@ -79,5 +81,71 @@ describe('Storage Quota Validation', () => {
     // At 10.5MB / 10MB = 105%, this should be over quota
     expect(result.ok).toBe(false);
     expect(result.percentUsed).toBeGreaterThan(1);
+    consoleSpy.mockRestore();
+  });
+
+  it('returns zero usage and warns when bytes-in-use check fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    mockChrome.storage.local.getBytesInUse.mockImplementation(
+      (_keys: unknown, callback: (bytesInUse: number) => void) => {
+        mockChrome.runtime.lastError = { message: 'Quota read failed' };
+        callback(0);
+      }
+    );
+
+    const { checkStorageQuota } = await import('./storage');
+    const result = await checkStorageQuota();
+
+    expect(result.bytesUsed).toBe(0);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to get storage usage:',
+      'Quota read failed'
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('rejects when storage read fails during save', async () => {
+    mockChrome.storage.local.get.mockImplementation(
+      (_keys: unknown, callback: (result: unknown) => void) => {
+        mockChrome.runtime.lastError = { message: 'Read failed' };
+        callback({});
+      }
+    );
+
+    const { saveAnnotation } = await import('./storage');
+
+    await expect(
+      saveAnnotation({
+        id: '1',
+        x: 0,
+        y: 0,
+        comment: 'Test',
+        category: 'bug',
+        element: 'div',
+        elementPath: 'div',
+        timestamp: Date.now(),
+        isFixed: false,
+        url: 'https://example.com',
+      })
+    ).rejects.toThrow('Read failed');
+  });
+
+  it('returns empty array when stored annotations are malformed', async () => {
+    mockChrome.storage.local.get.mockImplementation(
+      (keys: unknown, callback: (result: unknown) => void) => {
+        if (keys === null) {
+          callback({});
+          return;
+        }
+        const key = Object.keys(keys as Record<string, unknown>)[0];
+        callback({ [key]: 'not-an-array' });
+      }
+    );
+
+    const { loadAnnotations } = await import('./storage');
+    const results = await loadAnnotations();
+
+    expect(results).toEqual([]);
   });
 });

@@ -54,7 +54,7 @@ function findChromeExecutable() {
 function readKeyFromOp(opRef) {
   try {
     return execFileSync('op', ['read', opRef], { encoding: 'utf8' }).trim();
-  } catch (error) {
+  } catch {
     throw new Error(
       'Failed to read the private key from 1Password. Make sure `op` is installed and you are signed in.'
     );

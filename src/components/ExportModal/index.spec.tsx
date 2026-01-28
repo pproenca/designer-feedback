@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { ExportModal } from './index';
 import type { Annotation } from '@/types';
 
@@ -35,7 +35,7 @@ describe('ExportModal', () => {
   });
 
   it('clears timeout when component unmounts before auto-close', async () => {
-    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const onClose = vi.fn();
 
     const { unmount } = render(
@@ -44,10 +44,11 @@ describe('ExportModal', () => {
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    fireEvent.click(exportButton);
-
-    // Wait for export to complete (mocked to resolve immediately)
-    await vi.runAllTimersAsync();
+    await act(async () => {
+      fireEvent.click(exportButton);
+      // Wait for export to complete (mocked to resolve immediately)
+      await vi.runAllTimersAsync();
+    });
 
     // Unmount before the 1500ms auto-close timer fires
     vi.advanceTimersByTime(500);
@@ -67,10 +68,11 @@ describe('ExportModal', () => {
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    fireEvent.click(exportButton);
-
-    // Wait for export to complete
-    await vi.runAllTimersAsync();
+    await act(async () => {
+      fireEvent.click(exportButton);
+      // Wait for export to complete
+      await vi.runAllTimersAsync();
+    });
 
     // Reset onClose mock to track only post-export calls
     onClose.mockClear();
@@ -93,13 +95,16 @@ describe('ExportModal', () => {
 
     // Click export button
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    fireEvent.click(exportButton);
-
-    // Wait for export to complete
-    await vi.runAllTimersAsync();
+    await act(async () => {
+      fireEvent.click(exportButton);
+      // Wait for export to complete
+      await vi.runAllTimersAsync();
+    });
 
     // Advance past the auto-close timer
-    vi.advanceTimersByTime(1600);
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
 
     // onClose should have been called by the timer
     expect(onClose).toHaveBeenCalledTimes(1);
