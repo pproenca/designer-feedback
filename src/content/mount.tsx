@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { ErrorBoundary } from './ErrorBoundary';
 
 import contentStyles from './styles.scss?inline';
 import toolbarStyles from '@/components/FeedbackToolbar/styles.module.scss?inline';
@@ -70,7 +71,9 @@ export async function mountUI(): Promise<ShadowRoot> {
   root = ReactDOM.createRoot(appRoot);
   root.render(
     <React.StrictMode>
-      <App shadowRoot={shadowRoot} />
+      <ErrorBoundary>
+        <App shadowRoot={shadowRoot} />
+      </ErrorBoundary>
     </React.StrictMode>
   );
 

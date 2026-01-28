@@ -2,13 +2,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { crx } from '@crxjs/vite-plugin';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { resolve } from 'path';
+import type { PluginOption } from 'vite';
 import manifest from './manifest.json';
 
 export default defineConfig({
   plugins: [
     react(),
     crx({ manifest }),
+    visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    }) as PluginOption,
   ],
   resolve: {
     alias: {
