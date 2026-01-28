@@ -40,8 +40,8 @@ const mockChrome = {
     setBadgeBackgroundColor: vi.fn(),
   },
   permissions: {
-    contains: vi.fn(),
-    request: vi.fn(),
+    contains: vi.fn().mockImplementation((_perms, callback) => callback(true)),
+    request: vi.fn().mockImplementation((_perms, callback) => callback(true)),
   },
 };
 
