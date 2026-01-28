@@ -17,7 +17,7 @@ Open the page, click what you mean, and leave a clear note tied to the exact ele
 - On-page toolbar with add mode and hover highlight to pick the exact element
 - Categories for bug, suggestion, question, and accessibility feedback
 - Numbered markers with quick view and delete or clear-all controls
-- Export as interactive HTML, a full-page snapshot image, or copy a markdown report
+- Export as a full-page snapshot image or copy a markdown report
 - Site access controls with allowlist and blocklist modes
 - Local-only storage with a per-page badge count
 
@@ -30,7 +30,6 @@ Open the page, click what you mean, and leave a clear note tied to the exact ele
 
 ## exports
 
-- Interactive HTML: a single file with a full-page screenshot and hoverable markers.
 - Snapshot image: a full-page image with highlights and a sidebar list.
 - Markdown to clipboard: a concise report you can paste into an issue or PR.
 
@@ -47,7 +46,7 @@ See `docs/privacy.html` for the full policy.
 
 - `storage` to save annotations and settings locally.
 - `tabs` to read the current tab URL and title for export metadata.
-- `activeTab` + `scripting` to inject the toolbar on the current page when you use the extension.
+- `activeTab` to capture screenshots when exporting from the popup.
 - `optional_host_permissions` for `http` and `https`, requested only when you allow specific sites or all sites.
 
 ## installation

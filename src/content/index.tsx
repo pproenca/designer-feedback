@@ -21,6 +21,31 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
   let isInjected = false;
   let currentSettings: Settings = DEFAULT_SETTINGS;
 
+  // Message type for content script messages
+  type ContentMessage = { type: string; enabled?: boolean };
+
+  // Store listener references for cleanup (prevents memory leaks)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let messageListener: ((message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => boolean | void) | null = null;
+  let storageListener: ((
+    changes: { [key: string]: chrome.storage.StorageChange },
+    areaName: string
+  ) => void) | null = null;
+
+  /**
+   * Cleanup function to remove all listeners and prevent memory leaks
+   */
+  function cleanup(): void {
+    if (messageListener) {
+      chrome.runtime.onMessage.removeListener(messageListener);
+      messageListener = null;
+    }
+    if (storageListener) {
+      chrome.storage.onChanged.removeListener(storageListener);
+      storageListener = null;
+    }
+  }
+
   async function ensureInjected(): Promise<void> {
     if (isInjected) return;
     await mountUI();
@@ -31,6 +56,7 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     if (!isInjected) return;
     unmountUI();
     isInjected = false;
+    cleanup(); // Clean up listeners when unmounting
   }
 
   function triggerExport(): void {
@@ -55,7 +81,8 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     }
   };
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // Create and store message listener reference
+  messageListener = (message: ContentMessage, _sender, sendResponse) => {
     if (message.type === 'GET_ANNOTATION_COUNT') {
       if (!shouldRunOnPage()) {
         sendResponse({ count: 0 });
@@ -88,7 +115,8 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     }
 
     return false;
-  });
+  };
+  chrome.runtime.onMessage.addListener(messageListener);
 
   chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
     if (chrome.runtime.lastError) {
@@ -101,7 +129,8 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
     });
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
+  // Create and store storage listener reference
+  storageListener = (changes, area) => {
     if (area !== 'sync') return;
 
     const nextSettings: Settings = { ...currentSettings };
@@ -134,5 +163,9 @@ if (isEligibleDocument && !window.__designerFeedbackInjected) {
         console.error('Failed to apply settings:', error);
       });
     }
-  });
+  };
+  chrome.storage.onChanged.addListener(storageListener);
+
+  // Clean up listeners on page unload to prevent memory leaks
+  window.addEventListener('beforeunload', cleanup);
 }

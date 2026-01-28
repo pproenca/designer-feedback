@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import type { Annotation, ExportFormat } from '@/types';
-import { exportAsHTML, exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
+import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { getCategoryConfig } from '@/shared/categories';
-import { IconClose, IconCopy, IconExport, IconGlobe, IconImage } from '../Icons';
+import { IconClose, IconCopy, IconExport, IconImage } from '../Icons';
 import styles from './styles.module.scss';
 
 interface ExportModalProps {
@@ -20,12 +20,6 @@ type FormatOption = {
 
 const FORMAT_OPTIONS: FormatOption[] = [
   {
-    id: 'html',
-    label: 'Interactive HTML',
-    description: 'Single file with hoverable markers. Opens in any browser.',
-    icon: <IconGlobe size={18} />,
-  },
-  {
     id: 'image-notes',
     label: 'Markdown (Clipboard)',
     description: 'Copies a concise markdown report to your clipboard.',
@@ -42,26 +36,36 @@ const FORMAT_OPTIONS: FormatOption[] = [
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportOutcome, setExportOutcome] = useState<'copied' | 'downloaded' | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('snapshot');
   const isMarkdown = selectedFormat === 'image-notes';
   const isSnapshot = selectedFormat === 'snapshot';
   const isClipboardExport = isMarkdown;
+
+  // Store timer ID for cleanup on unmount
+  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current !== null) {
+        clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleExport = async () => {
     setIsExporting(true);
     setExportOutcome(null);
     try {
-      if (selectedFormat === 'html') {
-        await exportAsHTML(annotations);
-        setExportOutcome('downloaded');
-      } else if (selectedFormat === 'snapshot') {
+      if (selectedFormat === 'snapshot') {
         await exportAsSnapshotImage(annotations);
         setExportOutcome('downloaded');
       } else {
         await exportAsImageWithNotes(annotations);
         setExportOutcome('copied');
       }
-      setTimeout(() => {
+      autoCloseTimerRef.current = setTimeout(() => {
         onClose();
       }, 1500);
     } catch (error) {

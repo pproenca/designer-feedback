@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { crx } from '@crxjs/vite-plugin';
@@ -12,6 +13,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['tests/**/*', 'node_modules/**/*'],
+    setupFiles: ['./src/test/setup.ts'],
+    typecheck: {
+      enabled: false,
     },
   },
   css: {
@@ -38,7 +49,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
-        'content-loader': resolve(__dirname, 'src/content/loader.ts'),
       },
       output: {
         entryFileNames: 'assets/[name].js',

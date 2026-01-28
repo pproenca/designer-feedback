@@ -1,50 +1,142 @@
 // =============================================================================
-// IndexedDB Storage Utilities
+// Extension Storage Utilities (chrome.storage.local)
 // =============================================================================
 
 import type { Annotation } from '@/types';
 
-const DB_NAME = 'designer-feedback-db';
-const DB_VERSION = 1;
-const ANNOTATIONS_STORE = 'annotations';
+const STORAGE_PREFIX = 'designer-feedback:annotations:';
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
-let dbInstance: IDBDatabase | null = null;
+// Storage quota constants (chrome.storage.local has 10MB limit)
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB
+const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
+
 let lastCleanupAt = 0;
-let legacyMigrationAttempted = false;
+
+function getBucketKey(urlKey: string): string {
+  return `${STORAGE_PREFIX}${urlKey}`;
+}
+
+type StorageGetKeys =
+  | string
+  | number
+  | Array<string | number>
+  | { [key: string]: unknown }
+  | null;
+
+function stripUrl(annotation: Annotation & { url?: string }): Annotation {
+  // Avoid persisting page-origin identifiers in storage payloads.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { url, ...rest } = annotation;
+  return rest as Annotation;
+}
+
+function getLocal<T>(keys: StorageGetKeys): Promise<Record<string, T>> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(keys, (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'Failed to read storage'));
+        return;
+      }
+      resolve(result as Record<string, T>);
+    });
+  });
+}
+
+function setLocal(values: Record<string, unknown>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'Failed to write storage'));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function removeLocal(keys: string | string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.remove(keys, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'Failed to remove storage'));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function getAllLocal(): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(null, (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'Failed to read storage'));
+        return;
+      }
+      resolve(result as Record<string, unknown>);
+    });
+  });
+}
+
+function normalizeStoredAnnotations(value: unknown): Annotation[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(Boolean) as Annotation[];
+}
 
 /**
- * Initialize IndexedDB connection
+ * Get current storage usage in bytes
  */
-export async function initDB(): Promise<IDBDatabase> {
-  if (dbInstance) {
-    return dbInstance;
+function getBytesInUse(): Promise<number> {
+  return new Promise((resolve) => {
+    chrome.storage.local.getBytesInUse(null, (bytesInUse) => {
+      if (chrome.runtime.lastError) {
+        console.warn('Failed to get storage usage:', chrome.runtime.lastError.message);
+        resolve(0);
+        return;
+      }
+      resolve(bytesInUse);
+    });
+  });
+}
+
+/**
+ * Check storage quota and return status
+ * @returns Object with ok status and bytes used
+ */
+export async function checkStorageQuota(): Promise<{
+  ok: boolean;
+  bytesUsed: number;
+  bytesTotal: number;
+  percentUsed: number;
+}> {
+  const bytesUsed = await getBytesInUse();
+  const percentUsed = bytesUsed / STORAGE_QUOTA_BYTES;
+
+  if (percentUsed >= STORAGE_WARNING_THRESHOLD && percentUsed < 1) {
+    console.warn(
+      `Storage quota warning: ${Math.round(percentUsed * 100)}% used ` +
+        `(${Math.round(bytesUsed / 1024)}KB of ${Math.round(STORAGE_QUOTA_BYTES / 1024)}KB)`
+    );
   }
 
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+  // Consider quota exceeded at 100% or above
+  const ok = percentUsed < 1;
 
-    request.onerror = () => {
-      reject(new Error('Failed to open IndexedDB'));
-    };
+  if (!ok) {
+    console.warn(
+      `Storage quota exceeded: ${Math.round(percentUsed * 100)}% used ` +
+        `(${Math.round(bytesUsed / 1024)}KB of ${Math.round(STORAGE_QUOTA_BYTES / 1024)}KB)`
+    );
+  }
 
-    request.onsuccess = () => {
-      dbInstance = request.result;
-      resolve(dbInstance);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-
-      // Create annotations store with URL as index
-      if (!db.objectStoreNames.contains(ANNOTATIONS_STORE)) {
-        const store = db.createObjectStore(ANNOTATIONS_STORE, { keyPath: 'id' });
-        store.createIndex('url', 'url', { unique: false });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-      }
-    };
-  });
+  return {
+    ok,
+    bytesUsed,
+    bytesTotal: STORAGE_QUOTA_BYTES,
+    percentUsed,
+  };
 }
 
 /**
@@ -65,129 +157,83 @@ function getStorageKeys(): string[] {
   return currentKey === legacyKey ? [currentKey] : [currentKey, legacyKey];
 }
 
-async function cleanupExpiredAnnotations(db: IDBDatabase, cutoff: number): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const cleanupTx = db.transaction(ANNOTATIONS_STORE, 'readwrite');
-    const store = cleanupTx.objectStore(ANNOTATIONS_STORE);
-    const index = store.index('timestamp');
-    const range = IDBKeyRange.upperBound(cutoff);
-    const request = index.openCursor(range);
+async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
+  const all = await getAllLocal();
+  const updates: Record<string, Annotation[]> = {};
+  const removals: string[] = [];
 
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      }
-    };
-
-    cleanupTx.oncomplete = () => resolve();
-    cleanupTx.onerror = () => reject(new Error('Failed to clean expired annotations'));
+  Object.entries(all).forEach(([key, value]) => {
+    if (!key.startsWith(STORAGE_PREFIX)) return;
+    const items = normalizeStoredAnnotations(value);
+    if (items.length === 0) {
+      removals.push(key);
+      return;
+    }
+    const filtered = items.filter(
+      (annotation) => typeof annotation.timestamp === 'number' && annotation.timestamp > cutoff
+    );
+    if (filtered.length === 0) {
+      removals.push(key);
+      return;
+    }
+    if (filtered.length !== items.length) {
+      updates[key] = filtered.map(stripUrl);
+    }
   });
+
+  if (Object.keys(updates).length > 0) {
+    await setLocal(updates);
+  }
+  if (removals.length > 0) {
+    await removeLocal(removals);
+  }
 }
 
-async function loadAnnotationsForKey(db: IDBDatabase, url: string): Promise<Annotation[]> {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(ANNOTATIONS_STORE, 'readonly');
-    const store = transaction.objectStore(ANNOTATIONS_STORE);
-    const index = store.index('url');
-    const request = index.getAll(url);
-
-    request.onsuccess = () => resolve(request.result as (Annotation & { url: string })[]);
-    request.onerror = () => reject(new Error('Failed to load annotations'));
-  });
+async function loadAnnotationsForKey(urlKey: string): Promise<Annotation[]> {
+  const bucketKey = getBucketKey(urlKey);
+  const result = await getLocal<Annotation[]>({ [bucketKey]: [] });
+  return normalizeStoredAnnotations(result[bucketKey]);
 }
 
-async function clearAnnotationsForKey(db: IDBDatabase, url: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(ANNOTATIONS_STORE, 'readwrite');
-    const store = transaction.objectStore(ANNOTATIONS_STORE);
-    const index = store.index('url');
-    const request = index.openCursor(url);
-
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      } else {
-        resolve();
-      }
-    };
-
-    request.onerror = () => reject(new Error('Failed to clear annotations'));
-  });
+async function saveAnnotationsForKey(urlKey: string, annotations: Annotation[]): Promise<void> {
+  const bucketKey = getBucketKey(urlKey);
+  await setLocal({ [bucketKey]: annotations.map(stripUrl) });
 }
 
-async function migrateLegacyAnnotations(db: IDBDatabase, legacyKey: string, currentKey: string): Promise<void> {
-  const legacyAnnotations = await loadAnnotationsForKey(db, legacyKey);
-  if (legacyAnnotations.length === 0) return;
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(ANNOTATIONS_STORE, 'readwrite');
-    const store = tx.objectStore(ANNOTATIONS_STORE);
-    legacyAnnotations.forEach((annotation) => {
-      store.put({ ...annotation, url: currentKey });
-    });
-    const index = store.index('url');
-    const request = index.openCursor(legacyKey);
-
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      }
-    };
-
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(new Error('Failed to migrate legacy annotations'));
-  });
+async function clearAnnotationsForKey(urlKey: string): Promise<void> {
+  const bucketKey = getBucketKey(urlKey);
+  await removeLocal(bucketKey);
 }
 
 /**
- * Save an annotation to IndexedDB
+ * Save an annotation to extension storage
  */
 export async function saveAnnotation(annotation: Annotation & { url: string }): Promise<void> {
-  const db = await initDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(ANNOTATIONS_STORE, 'readwrite');
-    const store = transaction.objectStore(ANNOTATIONS_STORE);
-    const request = store.put(annotation);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(new Error('Failed to save annotation'));
-  });
+  const urlKey = annotation.url;
+  const existing = await loadAnnotationsForKey(urlKey);
+  const next = existing.filter((item) => item.id !== annotation.id);
+  next.push(stripUrl(annotation));
+  await saveAnnotationsForKey(urlKey, next);
 }
 
 /**
  * Load all annotations for the current URL
  */
 export async function loadAnnotations(): Promise<Annotation[]> {
-  const db = await initDB();
   const cutoff = Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-
   const now = Date.now();
+
   if (now - lastCleanupAt > CLEANUP_INTERVAL_MS) {
-    await cleanupExpiredAnnotations(db, cutoff);
+    try {
+      await cleanupExpiredAnnotations(cutoff);
+    } catch (error) {
+      console.warn('Failed to clean expired annotations:', error);
+    }
     lastCleanupAt = now;
   }
 
-  const currentKey = getStorageKey();
-  const legacyKey = getLegacyStorageKey();
-
-  if (!legacyMigrationAttempted && currentKey !== legacyKey) {
-    legacyMigrationAttempted = true;
-    try {
-      await migrateLegacyAnnotations(db, legacyKey, currentKey);
-    } catch (error) {
-      console.warn('Failed to migrate legacy annotations:', error);
-    }
-  }
-
-  const keys = currentKey === legacyKey ? [currentKey] : [currentKey, legacyKey];
-  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(db, key)));
+  const keys = getStorageKeys();
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
   const merged = new Map<string, Annotation>();
 
   results.flat().forEach((annotation) => {
@@ -211,35 +257,35 @@ export async function loadAnnotations(): Promise<Annotation[]> {
  * Delete a single annotation
  */
 export async function deleteAnnotation(id: string): Promise<void> {
-  const db = await initDB();
+  const keys = getStorageKeys();
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
+  const updates: Promise<void>[] = [];
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(ANNOTATIONS_STORE, 'readwrite');
-    const store = transaction.objectStore(ANNOTATIONS_STORE);
-    const request = store.delete(id);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(new Error('Failed to delete annotation'));
+  results.forEach((annotations, index) => {
+    const filtered = annotations.filter((annotation) => annotation.id !== id);
+    if (filtered.length !== annotations.length) {
+      updates.push(saveAnnotationsForKey(keys[index], filtered));
+    }
   });
+
+  await Promise.all(updates);
 }
 
 /**
  * Clear all annotations for the current URL
  */
 export async function clearAnnotations(): Promise<void> {
-  const db = await initDB();
   const keys = getStorageKeys();
-  await Promise.all(keys.map((key) => clearAnnotationsForKey(db, key)));
+  await Promise.all(keys.map((key) => clearAnnotationsForKey(key)));
 }
 
 /**
  * Get annotation count for a specific URL
  */
 export async function getAnnotationCount(url: string): Promise<number> {
-  const db = await initDB();
   const cutoff = Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   const keys = url === getStorageKey() ? getStorageKeys() : [url];
-  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(db, key)));
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
   const seen = new Set<string>();
   let count = 0;
 

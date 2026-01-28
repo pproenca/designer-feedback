@@ -12,6 +12,10 @@ async function openPopup(page: Page, extensionId: string) {
   await page.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
 }
 
+async function openSiteAccess(page: Page) {
+  await page.locator('summary', { hasText: 'Site access' }).click();
+}
+
 async function setExtensionSettings(
   context: BrowserContext,
   extensionId: string,
@@ -25,16 +29,19 @@ async function setExtensionSettings(
   await settingsPage.close();
 }
 
-async function clearAnnotationsDb(page: Page) {
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        const request = indexedDB.deleteDatabase('designer-feedback-db');
-        request.onsuccess = () => resolve();
-        request.onerror = () => resolve();
-        request.onblocked = () => resolve();
-      })
-  );
+async function clearAnnotationsStorage(context: BrowserContext, extensionId: string) {
+  const settingsPage = await context.newPage();
+  await openPopup(settingsPage, extensionId);
+  await settingsPage.evaluate(async () => {
+    const all = await chrome.storage.local.get(null);
+    const keys = Object.keys(all).filter((key) =>
+      key.startsWith('designer-feedback:annotations:')
+    );
+    if (keys.length > 0) {
+      await chrome.storage.local.remove(keys);
+    }
+  });
+  await settingsPage.close();
 }
 
 async function getStoredSettings(page: Page) {
@@ -47,7 +54,7 @@ async function getStoredSettings(page: Page) {
 async function prepareContentPage(page: Page, context: BrowserContext, extensionId: string) {
   await setExtensionSettings(context, extensionId, { enabled: true, lightMode: false });
   await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-  await clearAnnotationsDb(page);
+  await clearAnnotationsStorage(context, extensionId);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#designer-feedback-root')).toHaveCount(1);
 }
@@ -84,11 +91,12 @@ test.describe('Popup UI', () => {
     const toggle = page.getByRole('checkbox', { name: 'Enable Toolbar' });
     await expect(toggle).toBeChecked();
 
-    await expect(page.getByText('Annotations on this page')).toBeVisible();
+    await expect(page.getByText('Annotations', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export Feedback' })).toBeDisabled();
 
-    await expect(page.getByText('Site access')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'All sites' })).toHaveAttribute(
+    await expect(page.getByText('Site access', { exact: true })).toBeVisible();
+    await openSiteAccess(page);
+    await expect(page.getByRole('button', { name: 'All sites', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
@@ -106,6 +114,7 @@ test.describe('Popup UI', () => {
   });
 
   test('happy path: saves allowlist settings', async ({ page }) => {
+    await openSiteAccess(page);
     await page.getByRole('button', { name: 'Only allowlist' }).click();
 
     const siteList = page.getByLabel('Allowed sites');
@@ -155,6 +164,7 @@ EXAMPLE.com`);
     }, DEFAULT_TEST_SETTINGS);
     await popupPage.reload();
 
+    await openSiteAccess(popupPage);
     const addButton = popupPage.getByRole('button', { name: 'Disable on this site' });
     await expect(addButton).toBeEnabled();
     await addButton.click();
@@ -170,6 +180,7 @@ EXAMPLE.com`);
   });
 
   test('sad path: ignores invalid site list entries', async ({ page }) => {
+    await openSiteAccess(page);
     const siteList = page.getByLabel('Blocked sites');
     await siteList.fill(`# comment
 /admin
@@ -187,6 +198,7 @@ http://
   });
 
   test('save status transitions from dirty to saved to idle', async ({ page }) => {
+    await openSiteAccess(page);
     const siteList = page.getByLabel('Blocked sites');
     await siteList.fill('example.com');
 
@@ -204,21 +216,22 @@ http://
   });
 
   test('mode switch toggles labels and storage', async ({ page }) => {
+    await openSiteAccess(page);
     await page.getByRole('button', { name: 'Only allowlist' }).click();
 
-    await expect(page.getByText('Allowlist', { exact: true })).toBeVisible();
+    await expect(page.getByText('Allowlist', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Allowed sites')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Allow this site' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Allow this site', exact: true })).toBeVisible();
     await expect.poll(async () => {
       const settings = await getStoredSettings(page);
       return settings.siteListMode;
     }).toBe('allowlist');
 
-    await page.getByRole('button', { name: 'All sites' }).click();
+    await page.getByRole('button', { name: 'All sites', exact: true }).click();
 
-    await expect(page.getByText('Blocklist', { exact: true })).toBeVisible();
+    await expect(page.getByText('Blocklist', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Blocked sites')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Disable on this site' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Disable on this site', exact: true })).toBeVisible();
     await expect.poll(async () => {
       const settings = await getStoredSettings(page);
       return settings.siteListMode;
@@ -243,7 +256,7 @@ http://
     await openPopup(popupPage, extensionId);
     await popupPage.evaluate(async (settings) => {
       await chrome.storage.sync.set(settings);
-    }, DEFAULT_TEST_SETTINGS);
+    }, { ...DEFAULT_TEST_SETTINGS, onboardingComplete: true });
     await popupPage.reload();
 
     await expect(
@@ -329,5 +342,42 @@ test.describe('Feedback Toolbar flows', () => {
 
     await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Export feedback' })).toBeDisabled();
+  });
+
+  test('stores annotations in extension storage (not page IndexedDB)', async ({
+    page,
+    context,
+    extensionId,
+  }) => {
+    const comment = 'Check storage location.';
+
+    const supportsDatabases = await page.evaluate(() => 'databases' in indexedDB);
+    if (supportsDatabases) {
+      const before = await page.evaluate(async () => indexedDB.databases());
+      expect(before?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
+    }
+
+    await createAnnotation(page, comment, 'Suggestion');
+
+    if (supportsDatabases) {
+      const after = await page.evaluate(async () => indexedDB.databases());
+      expect(after?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
+    }
+
+    const storagePage = await context.newPage();
+    await openPopup(storagePage, extensionId);
+    const storedCount = await storagePage.evaluate(async () => {
+      const all = await chrome.storage.local.get(null);
+      const entries = Object.entries(all).filter(([key]) =>
+        key.startsWith('designer-feedback:annotations:')
+      );
+      const counts = entries.map(([, value]) =>
+        Array.isArray(value) ? value.length : 0
+      );
+      return counts.reduce((sum, value) => sum + value, 0);
+    });
+    await storagePage.close();
+
+    expect(storedCount).toBe(1);
   });
 });

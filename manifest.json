@@ -7,9 +7,11 @@
     "storage",
     "tabs",
     "downloads",
-    "activeTab",
-    "scripting"
+    "activeTab"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {
@@ -29,11 +31,23 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "web_accessible_resources": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "resources": ["assets/*.js", "assets/*.css"]
+      "resources": [
+        "assets/index-*.js",
+        "assets/client-*.js",
+        "assets/site-access-*.js",
+        "assets/*.woff2"
+      ]
     }
   ]
 }

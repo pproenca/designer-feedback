@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AnnotationPopup, AnnotationPopupHandle } from '../AnnotationPopup';
@@ -6,12 +6,12 @@ import {
   IconList,
   IconClose,
   IconTrash,
-  IconExport,
   IconSun,
   IconMoon,
   IconBug,
   IconLightbulb,
   IconQuestion,
+  IconExport,
 } from '../Icons';
 import { ExportModal } from '../ExportModal';
 import {
@@ -26,10 +26,15 @@ import {
   getStorageKey,
   updateBadgeCount,
 } from '@/utils/storage';
+import { throttle, debounce } from '@/utils/timing';
 // Note: captureScreenshot is used at export time, not during annotation creation
 import type { Annotation, FeedbackCategory } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import styles from './styles.module.scss';
+
+// Performance constants
+const HOVER_THROTTLE_MS = 50; // Throttle mouseover to 50ms intervals
+const BADGE_DEBOUNCE_MS = 150; // Debounce badge updates by 150ms
 
 // =============================================================================
 // Types
@@ -88,13 +93,26 @@ export function FeedbackToolbar({
   const popupRef = useRef<AnnotationPopupHandle>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
+  // Debounced badge update to prevent rapid updates during operations
+  const debouncedUpdateBadge = useMemo(
+    () => debounce((count: number) => updateBadgeCount(count), BADGE_DEBOUNCE_MS),
+    []
+  );
+
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedUpdateBadge.cancel();
+    };
+  }, [debouncedUpdateBadge]);
+
   // Load annotations on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         const loaded = await loadAnnotations();
         setAnnotations(loaded);
-        updateBadgeCount(loaded.length);
+        debouncedUpdateBadge(loaded.length);
       } catch (error) {
         console.error('Failed to load annotations:', error);
       }
@@ -104,7 +122,7 @@ export function FeedbackToolbar({
     // Entrance animation complete
     const timer = setTimeout(() => setEntranceComplete(true), 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [debouncedUpdateBadge]);
 
   // Listen for export trigger from popup
   useEffect(() => {
@@ -177,8 +195,8 @@ export function FeedbackToolbar({
     [isAddMode]
   );
 
-  // Handle element hover in add mode
-  const handleElementHover = useCallback(
+  // Handle element hover in add mode (raw handler)
+  const handleElementHoverRaw = useCallback(
     (e: MouseEvent) => {
       if (!isAddMode) return;
 
@@ -200,6 +218,12 @@ export function FeedbackToolbar({
       });
     },
     [isAddMode]
+  );
+
+  // Throttled hover handler to limit calls to 50ms intervals (mouseover fires 100+ times/sec)
+  const handleElementHover = useMemo(
+    () => throttle(handleElementHoverRaw, HOVER_THROTTLE_MS),
+    [handleElementHoverRaw]
   );
 
   // Set up hover and click listeners
@@ -308,14 +332,14 @@ export function FeedbackToolbar({
         await saveAnnotation({ ...newAnnotation, url: getStorageKey() });
         const updatedAnnotations = [...annotations, newAnnotation];
         setAnnotations(updatedAnnotations);
-        updateBadgeCount(updatedAnnotations.length);
+        debouncedUpdateBadge(updatedAnnotations.length);
       } catch (error) {
         console.error('Failed to save annotation:', error);
       }
 
       setPendingAnnotation(null);
     },
-    [pendingAnnotation, annotations, selectedCategory]
+    [pendingAnnotation, annotations, selectedCategory, debouncedUpdateBadge]
   );
 
   // Handle annotation delete
@@ -325,12 +349,12 @@ export function FeedbackToolbar({
         await deleteAnnotation(id);
         const updatedAnnotations = annotations.filter((a) => a.id !== id);
         setAnnotations(updatedAnnotations);
-        updateBadgeCount(updatedAnnotations.length);
+        debouncedUpdateBadge(updatedAnnotations.length);
       } catch (error) {
         console.error('Failed to delete annotation:', error);
       }
     },
-    [annotations]
+    [annotations, debouncedUpdateBadge]
   );
 
   // Handle clear all
@@ -338,11 +362,11 @@ export function FeedbackToolbar({
     try {
       await clearAnnotations();
       setAnnotations([]);
-      updateBadgeCount(0);
+      debouncedUpdateBadge(0);
     } catch (error) {
       console.error('Failed to clear annotations:', error);
     }
-  }, []);
+  }, [debouncedUpdateBadge]);
 
   // Toggle category panel
   const toggleCategoryPanel = useCallback(() => {
@@ -623,7 +647,6 @@ export function FeedbackToolbar({
             </div>
 
             <div className={`${styles.divider} ${lightMode ? styles.light : ''}`} />
-
             {/* Export button */}
             <div className={styles.buttonWrapper}>
               <button
@@ -636,10 +659,11 @@ export function FeedbackToolbar({
                 <IconExport size={18} />
               </button>
               <span className={`${styles.buttonTooltip} ${lightMode ? styles.light : ''}`}>
-                Export
+                Export feedback
               </span>
             </div>
 
+            <div className={`${styles.divider} ${lightMode ? styles.light : ''}`} />
             {/* Clear button */}
             <div className={styles.buttonWrapper}>
               <button

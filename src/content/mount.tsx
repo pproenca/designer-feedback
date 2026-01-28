@@ -8,6 +8,17 @@ import popupStyles from '@/components/AnnotationPopup/styles.module.scss?inline'
 import exportStyles from '@/components/ExportModal/styles.module.scss?inline';
 
 const CONTAINER_ID = 'designer-feedback-root';
+const sourceSansUrl = new URL(
+  '../assets/fonts/source-sans-3/SourceSans3-Variable.woff2',
+  import.meta.url
+).toString();
+const fontFaces = `@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("${sourceSansUrl}") format("woff2");
+}`;
 
 let root: ReactDOM.Root | null = null;
 let container: HTMLElement | null = null;
@@ -42,6 +53,7 @@ export async function mountUI(): Promise<ShadowRoot> {
 
   const styleElement = document.createElement('style');
   styleElement.textContent = [
+    fontFaces,
     contentStyles,
     toolbarStyles,
     popupStyles,

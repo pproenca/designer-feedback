@@ -57,7 +57,7 @@ export type FeedbackExport = {
   screenshots?: Record<string, string>; // Legacy field, no longer used
 };
 
-export type ExportFormat = 'html' | 'image-notes' | 'snapshot';
+export type ExportFormat = 'image-notes' | 'snapshot';
 
 // Message types for content <-> background communication
 export type MessageType =

@@ -12,8 +12,6 @@ import {
 import { getOriginPattern, siteListToOriginPatterns } from '@/utils/permissions';
 import styles from './styles.module.scss';
 
-const CONTENT_SCRIPT_FILE = 'assets/content-loader.js';
-
 export function Popup() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [annotationCount, setAnnotationCount] = useState(0);
@@ -21,13 +19,18 @@ export function Popup() {
   const [savedSiteListText, setSavedSiteListText] = useState('');
   const [siteListStatus, setSiteListStatus] = useState<'idle' | 'dirty' | 'saved'>('idle');
   const saveStatusTimeoutRef = useRef<number | null>(null);
-  const [activeTabId, setActiveTabId] = useState<number | null>(null);
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeHost, setActiveHost] = useState<string | null>(null);
   const [hasSitePermission, setHasSitePermission] = useState(false);
   const [hasAllSitesPermission, setHasAllSitesPermission] = useState(false);
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
   const [permissionRequesting, setPermissionRequesting] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
+  const [accessDetailsOpen, setAccessDetailsOpen] = useState(false);
+
+  // Cache the active tab to avoid redundant chrome.tabs.query calls
+  const cachedTabRef = useRef<chrome.tabs.Tab | null>(null);
   const canUseCurrentSite = useMemo(
     () => (activeUrl ? isHttpUrl(activeUrl) : false),
     [activeUrl]
@@ -37,17 +40,25 @@ export function Popup() {
     [activeUrl, settings]
   );
 
-  const getActiveTab = () =>
-    new Promise<chrome.tabs.Tab | null>((resolve) => {
+  // Returns cached tab if available, otherwise queries and caches
+  const getActiveTab = async (): Promise<chrome.tabs.Tab | null> => {
+    if (cachedTabRef.current) {
+      return cachedTabRef.current;
+    }
+
+    return new Promise<chrome.tabs.Tab | null>((resolve) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (chrome.runtime.lastError) {
           console.error('Failed to query tabs:', chrome.runtime.lastError.message);
           resolve(null);
           return;
         }
-        resolve(tabs[0] ?? null);
+        const tab = tabs[0] ?? null;
+        cachedTabRef.current = tab;
+        resolve(tab);
       });
     });
+  };
 
   const refreshSitePermission = (url: string | null) => {
     const originPattern = url ? getOriginPattern(url) : null;
@@ -93,64 +104,6 @@ export function Popup() {
       });
     });
 
-  const markInjectionIfNeeded = (tabId: number) =>
-    new Promise<boolean>((resolve) => {
-      chrome.scripting.executeScript(
-        {
-          target: { tabId },
-          func: () => {
-            const windowAny = window as Window & {
-              __designerFeedbackInjected?: boolean;
-              __designerFeedbackLoaderInjected?: boolean;
-            };
-            if (
-              windowAny.__designerFeedbackInjected ||
-              windowAny.__designerFeedbackLoaderInjected
-            ) {
-              return false;
-            }
-            windowAny.__designerFeedbackLoaderInjected = true;
-            return true;
-          },
-        },
-        (results) => {
-          if (chrome.runtime.lastError) {
-            resolve(false);
-            return;
-          }
-          resolve(Boolean(results?.[0]?.result));
-        }
-      );
-    });
-
-  const ensureContentScript = (tabId: number, url: string | null) =>
-    new Promise<void>((resolve) => {
-      if (!url || !isHttpUrl(url)) {
-        resolve();
-        return;
-      }
-      markInjectionIfNeeded(tabId)
-        .then((shouldInject) => {
-          if (!shouldInject) {
-            resolve();
-            return;
-          }
-          chrome.scripting.executeScript(
-            {
-              target: { tabId },
-              files: [CONTENT_SCRIPT_FILE],
-            },
-            () => {
-              if (chrome.runtime.lastError) {
-                console.debug('Could not inject content script:', chrome.runtime.lastError.message);
-              }
-              resolve();
-            }
-          );
-        })
-        .catch(() => resolve());
-    });
-
   const requestCurrentSiteAccess = async () => {
     if (!activeUrl) return false;
     const originPattern = getOriginPattern(activeUrl);
@@ -165,9 +118,6 @@ export function Popup() {
       return false;
     }
     setHasSitePermission(true);
-    if (activeTabId) {
-      await ensureContentScript(activeTabId, activeUrl);
-    }
     return true;
   };
 
@@ -181,38 +131,47 @@ export function Popup() {
       return false;
     }
     setHasAllSitesPermission(true);
-    if (activeTabId && activeUrl) {
-      await ensureContentScript(activeTabId, activeUrl);
-    }
     return true;
   };
 
   useEffect(() => {
-    // Load settings
-    chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to get settings:', chrome.runtime.lastError.message);
-        return;
+    // Load settings and onboarding state in a single batched call
+    chrome.storage.sync.get(
+      { ...DEFAULT_SETTINGS, onboardingComplete: false },
+      (result) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to get settings:', chrome.runtime.lastError.message);
+          setOnboardingComplete(false);
+          setOnboardingLoaded(true);
+          return;
+        }
+
+        // Extract and set settings
+        const { onboardingComplete: onboardingState, ...settingsData } = result as Settings & {
+          onboardingComplete: boolean;
+        };
+        const nextSettings = settingsData as Settings;
+        setSettings(nextSettings);
+        const formattedList = formatSiteList(nextSettings.siteList);
+        setSiteListText(formattedList);
+        setSavedSiteListText(formattedList);
+        setSiteListStatus('idle');
+
+        // Set onboarding state
+        setOnboardingComplete(Boolean(onboardingState));
+        setOnboardingLoaded(true);
       }
-      const nextSettings = result as Settings;
-      setSettings(nextSettings);
-      const formattedList = formatSiteList(nextSettings.siteList);
-      setSiteListText(formattedList);
-      setSavedSiteListText(formattedList);
-      setSiteListStatus('idle');
-    });
+    );
     refreshAllSitesPermission();
 
     const loadActiveTab = async () => {
       const tab = await getActiveTab();
       const url = tab?.url ?? null;
-      setActiveTabId(tab?.id ?? null);
       setActiveUrl(url);
       setActiveHost(url ? getHostFromUrl(url) : null);
       refreshSitePermission(url);
 
       if (tab?.id) {
-        await ensureContentScript(tab.id, url);
         chrome.tabs.sendMessage(
           tab.id,
           { type: 'GET_ANNOTATION_COUNT' },
@@ -272,7 +231,6 @@ export function Popup() {
 
     const tab = await getActiveTab();
     if (tab?.id) {
-      await ensureContentScript(tab.id, tab.url ?? null);
       chrome.tabs.sendMessage(
         tab.id,
         {
@@ -290,7 +248,6 @@ export function Popup() {
   const handleExport = async () => {
     const tab = await getActiveTab();
     if (tab?.id) {
-      await ensureContentScript(tab.id, tab.url ?? null);
       chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_EXPORT' }, () => {
         // Ignore errors - content script may not be loaded
         void chrome.runtime.lastError;
@@ -344,11 +301,8 @@ export function Popup() {
     });
   };
 
-  const handleAddCurrentSite = async () => {
-    if (!activeHost || !activeUrl) return;
-    await requestCurrentSiteAccess();
-
-    const nextList = parseSiteListInput(`${siteListText}\n${activeHost}`);
+  const addHostToList = (host: string) => {
+    const nextList = parseSiteListInput(`${siteListText}\n${host}`);
     const formattedList = formatSiteList(nextList);
     const newSettings = { ...settings, siteList: nextList };
     setSettings(newSettings);
@@ -361,6 +315,60 @@ export function Popup() {
       }
       markSiteListSaved(formattedList);
     });
+  };
+
+  const handleAddCurrentSite = async () => {
+    if (!activeHost || !activeUrl) return;
+    const granted = await requestCurrentSiteAccess();
+    if (!granted) return;
+    addHostToList(activeHost);
+  };
+
+  const markOnboardingComplete = () => {
+    setOnboardingComplete(true);
+    chrome.storage.sync.set({ onboardingComplete: true }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to store onboarding state:', chrome.runtime.lastError.message);
+      }
+    });
+  };
+
+  const handleOnboardingAllSites = async () => {
+    const nextSettings = { ...settings, siteListMode: 'blocklist' as const };
+    setSettings(nextSettings);
+    chrome.storage.sync.set(nextSettings, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to update site list mode:', chrome.runtime.lastError.message);
+      }
+    });
+    const granted = await requestAllSitesAccess();
+    if (granted) {
+      markOnboardingComplete();
+    }
+  };
+
+  const handleOnboardingAllowlist = async () => {
+    const nextSettings = { ...settings, siteListMode: 'allowlist' as const };
+    setSettings(nextSettings);
+    chrome.storage.sync.set(nextSettings, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to update site list mode:', chrome.runtime.lastError.message);
+      }
+    });
+    let granted = true;
+    if (activeUrl) {
+      granted = await requestCurrentSiteAccess();
+    }
+    if (!granted) return;
+    if (activeHost) {
+      addHostToList(activeHost);
+    }
+    setAccessDetailsOpen(true);
+    markOnboardingComplete();
+  };
+
+  const handleOnboardingSkip = () => {
+    markOnboardingComplete();
   };
 
   const siteListLabel =
@@ -384,6 +392,8 @@ export function Popup() {
       ? 'Enable access for this site to keep the toolbar on automatically.'
       : null;
   const accessButtonLabel = needsAllSitesAccess ? 'Enable on all sites' : 'Enable on this site';
+  const showOnboarding = onboardingLoaded && !onboardingComplete;
+  const showAccessSection = !showOnboarding && (accessNoticeText || permissionNotice);
 
   return (
     <div className={styles.popup}>
@@ -392,8 +402,49 @@ export function Popup() {
         <span className={styles.version}>v1.0.0</span>
       </div>
 
-      {(accessNoticeText || permissionNotice) && (
-        <div className={`${styles.section} ${styles.accessSection}`}>
+      {showOnboarding && (
+        <div className={`${styles.section} ${styles.onboardingSection}`} aria-label="Get started">
+          <div className={styles.onboardingHeader}>
+            <span className={styles.onboardingTitle}>Get started</span>
+            <span className={styles.onboardingPill}>Step 1</span>
+          </div>
+          <p className={styles.onboardingText}>
+            Choose where Designer Feedback can run. You can change this later in Site access.
+          </p>
+          {permissionNotice && (
+            <p className={styles.onboardingSubtext}>{permissionNotice}</p>
+          )}
+          <div className={styles.onboardingActions}>
+            <button
+              type="button"
+              className={styles.accessPrimaryButton}
+              onClick={handleOnboardingAllSites}
+              disabled={permissionRequesting}
+            >
+              {permissionRequesting ? 'Requesting...' : 'Enable on all sites'}
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={handleOnboardingAllowlist}
+              disabled={!canUseCurrentSite || permissionRequesting}
+            >
+              Only allow this site
+            </button>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.onboardingGhost}`}
+              onClick={handleOnboardingSkip}
+              disabled={permissionRequesting}
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAccessSection && (
+        <div className={`${styles.section} ${styles.accessSection}`} aria-label="Access required">
           <div className={styles.accessHeader}>
             <span className={styles.accessTitle}>Access required</span>
             <span className={styles.accessPill}>
@@ -419,26 +470,22 @@ export function Popup() {
         </div>
       )}
 
-      <div className={styles.section}>
-        <label className={styles.toggle}>
-          <span className={styles.toggleLabel}>Enable Toolbar</span>
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            onChange={(e) => handleToggle(e.target.checked)}
-          />
-          <span className={styles.toggleSwitch} />
-        </label>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.stats}>
-          <span className={styles.statsLabel}>Annotations on this page</span>
-          <span className={styles.statsCount}>{annotationCount}</span>
+      <div className={`${styles.section} ${styles.summarySection}`}>
+        <div className={styles.summaryRow}>
+          <label className={styles.toggle}>
+            <span className={styles.toggleLabel}>Enable Toolbar</span>
+            <input
+              type="checkbox"
+              checked={settings.enabled}
+              onChange={(e) => handleToggle(e.target.checked)}
+            />
+            <span className={styles.toggleSwitch} />
+          </label>
+          <div className={styles.stats}>
+            <span className={styles.statsLabel}>Annotations</span>
+            <span className={styles.statsCount}>{annotationCount}</span>
+          </div>
         </div>
-      </div>
-
-      <div className={styles.section}>
         <button
           className={styles.exportButton}
           onClick={handleExport}
@@ -449,94 +496,108 @@ export function Popup() {
         </button>
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Site access</span>
-          <span className={styles.sectionMeta}>
+      <details
+        className={styles.accessDetails}
+        open={accessDetailsOpen}
+        onToggle={(event) =>
+          setAccessDetailsOpen((event.currentTarget as HTMLDetailsElement).open)
+        }
+      >
+        <summary className={styles.accessSummary}>
+          <span className={styles.accessSummaryTitle}>Site access</span>
+          <span className={styles.accessSummaryMeta} aria-hidden="true">
             {settings.siteListMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
           </span>
-        </div>
+        </summary>
+        <div className={styles.accessPanel}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Scope</span>
+            <span className={styles.sectionMeta}>
+              {settings.siteListMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+            </span>
+          </div>
 
-        <div className={styles.modeSwitch}>
-          <button
-            type="button"
-            className={`${styles.modeButton} ${settings.siteListMode === 'blocklist' ? styles.active : ''}`}
-            onClick={() => handleModeChange('blocklist')}
-            aria-pressed={settings.siteListMode === 'blocklist'}
-          >
-            All sites
-          </button>
-          <button
-            type="button"
-            className={`${styles.modeButton} ${settings.siteListMode === 'allowlist' ? styles.active : ''}`}
-            onClick={() => handleModeChange('allowlist')}
-            aria-pressed={settings.siteListMode === 'allowlist'}
-          >
-            Only allowlist
-          </button>
-        </div>
+          <div className={styles.modeSwitch}>
+            <button
+              type="button"
+              className={`${styles.modeButton} ${settings.siteListMode === 'blocklist' ? styles.active : ''}`}
+              onClick={() => handleModeChange('blocklist')}
+              aria-pressed={settings.siteListMode === 'blocklist'}
+            >
+              All sites
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeButton} ${settings.siteListMode === 'allowlist' ? styles.active : ''}`}
+              onClick={() => handleModeChange('allowlist')}
+              aria-pressed={settings.siteListMode === 'allowlist'}
+            >
+              Only allowlist
+            </button>
+          </div>
 
-        <label className={styles.siteListLabel}>
-          {siteListLabel}
-          <textarea
-            className={`${styles.siteList} ${
+          <label className={styles.siteListLabel}>
+            {siteListLabel}
+            <textarea
+              className={`${styles.siteList} ${
+                siteListStatus === 'dirty'
+                  ? styles.siteListDirty
+                  : siteListStatus === 'saved'
+                    ? styles.siteListSaved
+                    : ''
+              }`}
+              rows={4}
+              value={siteListText}
+              onChange={(e) => handleSiteListChange(e.target.value)}
+              placeholder="example.com&#10;*.example.com&#10;https://example.com/admin"
+            />
+          </label>
+
+          <div className={styles.siteActions}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={handleAddCurrentSite}
+              disabled={!canUseCurrentSite || !activeHost || permissionRequesting}
+            >
+              {siteActionLabel}
+            </button>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.saveButton} ${
+                siteListStatus === 'dirty'
+                  ? styles.saveButtonDirty
+                  : siteListStatus === 'saved'
+                    ? styles.saveButtonSaved
+                    : ''
+              }`}
+              onClick={handleSaveSiteList}
+              disabled={siteListStatus !== 'dirty' || permissionRequesting}
+            >
+              {saveButtonLabel}
+            </button>
+          </div>
+
+          <div
+            className={`${styles.saveStatus} ${
               siteListStatus === 'dirty'
-                ? styles.siteListDirty
+                ? styles.saveStatusDirty
                 : siteListStatus === 'saved'
-                  ? styles.siteListSaved
+                  ? styles.saveStatusSaved
                   : ''
             }`}
-            rows={4}
-            value={siteListText}
-            onChange={(e) => handleSiteListChange(e.target.value)}
-            placeholder="example.com&#10;*.example.com&#10;https://example.com/admin"
-          />
-        </label>
-
-        <div className={styles.siteActions}>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={handleAddCurrentSite}
-            disabled={!canUseCurrentSite || !activeHost || permissionRequesting}
+            role="status"
+            aria-live="polite"
           >
-            {siteActionLabel}
-          </button>
-          <button
-            type="button"
-            className={`${styles.secondaryButton} ${styles.saveButton} ${
-              siteListStatus === 'dirty'
-                ? styles.saveButtonDirty
-                : siteListStatus === 'saved'
-                  ? styles.saveButtonSaved
-                  : ''
-            }`}
-            onClick={handleSaveSiteList}
-            disabled={siteListStatus !== 'dirty' || permissionRequesting}
-          >
-            {saveButtonLabel}
-          </button>
-        </div>
+            {siteListStatus === 'dirty' && 'Unsaved changes'}
+            {siteListStatus === 'saved' && 'Saved'}
+          </div>
 
-        <div
-          className={`${styles.saveStatus} ${
-            siteListStatus === 'dirty'
-              ? styles.saveStatusDirty
-              : siteListStatus === 'saved'
-                ? styles.saveStatusSaved
-                : ''
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {siteListStatus === 'dirty' && 'Unsaved changes'}
-          {siteListStatus === 'saved' && 'Saved'}
+          <p className={styles.helperText}>
+            One host or URL prefix per line. Supports wildcards like *.example.com.
+          </p>
         </div>
-
-        <p className={styles.helperText}>
-          One host or URL prefix per line. Supports wildcards like *.example.com.
-        </p>
-      </div>
+      </details>
     </div>
   );
 }
