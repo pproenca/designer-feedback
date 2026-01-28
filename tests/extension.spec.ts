@@ -64,8 +64,8 @@ async function createAnnotation(
   comment: string,
   category: 'Bug' | 'Question' | 'Suggestion'
 ) {
-  await page.getByRole('button', { name: 'Add annotation' }).click();
-  await page.getByRole('button', { name: category }).click();
+  await page.getByRole('button', { name: 'Add annotation', exact: true }).click();
+  await page.getByRole('button', { name: category, exact: true }).click();
   await expect(page.locator('body')).toHaveClass(/designer-feedback-add-mode/);
   await page.getByRole('heading', { name: 'Example Domain' }).click();
 
@@ -301,20 +301,20 @@ test.describe('Content Script', () => {
 test.describe('Feedback Toolbar flows', () => {
   test.beforeEach(async ({ page, context, extensionId }) => {
     await prepareContentPage(page, context, extensionId);
-    await expect(page.getByRole('button', { name: 'Add annotation' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
   });
 
   test('happy path: create annotation and open export modal', async ({ page }) => {
     const comment = 'Tighten spacing above the headline.';
     await createAnnotation(page, comment, 'Bug');
 
-    const exportButton = page.getByRole('button', { name: 'Export feedback' });
+    const exportButton = page.getByRole('button', { name: 'Export feedback', exact: true });
     await expect(exportButton).toBeEnabled();
     await exportButton.click();
 
     await expect(page.getByRole('heading', { name: 'Export Feedback' })).toBeVisible();
     await expect(page.getByText(comment)).toBeVisible();
-    await page.getByRole('button', { name: 'Close export dialog' }).click();
+    await page.getByRole('dialog', { name: 'Export feedback' }).getByLabel('Close export dialog').click();
   });
 
   test('happy path: delete annotation from marker', async ({ page }) => {
@@ -327,12 +327,12 @@ test.describe('Feedback Toolbar flows', () => {
     await popup.getByRole('button', { name: 'Delete' }).click();
 
     await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Export feedback' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
   });
 
   test('sad path: cancel add flow does not create annotation', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add annotation' }).click();
-    await page.getByRole('button', { name: 'Question' }).click();
+    await page.getByRole('button', { name: 'Add annotation', exact: true }).click();
+    await page.getByRole('button', { name: 'Question', exact: true }).click();
     await page.getByRole('heading', { name: 'Example Domain' }).click();
 
     const popup = page.locator('[data-annotation-popup]');
@@ -341,7 +341,7 @@ test.describe('Feedback Toolbar flows', () => {
     await popup.getByRole('button', { name: 'Cancel' }).click();
 
     await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Export feedback' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
   });
 
   test('stores annotations in extension storage (not page IndexedDB)', async ({
