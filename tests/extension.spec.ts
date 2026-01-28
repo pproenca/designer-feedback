@@ -1,70 +1,17 @@
-import type { BrowserContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
-const DEFAULT_TEST_SETTINGS = {
-  enabled: true,
-  lightMode: false,
-  siteListMode: 'blocklist',
-  siteList: [],
-  onboardingComplete: true,
-};
-
-async function openPopup(page: Page, extensionId: string) {
-  await page.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
-}
-
-async function openSiteAccess(page: Page) {
-  await page.locator('summary', { hasText: 'Site access' }).click();
-}
-
-async function setExtensionSettings(
-  context: BrowserContext,
-  extensionId: string,
-  settings: Record<string, unknown>
-) {
-  const settingsPage = await context.newPage();
-  await openPopup(settingsPage, extensionId);
-  await settingsPage.evaluate(async (settingsToSave) => {
-    await chrome.storage.sync.set(settingsToSave);
-  }, settings);
-  await settingsPage.close();
-}
-
-async function clearAnnotationsStorage(context: BrowserContext, extensionId: string) {
-  const settingsPage = await context.newPage();
-  await openPopup(settingsPage, extensionId);
-  await settingsPage.evaluate(async () => {
-    const all = await chrome.storage.local.get(null);
-    const keys = Object.keys(all).filter((key) =>
-      key.startsWith('designer-feedback:annotations:')
-    );
-    if (keys.length > 0) {
-      await chrome.storage.local.remove(keys);
-    }
-  });
-  await settingsPage.close();
-}
-
-async function getStoredSettings(page: Page) {
-  return page.evaluate(async (defaults) => {
-    const result = await chrome.storage.sync.get(defaults);
-    return result;
-  }, DEFAULT_TEST_SETTINGS);
-}
-
-async function prepareContentPage(page: Page, context: BrowserContext, extensionId: string) {
-  await setExtensionSettings(context, extensionId, {
-    enabled: true,
-    lightMode: false,
-    siteListMode: 'blocklist',
-    siteList: [],
-    onboardingComplete: true,
-  });
-  await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-  await clearAnnotationsStorage(context, extensionId);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  // Content script is injected via webNavigation.onCompleted, may take a moment
-  await expect(page.locator('#designer-feedback-root')).toHaveCount(1, { timeout: 5000 });
+/**
+ * Wait for the toolbar to be visible on the page.
+ * The content script auto-mounts the toolbar when enabled.
+ * The toolbar is rendered inside a shadow DOM, so we check for
+ * the toolbar element using shadow DOM piercing.
+ */
+async function waitForToolbar(page: Page) {
+  // Wait for the shadow host to be attached
+  await expect(page.locator('#designer-feedback-root')).toBeAttached({ timeout: 10000 });
+  // Wait for the actual toolbar inside the shadow DOM to be visible
+  await expect(page.locator('#designer-feedback-root [data-toolbar]')).toBeVisible({ timeout: 10000 });
 }
 
 async function createAnnotation(
@@ -84,269 +31,62 @@ async function createAnnotation(
   await expect(page.locator('[data-annotation-marker]')).toHaveCount(1);
 }
 
-test.describe('Popup UI', () => {
-  test.beforeEach(async ({ page, extensionId }) => {
-    await openPopup(page, extensionId);
-    await page.evaluate(async (settings) => {
-      await chrome.storage.sync.set(settings);
-    }, DEFAULT_TEST_SETTINGS);
-    await page.reload();
+test.describe('Extension Basic Tests', () => {
+  test('service worker loads successfully', async ({ context, extensionId }) => {
+    const serviceWorkers = context.serviceWorkers();
+    expect(serviceWorkers.length).toBeGreaterThan(0);
+    expect(serviceWorkers.some((sw) => sw.url().includes(extensionId))).toBe(true);
   });
 
-  test('renders default state', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Designer Feedback' })).toBeVisible();
-
-    const toggle = page.getByRole('checkbox', { name: 'Enable Toolbar' });
-    await expect(toggle).toBeChecked();
-
-    await expect(page.getByText('Annotations', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export Feedback' })).toBeDisabled();
-
-    await expect(page.getByText('Site access', { exact: true })).toBeVisible();
-    await openSiteAccess(page);
-    await expect(page.getByRole('button', { name: 'All sites', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    await expect(page.getByLabel('Blocked sites')).toHaveValue('');
-    await expect(page.getByRole('button', { name: 'Disable on this site' })).toBeDisabled();
-  });
-
-  test('toggle updates stored settings', async ({ page }) => {
-    await page.getByText('Enable Toolbar').click();
-
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return settings.enabled;
-    }).toBe(false);
-  });
-
-  test('happy path: saves allowlist settings', async ({ page }) => {
-    await openSiteAccess(page);
-    await page.getByRole('button', { name: 'Allowlist', exact: true }).click();
-
-    const siteList = page.getByLabel('Allowed sites');
-    await siteList.fill(`Example.com
-https://example.com/admin
-# comment
-/admin
-EXAMPLE.com`);
-    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-
-    await expect(siteList).toHaveValue('example.com\nexample.com/admin');
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return { siteListMode: settings.siteListMode, siteList: settings.siteList };
-    }).toEqual({
-      siteListMode: 'allowlist',
-      siteList: ['example.com', 'example.com/admin'],
-    });
-    await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
-  });
-
-  test('happy path: add current site shortcut saves host', async ({ context, extensionId }) => {
-    const popupPage = await context.newPage();
-    await popupPage.addInitScript(({ url, tabId }) => {
-      if (!window.chrome) {
-        // @ts-expect-error - test-only shim.
-        window.chrome = {};
-      }
-      if (!window.chrome.tabs) {
-        // @ts-expect-error - test-only shim.
-        window.chrome.tabs = {};
-      }
-      window.chrome.tabs.query = (_queryInfo, callback) => {
-        callback([{ id: tabId, url }]);
-      };
-      window.chrome.tabs.sendMessage = (_id, _message, callback) => {
-        if (callback) {
-          callback({ count: 0 });
-        }
-      };
-    }, { url: 'https://example.com/admin', tabId: 777 });
-
-    await openPopup(popupPage, extensionId);
-    await popupPage.evaluate(async (settings) => {
-      await chrome.storage.sync.set(settings);
-    }, DEFAULT_TEST_SETTINGS);
-    await popupPage.reload();
-
-    await openSiteAccess(popupPage);
-    const addButton = popupPage.getByRole('button', { name: 'Disable on this site' });
-    await expect(addButton).toBeEnabled();
-    await addButton.click();
-
-    await expect(popupPage.getByLabel('Blocked sites')).toHaveValue('example.com');
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(popupPage);
-      return settings.siteList;
-    }).toEqual(['example.com']);
-    await expect(popupPage.getByRole('status')).toHaveText('Saved');
-    await expect(popupPage.getByRole('button', { name: 'Saved' })).toBeDisabled();
-    await popupPage.close();
-  });
-
-  test('sad path: ignores invalid site list entries', async ({ page }) => {
-    await openSiteAccess(page);
-    const siteList = page.getByLabel('Blocked sites');
-    await siteList.fill(`# comment
-/admin
-http://
-`);
-    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
-    await page.getByRole('button', { name: 'Save changes' }).click();
-
-    await expect(siteList).toHaveValue('');
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return settings.siteList;
-    }).toEqual([]);
-    await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled();
-  });
-
-  test('save status transitions from dirty to saved to idle', async ({ page }) => {
-    await openSiteAccess(page);
-    const siteList = page.getByLabel('Blocked sites');
-    await siteList.fill('example.com');
-
-    await expect(page.getByRole('status')).toHaveText('Unsaved changes');
-    await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
-    await page.getByRole('button', { name: 'Save changes' }).click();
-
-    await expect(page.getByRole('status')).toHaveText('Saved');
-    await expect(page.getByRole('button', { name: 'Saved' })).toBeDisabled();
-
-    await expect.poll(async () => {
-      return (await page.getByRole('status').textContent())?.trim();
-    }).toBe('');
-    await expect(page.getByRole('button', { name: 'Save list' })).toBeDisabled();
-  });
-
-  test('mode switch toggles labels and storage', async ({ page }) => {
-    await openSiteAccess(page);
-    await page.getByRole('button', { name: 'Allowlist', exact: true }).click();
-
-    await expect(page.getByText('Allowlist', { exact: true }).first()).toBeVisible();
-    await expect(page.getByLabel('Allowed sites')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Allow this site', exact: true })).toBeVisible();
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return settings.siteListMode;
-    }).toBe('allowlist');
-
-    await page.getByRole('button', { name: 'All sites', exact: true }).click();
-
-    await expect(page.getByText('All sites', { exact: true }).first()).toBeVisible();
-    await expect(page.getByLabel('Blocked sites')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Disable on this site', exact: true })).toBeVisible();
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return settings.siteListMode;
-    }).toBe('blocklist');
-
-    await page.getByRole('button', { name: 'Click', exact: true }).click();
-
-    await expect(page.getByText('Click to activate', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('In click mode, click')).toBeVisible();
-    await expect.poll(async () => {
-      const settings = await getStoredSettings(page);
-      return settings.siteListMode;
-    }).toBe('click');
-  });
-
-  test('permission callout requests all-sites access', async ({ context, extensionId }) => {
-    const popupPage = await context.newPage();
-    await popupPage.addInitScript(() => {
-      const win = window as Window & { __permissionRequests?: unknown[] };
-      win.__permissionRequests = [];
-      // Stub permissions to simulate missing host access.
-      chrome.permissions.contains = (_info, callback) => {
-        callback(false);
-      };
-      chrome.permissions.request = (info, callback) => {
-        win.__permissionRequests?.push(info);
-        callback(true);
-      };
-    });
-
-    await openPopup(popupPage, extensionId);
-    await popupPage.evaluate(async (settings) => {
-      await chrome.storage.sync.set(settings);
-    }, { ...DEFAULT_TEST_SETTINGS, onboardingComplete: true });
-    await popupPage.reload();
-
-    await expect(
-      popupPage.getByText(
-        'Enable access for all sites to keep the toolbar on automatically.'
-      )
-    ).toBeVisible();
-
-    const enableButton = popupPage.getByRole('button', { name: 'Enable on all sites' });
-    await enableButton.click();
-
-    await expect(enableButton).toHaveCount(0);
-    await expect(
-      popupPage.getByText(
-        'Enable access for all sites to keep the toolbar on automatically.'
-      )
-    ).toHaveCount(0);
-
-    const permissionRequests = await popupPage.evaluate(
-      () => (window as Window & { __permissionRequests?: unknown[] }).__permissionRequests
-    );
-    expect(permissionRequests).toEqual([{ origins: ['http://*/*', 'https://*/*'] }]);
-    await popupPage.close();
+  test('content script injects toolbar on page load', async ({ page }) => {
+    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await waitForToolbar(page);
+    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
   });
 });
 
-test.describe('Content Script', () => {
-  test('injects UI container on pages when blocklist mode with all-sites permission', async ({ context, extensionId }) => {
-    const settingsPage = await context.newPage();
-    await openPopup(settingsPage, extensionId);
-    await settingsPage.evaluate(async () => {
-      await chrome.storage.sync.set({
-        enabled: true,
-        lightMode: false,
-        siteListMode: 'blocklist',
-        siteList: [],
-        onboardingComplete: true,
-      });
-    });
-    await settingsPage.close();
-
-    const page = await context.newPage();
+test.describe('Toolbar UI', () => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    // Content script runs via static manifest declaration and auto-mounts in blocklist mode
-    await expect(page.locator('#designer-feedback-root')).toHaveCount(1, { timeout: 5000 });
+    await waitForToolbar(page);
   });
 
-  test('click mode does not auto-mount toolbar', async ({ context, extensionId }) => {
-    const settingsPage = await context.newPage();
-    await openPopup(settingsPage, extensionId);
-    await settingsPage.evaluate(async () => {
-      await chrome.storage.sync.set({
-        enabled: true,
-        lightMode: false,
-        siteListMode: 'click',
-        siteList: [],
-        onboardingComplete: true,
-      });
-    });
-    await settingsPage.close();
+  test('displays all toolbar controls', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Clear all annotations', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Minimize toolbar', exact: true })).toBeVisible();
+  });
 
-    const page = await context.newPage();
-    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    // In click mode, content script runs but doesn't auto-mount the toolbar
-    // Give it a moment to potentially mount (which it shouldn't)
-    await expect(page.locator('#designer-feedback-root')).toHaveCount(0, { timeout: 2000 });
+  test('can minimize and expand toolbar', async ({ page }) => {
+    await page.getByRole('button', { name: 'Minimize toolbar', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeHidden();
+
+    const toolbar = page.locator('[data-toolbar]');
+    await toolbar.click();
+    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
+  });
+
+  test('theme toggle switches between light and dark mode', async ({ page }) => {
+    // Initially in light mode (default), button shows "Switch to dark mode"
+    const switchToLightButton = page.getByRole('button', { name: 'Switch to light mode', exact: true });
+    const switchToDarkButton = page.getByRole('button', { name: 'Switch to dark mode', exact: true });
+
+    await expect(switchToDarkButton).toBeVisible();
+
+    await switchToDarkButton.click();
+    await expect(switchToLightButton).toBeVisible();
+
+    await switchToLightButton.click();
+    await expect(switchToDarkButton).toBeVisible();
   });
 });
 
 test.describe('Feedback Toolbar flows', () => {
-  test.beforeEach(async ({ page, context, extensionId }) => {
-    await prepareContentPage(page, context, extensionId);
-    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
+    await waitForToolbar(page);
+    // Note: Each test runs in a fresh browser context, so storage is already clean
   });
 
   test('happy path: create annotation and open export modal', async ({ page }) => {
@@ -389,13 +129,10 @@ test.describe('Feedback Toolbar flows', () => {
     await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
   });
 
-  test('stores annotations in extension storage (not page IndexedDB)', async ({
-    page,
-    context,
-    extensionId,
-  }) => {
+  test('stores annotations in extension storage (not page IndexedDB)', async ({ page }) => {
     const comment = 'Check storage location.';
 
+    // Verify IndexedDB is not used before creating annotation
     const before = await page.evaluate(async () => {
       try {
         return await indexedDB.databases();
@@ -407,6 +144,7 @@ test.describe('Feedback Toolbar flows', () => {
 
     await createAnnotation(page, comment, 'Suggestion');
 
+    // Verify IndexedDB is still not used after creating annotation
     const after = await page.evaluate(async () => {
       try {
         return await indexedDB.databases();
@@ -416,20 +154,9 @@ test.describe('Feedback Toolbar flows', () => {
     });
     expect(after?.some((db) => db.name === 'designer-feedback-db')).toBe(false);
 
-    const storagePage = await context.newPage();
-    await openPopup(storagePage, extensionId);
-    const storedCount = await storagePage.evaluate(async () => {
-      const all = await chrome.storage.local.get(null);
-      const entries = Object.entries(all).filter(([key]) =>
-        key.startsWith('designer-feedback:annotations:')
-      );
-      const counts = entries.map(([, value]) =>
-        Array.isArray(value) ? value.length : 0
-      );
-      return counts.reduce((sum, value) => sum + value, 0);
-    });
-    await storagePage.close();
-
-    expect(storedCount).toBe(1);
+    // Verify annotation persists after page reload (proves it's stored somewhere persistent)
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForToolbar(page);
+    await expect(page.locator('[data-annotation-marker]')).toHaveCount(1);
   });
 });

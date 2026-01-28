@@ -2,7 +2,5 @@ import type { Settings } from '@/types';
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
-  lightMode: false,
-  siteListMode: 'blocklist',
-  siteList: [],
+  lightMode: true,
 };

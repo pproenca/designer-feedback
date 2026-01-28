@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FeedbackToolbar } from '@/components/FeedbackToolbar';
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 import type { Settings } from '@/types';
 
 interface AppProps {
@@ -7,12 +8,12 @@ interface AppProps {
 }
 
 export function App({ shadowRoot }: AppProps) {
-  const [enabled, setEnabled] = useState(true);
-  const [lightMode, setLightMode] = useState(false);
+  const [enabled, setEnabled] = useState(DEFAULT_SETTINGS.enabled);
+  const [lightMode, setLightMode] = useState(DEFAULT_SETTINGS.lightMode);
 
   useEffect(() => {
     // Load initial settings
-    chrome.storage.sync.get({ enabled: true, lightMode: false }, (result) => {
+    chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
       if (chrome.runtime.lastError) {
         console.error('Failed to get settings:', chrome.runtime.lastError.message);
         return;

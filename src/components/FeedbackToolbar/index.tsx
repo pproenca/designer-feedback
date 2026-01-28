@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo, type CSSProperties }
 import { createPortal } from 'react-dom';
 
 import { AnnotationPopup, AnnotationPopupHandle } from '../AnnotationPopup';
+import { useDraggable } from '@/hooks/useDraggable';
 import {
   IconList,
   IconClose,
@@ -92,6 +93,16 @@ export function FeedbackToolbar({
   // Refs
   const popupRef = useRef<AnnotationPopupHandle>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // Draggable toolbar
+  const {
+    position: dragPosition,
+    isDragging,
+    onMouseDown: handleDragMouseDown,
+  } = useDraggable({
+    elementWidth: isExpanded ? 280 : 44,
+    elementHeight: 44,
+  });
 
   // Debounced badge update to prevent rapid updates during operations
   const debouncedUpdateBadge = useMemo(
@@ -587,7 +598,20 @@ export function FeedbackToolbar({
       )}
 
       {/* Toolbar */}
-      <div ref={toolbarRef} className={styles.toolbar} data-toolbar>
+      <div
+        ref={toolbarRef}
+        className={`${styles.toolbar} ${isDragging ? styles.dragging : ''}`}
+        data-toolbar
+        style={
+          dragPosition
+            ? {
+                top: dragPosition.y,
+                right: 'auto',
+                left: dragPosition.x,
+              }
+            : undefined
+        }
+      >
         <div
           className={`
             ${styles.toolbarContainer}
@@ -601,6 +625,11 @@ export function FeedbackToolbar({
               event.preventDefault();
               setIsExpanded(true);
             }
+          }}
+          onMouseDown={(e) => {
+            // Only start drag if clicking directly on the container, not on buttons
+            if ((e.target as HTMLElement).closest('button')) return;
+            handleDragMouseDown(e);
           }}
           role="button"
           tabIndex={0}
