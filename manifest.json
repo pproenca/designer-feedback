@@ -32,17 +32,11 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["src/content/index.tsx"],
-      "run_at": "document_idle"
-    }
-  ],
   "web_accessible_resources": [
     {
       "matches": ["http://*/*", "https://*/*"],
       "resources": [
+        "assets/content.js",
         "assets/content-*.js",
         "assets/index-*.js",
         "assets/client-*.js",

@@ -56,7 +56,7 @@ export default defineConfig({
     modulePreload: false,
     rollupOptions: {
       input: {
-        content: resolve(__dirname, 'src/content/index.tsx'),
+        content: resolve(__dirname, 'src/content/loader.ts'),
       },
       output: {
         entryFileNames: 'assets/[name].js',
