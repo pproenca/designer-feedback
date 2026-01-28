@@ -261,7 +261,7 @@ describe('Service Worker - Icon Click Handler', () => {
 
     // Should not throw
     await expect(onClickedHandler?.(tab)).resolves.not.toThrow();
-    expect(mockChrome.scripting.executeScript).toHaveBeenCalled();
+    expect(mockChrome.scripting.executeScript).not.toHaveBeenCalled();
     expect(mockChrome.tabs.sendMessage).toHaveBeenCalledTimes(2);
   });
 });
@@ -493,7 +493,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     const result = onMessageHandler?.(
       { type: 'CAPTURE_SCREENSHOT' },
-      { tab: { windowId: 5 } } as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id, tab: { windowId: 5 } } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -522,7 +522,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     onMessageHandler?.(
       { type: 'CAPTURE_SCREENSHOT' },
-      { tab: { windowId: 7 } } as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id, tab: { windowId: 7 } } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -542,7 +542,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     onMessageHandler?.(
       { type: 'CHECK_SCREENSHOT_PERMISSION', origin: 'https://example.com/*' },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -561,7 +561,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     onMessageHandler?.(
       { type: 'REQUEST_SCREENSHOT_PERMISSION', origin: 'https://example.com/*' },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -583,7 +583,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     onMessageHandler?.(
       { type: 'DOWNLOAD_FILE', filename: 'test.png', dataUrl: 'data:' },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -602,7 +602,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     onMessageHandler?.(
       { type: 'GET_SETTINGS' },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -623,7 +623,7 @@ describe('Service Worker - Message Handling', () => {
     const settings = { ...DEFAULT_SETTINGS, enabled: false };
     onMessageHandler?.(
       { type: 'SAVE_SETTINGS', settings },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
@@ -641,7 +641,7 @@ describe('Service Worker - Message Handling', () => {
     const sendResponse = vi.fn();
     const result = onMessageHandler?.(
       { type: 'UPDATE_BADGE', count: 4 },
-      {} as chrome.runtime.MessageSender,
+      { id: mockChrome.runtime.id } as chrome.runtime.MessageSender,
       sendResponse
     );
 
