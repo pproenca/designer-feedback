@@ -17,7 +17,9 @@
     "test:e2e": "VITE_DF_E2E=1 wxt build && playwright test",
     "typecheck": "wxt prepare && tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "knip": "knip",
+    "knip:fix": "knip --fix"
   },
   "dependencies": {
     "framer-motion": "^11.18.2",
@@ -45,6 +47,7 @@
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^15.12.0",
     "jsdom": "^27.4.0",
+    "knip": "^5.82.1",
     "lefthook": "^2.0.16",
     "puppeteer": "^24.36.0",
     "sharp": "^0.34.5",

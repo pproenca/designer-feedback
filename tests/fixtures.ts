@@ -154,7 +154,7 @@ async function dragToolbar(page: Page, targetX: number, targetY: number) {
 // Test Fixtures
 // ============================================================================
 
-export interface TestHelpers {
+interface TestHelpers {
   activateToolbar: () => Promise<void>;
   waitForToolbar: () => Promise<void>;
   createAnnotation: (comment: string, category: 'Bug' | 'Question' | 'Suggestion') => Promise<void>;

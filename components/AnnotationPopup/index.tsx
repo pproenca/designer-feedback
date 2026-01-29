@@ -72,7 +72,7 @@ const shakeVariants: Variants = {
 // Types
 // =============================================================================
 
-export interface AnnotationPopupProps {
+interface AnnotationPopupProps {
   mode?: 'create' | 'view';
   element: string;
   annotation?: Annotation;
@@ -89,7 +89,7 @@ export interface AnnotationPopupProps {
   lightMode?: boolean;
 }
 
-export interface AnnotationPopupHandle {
+interface AnnotationPopupHandle {
   shake: () => void;
 }
 
@@ -489,4 +489,3 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
   }
 );
 
-export default AnnotationPopup;

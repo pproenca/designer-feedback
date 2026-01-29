@@ -38,21 +38,6 @@ export type Settings = {
   lightMode: boolean;
 };
 
-export type FeedbackExport = {
-  version: string;
-  exportedAt: string;
-  page: {
-    url: string;
-    title: string;
-    viewport: {
-      width: number;
-      height: number;
-    };
-  };
-  annotations: Annotation[];
-  screenshots?: Record<string, string>; // Legacy field, no longer used
-};
-
 export type ExportFormat = 'image-notes' | 'snapshot';
 
 // Message types for content <-> background communication

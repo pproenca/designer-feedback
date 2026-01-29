@@ -778,4 +778,3 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   );
 }
 
-export default ExportModal;

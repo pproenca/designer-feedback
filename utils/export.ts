@@ -2,107 +2,11 @@
 // Export Utilities
 // =============================================================================
 
-import type { Annotation, FeedbackExport } from '@/types';
+import type { Annotation } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { sendMessage } from '@/utils/messaging';
 import { captureFullPage } from './screenshot';
 import { emitUiEvent } from './ui-events';
-
-/**
- * Generate JSON export object
- */
-export function generateJSONExport(annotations: Annotation[]): FeedbackExport {
-  const screenshots: Record<string, string> = {};
-
-  annotations.forEach((annotation) => {
-    if (annotation.screenshot) {
-      screenshots[annotation.id] = annotation.screenshot;
-    }
-  });
-
-  return {
-    version: '1.0.0',
-    exportedAt: new Date().toISOString(),
-    page: {
-      url: window.location.href,
-      title: document.title,
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-    },
-    annotations: annotations.map((a) => ({
-      ...a,
-      screenshot: '', // Screenshots are stored separately
-    })),
-    screenshots,
-  };
-}
-
-/**
- * Generate Markdown export
- */
-export function generateMarkdownExport(annotations: Annotation[]): string {
-  const lines: string[] = [];
-
-  // Header
-  lines.push('# Design Feedback Report');
-  lines.push('');
-  lines.push(`**Page:** ${document.title}`);
-  lines.push(`**URL:** ${window.location.href}`);
-  lines.push(`**Exported:** ${new Date().toLocaleString()}`);
-  lines.push('');
-
-  // Summary table
-  lines.push('## Summary');
-  lines.push('');
-  lines.push('| # | Category | Element | Comment |');
-  lines.push('|---|----------|---------|---------|');
-
-  annotations.forEach((annotation, index) => {
-    const category = getCategoryConfig(annotation.category);
-    const comment = annotation.comment.replace(/\|/g, '\\|').slice(0, 50);
-    const element = annotation.element.replace(/\|/g, '\\|').slice(0, 30);
-    lines.push(
-      `| ${index + 1} | ${category.emoji} ${category.label} | ${element} | ${comment}${
-        annotation.comment.length > 50 ? '...' : ''
-      } |`
-    );
-  });
-
-  lines.push('');
-
-  // Agent steps
-  lines.push('## Agent Steps');
-  lines.push('');
-  lines.push('1. Review the summary and annotations, mapping each item to the relevant code area.');
-  lines.push('2. Triage by category (bugs/accessibility first), then implement fixes in order.');
-  lines.push('3. Validate the UI against annotated elements and update tests if needed.');
-  lines.push('4. Report status for each annotation number and flag open questions.');
-  lines.push('');
-
-  // Detailed annotations
-  lines.push('## Detailed Annotations');
-  lines.push('');
-
-  annotations.forEach((annotation, index) => {
-    const category = getCategoryConfig(annotation.category);
-    lines.push(`### ${index + 1}. ${category.emoji} ${category.label}: ${annotation.element}`);
-    lines.push('');
-    lines.push(`**Comment:** ${annotation.comment}`);
-    lines.push('');
-    if (annotation.elementPath) {
-      lines.push(`**Element Path:** \`${annotation.elementPath}\``);
-      lines.push('');
-    }
-    lines.push(`![Screenshot](./screenshots/${index + 1}.png)`);
-    lines.push('');
-    lines.push('---');
-    lines.push('');
-  });
-
-  return lines.join('\n');
-}
 
 type DownloadResponse = { ok: boolean; error?: string };
 

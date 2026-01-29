@@ -1218,4 +1218,3 @@ export function FeedbackToolbar({
   );
 }
 
-export default FeedbackToolbar;

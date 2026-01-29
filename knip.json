@@ -1,0 +1,35 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "entry": [
+    "entrypoints/**/*.{ts,tsx}",
+    "scripts/*.ts",
+    "wxt.config.ts"
+  ],
+  "project": ["**/*.{ts,tsx}"],
+  "ignore": [
+    ".wxt/**",
+    ".output/**",
+    "**/*.d.ts"
+  ],
+  "ignoreDependencies": [
+    "@tailwindcss/postcss",
+    "@wxt-dev/module-react",
+    "@vitejs/plugin-react"
+  ],
+  "ignoreBinaries": [
+    "open",
+    "tsx"
+  ],
+  "vitest": {
+    "entry": [
+      "test/setup.ts",
+      "**/*.{spec,test}.{ts,tsx}"
+    ]
+  },
+  "playwright": {
+    "entry": [
+      "tests/**/*.spec.ts"
+    ]
+  }
+}
