@@ -191,7 +191,7 @@ export default defineBackground(() => {
   // =============================================================================
 
   browser.runtime.onMessage.addListener((message: unknown, sender: { id?: string; tab?: { windowId?: number } }) => {
-    const msg = message as MessageType;
+    const msg = message as MessageType & { target?: string };
     console.log('[Background] Received message:', msg.type, 'from sender:', sender.id);
 
     // Validate sender is from this extension
@@ -200,17 +200,32 @@ export default defineBackground(() => {
       return;
     }
 
+    // Skip messages targeted at other contexts (e.g., offscreen document)
+    // Return false to allow other listeners to handle the message
+    if (msg.target && msg.target !== 'background') {
+      return false;
+    }
+
     // Handle screenshot capture
     if (msg.type === 'CAPTURE_SCREENSHOT') {
       const windowId = sender.tab?.windowId ?? browser.windows.WINDOW_ID_CURRENT;
       console.log('[Background] Handling CAPTURE_SCREENSHOT for windowId:', windowId);
-      return captureVisibleTabScreenshot(windowId).then((result) => {
-        console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
-        return {
-          type: 'SCREENSHOT_CAPTURED',
-          ...result,
-        };
-      });
+      return captureVisibleTabScreenshot(windowId)
+        .then((result) => {
+          console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
+          return {
+            type: 'SCREENSHOT_CAPTURED',
+            ...result,
+          };
+        })
+        .catch((error) => {
+          console.error('[Background] captureScreenshot error:', error);
+          return {
+            type: 'SCREENSHOT_CAPTURED',
+            data: '',
+            error: String(error),
+          };
+        });
     }
 
     // Handle file download

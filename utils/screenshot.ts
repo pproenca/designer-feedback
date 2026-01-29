@@ -31,21 +31,28 @@ export function isRestrictedPage(): boolean {
 export async function captureScreenshot(): Promise<string> {
   console.log('[Screenshot] Sending CAPTURE_SCREENSHOT message');
   const response = (await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' })) as {
+    type?: string;
     data?: string;
     error?: string;
-  };
+  } | undefined;
   console.log('[Screenshot] Response:', JSON.stringify({
-    error: response?.error,
+    responseType: typeof response,
+    type: response?.type,
+    error: response?.error ?? 'not set',
     hasData: !!response?.data,
     dataLength: response?.data?.length ?? 0,
-    dataPreview: response?.data?.slice(0, 50),
   }));
 
-  if (response?.error) {
+  // Check if response is undefined (no listener responded)
+  if (!response) {
+    throw new Error('Failed to capture screenshot: no response from background');
+  }
+
+  if (response.error) {
     throw new Error(response.error);
   }
   // Check for non-empty data (empty string is falsy but explicit check is clearer)
-  if (response?.data && response.data.length > 0) {
+  if (response.data && response.data.length > 0) {
     return response.data;
   }
   throw new Error('Failed to capture screenshot: empty response');
