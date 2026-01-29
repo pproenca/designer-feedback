@@ -17,7 +17,7 @@ Tailwind CSS v4 automatically detects template files without manual configuratio
 
 /* Redundant - these paths are auto-detected */
 @source "./src/**/*.{js,ts,jsx,tsx}";
-@source "./components/**/*.vue";
+@source "./components/**/*.tsx";
 @source "./app/**/*.tsx";
 ```
 
