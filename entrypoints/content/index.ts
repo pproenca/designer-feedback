@@ -1,4 +1,4 @@
-import { defineContentScript } from 'wxt/sandbox';
+import { defineContentScript } from '#imports';
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
 import { emitUiEvent } from '@/utils/ui-events';
 import { mountUI } from './mount';
@@ -10,7 +10,7 @@ declare global {
 }
 
 export default defineContentScript({
-  matches: ['http://*/*', 'https://*/*'],
+  matches: [], // Empty - prevents WXT from adding host_permissions; injection via scripting.executeScript() + activeTab
   registration: 'runtime',
   cssInjectionMode: 'ui',
 
