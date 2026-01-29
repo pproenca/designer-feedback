@@ -97,6 +97,21 @@ describe('throttle', () => {
     expect(fn).toHaveBeenCalledTimes(2);
     expect(fn).toHaveBeenLastCalledWith('third');
   });
+
+  it('provides cancel method to abort trailing execution', async () => {
+    const { throttle } = await import('./timing');
+
+    const fn = vi.fn();
+    const throttled = throttle(fn, 100);
+
+    throttled('first');
+    throttled('second');
+    throttled.cancel();
+
+    vi.advanceTimersByTime(101);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith('first');
+  });
 });
 
 describe('debounce', () => {

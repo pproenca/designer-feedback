@@ -14,7 +14,7 @@
 export function throttle<T extends (...args: any[]) => any>(
   fn: T,
   intervalMs: number
-): T {
+): T & { cancel: () => void } {
   let lastCallTime = 0;
   let trailingTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let trailingArgs: Parameters<T> | null = null;
@@ -57,7 +57,15 @@ export function throttle<T extends (...args: any[]) => any>(
     }
 
     return undefined;
-  } as T;
+  } as T & { cancel: () => void };
+
+  throttled.cancel = () => {
+    if (trailingTimeoutId !== null) {
+      clearTimeout(trailingTimeoutId);
+      trailingTimeoutId = null;
+    }
+    trailingArgs = null;
+  };
 
   return throttled;
 }

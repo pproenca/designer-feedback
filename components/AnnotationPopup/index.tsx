@@ -113,10 +113,12 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       style,
       accentColor = '#3c82f7',
       isExiting = false,
-      lightMode = false,
+      // lightMode is handled by Tailwind dark: variant from parent wrapper
+      lightMode: _lightMode = false,
     },
     ref
   ) {
+    void _lightMode;
     const [text, setText] = useState(initialValue);
     const [isShaking, setIsShaking] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -261,18 +263,17 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       };
     }, [style, offset]);
 
-    // Base popup classes
+    // Base popup classes - uses CSS component class with dark: variants
     const popupClasses = cn(
       // Layout
-      'fixed w-[300px] -translate-x-1/2 z-[100001]',
+      'fixed w-[300px] -translate-x-1/2 z-panel',
       // Padding & border radius
       'px-4 pt-3 pb-3.5 rounded-2xl',
       // Typography
       'font-sans cursor-default',
-      // Colors - dark mode (default)
-      !lightMode && 'bg-df-dark shadow-panel',
-      // Colors - light mode
-      lightMode && 'bg-white shadow-panel-light'
+      // Light mode (default), dark mode via dark: variant
+      'bg-white shadow-panel-light',
+      'dark:bg-df-dark dark:shadow-panel'
     );
 
     // View mode: show annotation details with delete option
@@ -302,8 +303,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   <span
                     className={cn(
                       'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                      !lightMode && 'text-white/65',
-                      lightMode && 'text-black/60'
+                      'text-black/60 dark:text-white/65'
                     )}
                   >
                     {element}
@@ -314,8 +314,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <div
                   className={cn(
                     'text-[0.8125rem] leading-relaxed py-2 break-words',
-                    !lightMode && 'text-white/[0.92]',
-                    lightMode && 'text-black/85'
+                    'text-black/85 dark:text-white/[0.92]'
                   )}
                 >
                   {annotation.comment}
@@ -328,8 +327,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                       'transition-colors duration-150 ease-out',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
-                      !lightMode && 'bg-transparent text-white/50 hover:bg-white/10 hover:text-white/80',
-                      lightMode && 'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75'
+                      'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75',
+                      'dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/80'
                     )}
                     type="button"
                     onClick={handleCancel}
@@ -383,8 +382,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <span
                   className={cn(
                     'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                    !lightMode && 'text-white/65',
-                    lightMode && 'text-black/60'
+                    'text-black/60 dark:text-white/65'
                   )}
                 >
                   {element}
@@ -396,8 +394,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <div
                   className={cn(
                     'text-xs italic mb-2 py-1.5 px-2 rounded leading-[1.45]',
-                    !lightMode && 'text-white/[0.68] bg-white/[0.04]',
-                    lightMode && 'text-black/55 bg-black/[0.04]'
+                    'text-black/55 bg-black/[0.04]',
+                    'dark:text-white/[0.68] dark:bg-white/[0.04]'
                   )}
                 >
                   &ldquo;{selectedText.slice(0, 80)}
@@ -415,18 +413,14 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   // Scrollbar styling
                   '[&::-webkit-scrollbar]:w-1.5',
                   '[&::-webkit-scrollbar-track]:bg-transparent',
+                  // Light mode (default)
+                  'bg-black/[0.03] text-[#1a1a1a] border-black/[0.12]',
+                  'placeholder:text-black/40',
+                  '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
                   // Dark mode
-                  !lightMode && [
-                    'bg-white/[0.04] text-white border-white/[0.12]',
-                    'placeholder:text-white/45',
-                    '[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-sm',
-                  ],
-                  // Light mode
-                  lightMode && [
-                    'bg-black/[0.03] text-[#1a1a1a] border-black/[0.12]',
-                    'placeholder:text-black/40',
-                    '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
-                  ]
+                  'dark:bg-white/[0.04] dark:text-white dark:border-white/[0.12]',
+                  'dark:placeholder:text-white/45',
+                  'dark:[&::-webkit-scrollbar-thumb]:bg-white/20'
                 )}
                 style={{ borderColor: isFocused ? accentColor : undefined }}
                 placeholder={placeholder}
@@ -445,8 +439,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                     'transition-colors duration-150 ease-out',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
-                    !lightMode && 'bg-transparent text-white/50 hover:bg-white/10 hover:text-white/80',
-                    lightMode && 'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75'
+                    'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75',
+                    'dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/80'
                   )}
                   type="button"
                   onClick={handleCancel}
