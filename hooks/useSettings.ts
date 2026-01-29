@@ -2,18 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import type { Settings } from '@/types';
 
-type StorageChange = { newValue?: unknown; oldValue?: unknown };
+type StorageChangeEntry = { newValue?: unknown; oldValue?: unknown };
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
     browser.storage.sync
       .get(DEFAULT_SETTINGS)
       .then((result) => {
-        if (!cancelled) {
+        if (!isCancelled) {
           setSettings(result as Settings);
         }
       })
@@ -22,35 +22,35 @@ export function useSettings() {
       });
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, []);
 
   useEffect(() => {
-    const handleStorageChanges = (
-      changes: Record<string, StorageChange>,
+    const handleStorageChange = (
+      changes: Record<string, StorageChangeEntry>,
       area: string
     ) => {
       if (area !== 'sync') return;
       if (!changes.enabled && !changes.lightMode) return;
 
       setSettings((prev) => {
-        let next = prev;
+        let nextSettings = prev;
         if (changes.enabled || changes.lightMode) {
-          next = { ...prev };
+          nextSettings = { ...prev };
           if (changes.enabled) {
-            next.enabled = Boolean(changes.enabled.newValue);
+            nextSettings.enabled = Boolean(changes.enabled.newValue);
           }
           if (changes.lightMode) {
-            next.lightMode = Boolean(changes.lightMode.newValue);
+            nextSettings.lightMode = Boolean(changes.lightMode.newValue);
           }
         }
-        return next;
+        return nextSettings;
       });
     };
 
-    browser.storage.onChanged.addListener(handleStorageChanges);
-    return () => browser.storage.onChanged.removeListener(handleStorageChanges);
+    browser.storage.onChanged.addListener(handleStorageChange);
+    return () => browser.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   const updateSettings = useCallback((next: Partial<Settings>) => {

@@ -150,9 +150,9 @@ type ToolbarState = {
   pendingAnnotation: PendingAnnotation | null;
   selectedAnnotationId: string | null;
   hoveredMarkerId: string | null;
-  showExportModal: boolean;
-  entranceComplete: boolean;
-  hidden: boolean;
+  isExportModalOpen: boolean;
+  isEntranceComplete: boolean;
+  isHidden: boolean;
 };
 
 type ToolbarAction =
@@ -163,7 +163,7 @@ type ToolbarAction =
   | { type: 'setPendingAnnotation'; value: PendingAnnotation | null }
   | { type: 'setSelectedAnnotationId'; value: string | null }
   | { type: 'setHoveredMarkerId'; value: string | null }
-  | { type: 'setShowExportModal'; value: boolean }
+  | { type: 'setExportModalOpen'; value: boolean }
   | { type: 'setEntranceComplete'; value: boolean }
   | { type: 'setHidden'; value: boolean };
 
@@ -175,9 +175,9 @@ const initialToolbarState: ToolbarState = {
   pendingAnnotation: null,
   selectedAnnotationId: null,
   hoveredMarkerId: null,
-  showExportModal: false,
-  entranceComplete: false,
-  hidden: false,
+  isExportModalOpen: false,
+  isEntranceComplete: false,
+  isHidden: false,
 };
 
 function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarState {
@@ -206,12 +206,12 @@ function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarStat
       return { ...state, selectedAnnotationId: action.value };
     case 'setHoveredMarkerId':
       return { ...state, hoveredMarkerId: action.value };
-    case 'setShowExportModal':
-      return { ...state, showExportModal: action.value };
+    case 'setExportModalOpen':
+      return { ...state, isExportModalOpen: action.value };
     case 'setEntranceComplete':
-      return { ...state, entranceComplete: action.value };
+      return { ...state, isEntranceComplete: action.value };
     case 'setHidden':
-      return { ...state, hidden: action.value };
+      return { ...state, isHidden: action.value };
     default:
       return state;
   }
@@ -221,7 +221,7 @@ function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarStat
 // Utility classes
 // =============================================================================
 
-const cn = (...classes: (string | false | undefined | null)[]) =>
+const classNames = (...classes: (string | false | undefined | null)[]) =>
   classes.filter(Boolean).join(' ');
 
 // =============================================================================
@@ -235,8 +235,8 @@ export function FeedbackToolbar({
 }: FeedbackToolbarProps) {
   // State
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [savedPosition, setSavedPosition] = useState<Position | null>(null);
-  const [state, dispatch] = useReducer(toolbarReducer, initialToolbarState);
+  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
+  const [toolbarState, dispatch] = useReducer(toolbarReducer, initialToolbarState);
 
   const {
     isExpanded,
@@ -246,13 +246,13 @@ export function FeedbackToolbar({
     pendingAnnotation,
     selectedAnnotationId,
     hoveredMarkerId,
-    showExportModal,
-    entranceComplete,
-    hidden,
-  } = state;
+    isExportModalOpen,
+    isEntranceComplete,
+    isHidden,
+  } = toolbarState;
 
-  const isAddMode = addMode === 'selecting';
-  const showCategoryPanel = addMode === 'category';
+  const isSelectingElement = addMode === 'selecting';
+  const isCategoryPanelOpen = addMode === 'category';
 
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
@@ -283,7 +283,7 @@ export function FeedbackToolbar({
   }, [annotations]);
 
   // Handle position persistence
-  const handlePositionChange = useCallback((position: Position) => {
+  const handleToolbarPositionChange = useCallback((position: Position) => {
     saveToolbarPosition(position).catch((error) => {
       console.error('Failed to save toolbar position:', error);
     });
@@ -291,19 +291,19 @@ export function FeedbackToolbar({
 
   // Draggable toolbar
   const {
-    position: dragPosition,
+    position: toolbarPosition,
     isDragging,
     expandDirection,
-    onMouseDown: handleDragMouseDown,
+    onMouseDown: handleToolbarDragMouseDown,
   } = useDraggable({
     elementWidth: 44,
     elementHeight: 44,
-    initialPosition: savedPosition,
-    onPositionChange: handlePositionChange,
+    initialPosition: savedToolbarPosition,
+    onPositionChange: handleToolbarPositionChange,
   });
 
   // Debounced badge update
-  const debouncedUpdateBadge = useMemo(
+  const debouncedUpdateBadgeCount = useMemo(
     () => debounce((count: number) => updateBadgeCount(count), BADGE_DEBOUNCE_MS),
     []
   );
@@ -311,24 +311,24 @@ export function FeedbackToolbar({
   // Cleanup debounced function on unmount
   useEffect(() => {
     return () => {
-      debouncedUpdateBadge.cancel();
+      debouncedUpdateBadgeCount.cancel();
     };
-  }, [debouncedUpdateBadge]);
+  }, [debouncedUpdateBadgeCount]);
 
   // Sync badge count with annotations length
   useEffect(() => {
-    debouncedUpdateBadge(annotations.length);
-  }, [annotations.length, debouncedUpdateBadge]);
+    debouncedUpdateBadgeCount(annotations.length);
+  }, [annotations.length, debouncedUpdateBadgeCount]);
 
   // Load saved toolbar position on mount
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
     const loadPosition = async () => {
       try {
         const position = await loadToolbarPosition();
-        if (!cancelled) {
-          setSavedPosition(position);
+        if (!isCancelled) {
+          setSavedToolbarPosition(position);
         }
       } catch (error) {
         console.error('Failed to load toolbar position:', error);
@@ -337,28 +337,28 @@ export function FeedbackToolbar({
     loadPosition();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, []);
 
   // Load annotations on mount
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
-    const loadData = async () => {
+    const loadAnnotationsFromStorage = async () => {
       try {
         const loaded = await loadAnnotations();
-        if (!cancelled) {
+        if (!isCancelled) {
           setAnnotations(loaded);
         }
       } catch (error) {
         console.error('Failed to load annotations:', error);
       }
     };
-    loadData();
+    loadAnnotationsFromStorage();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, []);
 
@@ -373,38 +373,38 @@ export function FeedbackToolbar({
 
   // Listen for export trigger from popup
   useEffect(() => {
-    const handleMessage = (message: unknown) => {
+    const handleExportMessage = (message: unknown) => {
       const msg = message as { type?: string };
       if (msg.type === 'TRIGGER_EXPORT') {
-        dispatch({ type: 'setShowExportModal', value: true });
+        dispatch({ type: 'setExportModalOpen', value: true });
       }
     };
-    browser.runtime.onMessage.addListener(handleMessage);
-    return () => browser.runtime.onMessage.removeListener(handleMessage);
+    browser.runtime.onMessage.addListener(handleExportMessage);
+    return () => browser.runtime.onMessage.removeListener(handleExportMessage);
   }, []);
 
   // Listen for hide/show events from export functions
   useEffect(() => {
-    const handleHide = () => dispatch({ type: 'setHidden', value: true });
-    const handleShow = () => dispatch({ type: 'setHidden', value: false });
-    const handleOpenExport = () => dispatch({ type: 'setShowExportModal', value: true });
+    const handleHideUI = () => dispatch({ type: 'setHidden', value: true });
+    const handleShowUI = () => dispatch({ type: 'setHidden', value: false });
+    const handleOpenExport = () => dispatch({ type: 'setExportModalOpen', value: true });
 
-    document.addEventListener('designer-feedback:hide-ui', handleHide);
-    document.addEventListener('designer-feedback:show-ui', handleShow);
+    document.addEventListener('designer-feedback:hide-ui', handleHideUI);
+    document.addEventListener('designer-feedback:show-ui', handleShowUI);
     document.addEventListener('designer-feedback:open-export', handleOpenExport);
 
     return () => {
-      document.removeEventListener('designer-feedback:hide-ui', handleHide);
-      document.removeEventListener('designer-feedback:show-ui', handleShow);
+      document.removeEventListener('designer-feedback:hide-ui', handleHideUI);
+      document.removeEventListener('designer-feedback:show-ui', handleShowUI);
       document.removeEventListener('designer-feedback:open-export', handleOpenExport);
     };
   }, []);
 
   // Set up hover and click listeners for add mode
   useEffect(() => {
-    if (!isAddMode) return undefined;
+    if (!isSelectingElement) return undefined;
 
-    const handleElementClick = (e: MouseEvent) => {
+    const handleAddModeClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
       if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
@@ -439,7 +439,7 @@ export function FeedbackToolbar({
       });
     };
 
-    const handleElementHoverRaw = (e: MouseEvent) => {
+    const handleAddModeHover = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
       if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
@@ -460,21 +460,21 @@ export function FeedbackToolbar({
       });
     };
 
-    const handleElementHover = throttle(handleElementHoverRaw, HOVER_THROTTLE_MS);
+    const handleAddModeHoverThrottled = throttle(handleAddModeHover, HOVER_THROTTLE_MS);
 
-    document.addEventListener('mouseover', handleElementHover);
-    document.addEventListener('click', handleElementClick, true);
+    document.addEventListener('mouseover', handleAddModeHoverThrottled);
+    document.addEventListener('click', handleAddModeClick, true);
 
     return () => {
-      document.removeEventListener('mouseover', handleElementHover);
-      document.removeEventListener('click', handleElementClick, true);
-      handleElementHover.cancel();
+      document.removeEventListener('mouseover', handleAddModeHoverThrottled);
+      document.removeEventListener('click', handleAddModeClick, true);
+      handleAddModeHoverThrottled.cancel();
     };
-  }, [isAddMode]);
+  }, [isSelectingElement]);
 
   // Toggle body class for crosshair cursor in add mode
   useEffect(() => {
-    if (isAddMode) {
+    if (isSelectingElement) {
       document.body.classList.add('designer-feedback-add-mode');
     } else {
       document.body.classList.remove('designer-feedback-add-mode');
@@ -483,20 +483,20 @@ export function FeedbackToolbar({
     return () => {
       document.body.classList.remove('designer-feedback-add-mode');
     };
-  }, [isAddMode]);
+  }, [isSelectingElement]);
 
   // Cancel add mode on escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        if (showCategoryPanel) {
+        if (isCategoryPanelOpen) {
           dispatch({ type: 'setAddMode', value: 'idle' });
         } else if (hasSelectedAnnotation) {
           dispatch({ type: 'setSelectedAnnotationId', value: null });
         } else if (pendingAnnotation) {
           dispatch({ type: 'setPendingAnnotation', value: null });
-        } else if (isAddMode) {
+        } else if (isSelectingElement) {
           dispatch({ type: 'setAddMode', value: 'idle' });
         }
       }
@@ -504,7 +504,7 @@ export function FeedbackToolbar({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [hasSelectedAnnotation, isAddMode, pendingAnnotation, showCategoryPanel]);
+  }, [hasSelectedAnnotation, isSelectingElement, pendingAnnotation, isCategoryPanelOpen]);
 
   // Close active annotation when clicking outside
   useEffect(() => {
@@ -588,7 +588,7 @@ export function FeedbackToolbar({
   );
 
   // Handle clear all
-  const handleClearAll = useCallback(async () => {
+  const handleClearAllAnnotations = useCallback(async () => {
     try {
       await clearAnnotations();
       setAnnotations([]);
@@ -599,17 +599,17 @@ export function FeedbackToolbar({
   }, []);
 
   // Toggle category panel
-  const toggleCategoryPanel = useCallback(() => {
-    if (isAddMode) {
+  const handleToggleCategoryPanel = useCallback(() => {
+    if (isSelectingElement) {
       dispatch({ type: 'setAddMode', value: 'idle' });
     } else {
       dispatch({
         type: 'setAddMode',
-        value: showCategoryPanel ? 'idle' : 'category',
+        value: isCategoryPanelOpen ? 'idle' : 'category',
       });
     }
     dispatch({ type: 'setPendingAnnotation', value: null });
-  }, [isAddMode, showCategoryPanel]);
+  }, [isSelectingElement, isCategoryPanelOpen]);
 
   // Handle category selection
   const handleCategorySelect = useCallback((category: FeedbackCategory) => {
@@ -618,14 +618,14 @@ export function FeedbackToolbar({
   }, []);
 
   // Render marker tooltip content
-  const renderMarkerTooltip = (annotation: Annotation) => {
+  const renderAnnotationTooltip = (annotation: Annotation) => {
     const config = getCategoryConfig(annotation.category);
     return (
       <motion.div
         initial="hidden"
         animate="visible"
         variants={tooltipVariants}
-        className={cn(
+        className={classNames(
           'absolute top-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-tooltip',
           'px-3 py-2 rounded-xl min-w-[120px] max-w-[200px] pointer-events-none cursor-default',
           'bg-white shadow-popup-light',
@@ -639,7 +639,7 @@ export function FeedbackToolbar({
           {config.emoji} {config.label}
         </span>
         <span
-          className={cn(
+          className={classNames(
             'block text-[13px] font-normal leading-tight whitespace-nowrap overflow-hidden text-ellipsis pb-0.5',
             'text-black/85 dark:text-white'
           )}
@@ -647,7 +647,7 @@ export function FeedbackToolbar({
           {annotation.comment}
         </span>
         <span
-          className={cn(
+          className={classNames(
             'block text-[0.625rem] font-normal mt-1.5 whitespace-nowrap',
             'text-black/35 dark:text-white/60'
           )}
@@ -659,7 +659,7 @@ export function FeedbackToolbar({
   };
 
   // Render annotation markers
-  const renderMarkers = () => {
+  const renderAnnotationMarkers = () => {
     return (
       <>
         {/* Absolute positioned markers */}
@@ -671,10 +671,10 @@ export function FeedbackToolbar({
             return (
               <motion.div
                 key={annotation.id}
-                initial={!entranceComplete ? 'hidden' : false}
+                initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
                 variants={markerVariants}
-                className={cn(
+                className={classNames(
                   'absolute w-[22px] h-[22px] rounded-full flex items-center justify-center',
                   'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
                   'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
@@ -705,7 +705,7 @@ export function FeedbackToolbar({
               >
                 {index + 1}
                 <AnimatePresence>
-                  {isHovered && renderMarkerTooltip(annotation)}
+                  {isHovered && renderAnnotationTooltip(annotation)}
                 </AnimatePresence>
               </motion.div>
             );
@@ -722,10 +722,10 @@ export function FeedbackToolbar({
             return (
               <motion.div
                 key={annotation.id}
-                initial={!entranceComplete ? 'hidden' : false}
+                initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
                 variants={markerVariants}
-                className={cn(
+                className={classNames(
                   'fixed w-[22px] h-[22px] rounded-full flex items-center justify-center',
                   'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
                   'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
@@ -756,7 +756,7 @@ export function FeedbackToolbar({
               >
                 {globalIndex}
                 <AnimatePresence>
-                  {isHovered && renderMarkerTooltip(annotation)}
+                  {isHovered && renderAnnotationTooltip(annotation)}
                 </AnimatePresence>
               </motion.div>
             );
@@ -766,7 +766,7 @@ export function FeedbackToolbar({
         {/* Pending marker */}
         {pendingAnnotation && (
           <div
-            className={cn(
+            className={classNames(
               'w-[22px] h-[22px] rounded-full flex items-center justify-center',
               'text-[0.6875rem] font-semibold text-white select-none',
               'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
@@ -787,18 +787,18 @@ export function FeedbackToolbar({
   };
 
   // Hide all UI during screenshot capture
-  if (hidden) {
+  if (isHidden) {
     return null;
   }
 
   // Dark mode wrapper: add 'dark' class when NOT in light mode
-  const darkModeClass = !lightMode ? 'dark' : '';
+  const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={cn('font-sans', darkModeClass)}>
+    <div className={classNames('font-sans', darkModeClassName)}>
       {/* Hover highlight overlay */}
       <AnimatePresence>
-        {isAddMode && hoverInfo?.rect && (
+        {isSelectingElement && hoverInfo?.rect && (
           <div className="fixed inset-0 z-overlay pointer-events-none [&>*]:pointer-events-auto">
             <motion.div
               initial="hidden"
@@ -831,7 +831,7 @@ export function FeedbackToolbar({
       </AnimatePresence>
 
       {/* Annotation markers */}
-      {renderMarkers()}
+      {renderAnnotationMarkers()}
 
       {/* Annotation popup - create mode */}
       {pendingAnnotation && (
@@ -874,42 +874,42 @@ export function FeedbackToolbar({
       )}
 
       {/* Export Modal */}
-      {showExportModal && (
+      {isExportModalOpen && (
         <ExportModal
           annotations={annotations}
-          onClose={() => dispatch({ type: 'setShowExportModal', value: false })}
+          onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
           lightMode={lightMode}
         />
       )}
 
       {/* Toolbar */}
       <div
-        className={cn(
+        className={classNames(
           'fixed top-5 right-5 z-toolbar font-sans pointer-events-none',
           isDragging && 'cursor-grabbing [&_*]:cursor-grabbing'
         )}
         data-toolbar
         style={
-          dragPosition
+          toolbarPosition
             ? expandDirection === 'left'
               ? {
-                  top: dragPosition.y,
-                  right: window.innerWidth - dragPosition.x - 44,
+                  top: toolbarPosition.y,
+                  right: window.innerWidth - toolbarPosition.x - 44,
                   left: 'auto',
                 }
               : {
-                  top: dragPosition.y,
+                  top: toolbarPosition.y,
                   right: 'auto',
-                  left: dragPosition.x,
+                  left: toolbarPosition.x,
                 }
             : undefined
         }
       >
         <motion.div
-          initial={!entranceComplete ? 'hidden' : false}
+          initial={!isEntranceComplete ? 'hidden' : false}
           animate="visible"
           variants={toolbarVariants}
-          className={cn(
+          className={classNames(
             'select-none flex items-center justify-center pointer-events-auto cursor-default',
             'transition-[width] duration-400 ease-[cubic-bezier(0.19,1,0.22,1)]',
             // Light mode (default)
@@ -919,7 +919,7 @@ export function FeedbackToolbar({
             // Collapsed/expanded state
             isExpanded
               ? 'w-auto h-11 rounded-[1.5rem] p-1.5'
-              : cn(
+              : classNames(
                   'w-11 h-11 rounded-[22px] p-0 cursor-pointer',
                   'hover:bg-[#f5f5f5] dark:hover:bg-df-dark-hover',
                   'active:scale-95'
@@ -935,7 +935,7 @@ export function FeedbackToolbar({
             }
           }}
           onMouseDown={(e) => {
-            handleDragMouseDown(e);
+            handleToolbarDragMouseDown(e);
           }}
           role="button"
           tabIndex={0}
@@ -943,7 +943,7 @@ export function FeedbackToolbar({
         >
           {/* Collapsed state: show icon + badge */}
           <div
-            className={cn(
+            className={classNames(
               'absolute flex items-center justify-center transition-[opacity,visibility] duration-100',
               isExpanded
                 ? 'opacity-0 invisible pointer-events-none'
@@ -952,7 +952,7 @@ export function FeedbackToolbar({
           >
             <IconList size={20} />
             <AnimatePresence>
-              {annotations.length > 0 && !entranceComplete && (
+              {annotations.length > 0 && !isEntranceComplete && (
                 <motion.span
                   initial="hidden"
                   animate="visible"
@@ -963,7 +963,7 @@ export function FeedbackToolbar({
                   {annotations.length}
                 </motion.span>
               )}
-              {annotations.length > 0 && entranceComplete && (
+              {annotations.length > 0 && isEntranceComplete && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-[0.625rem] font-semibold flex items-center justify-center shadow-sm">
                   {annotations.length}
                 </span>
@@ -973,7 +973,7 @@ export function FeedbackToolbar({
 
           {/* Expanded state: show controls */}
           <div
-            className={cn(
+            className={classNames(
               'flex items-center gap-1.5 transition-[filter,opacity,transform,visibility] duration-350',
               isExpanded
                 ? 'opacity-100 blur-0 scale-100 visible pointer-events-auto'
@@ -983,25 +983,25 @@ export function FeedbackToolbar({
             {/* Add annotation button */}
             <div className="relative flex items-center justify-center group">
               <button
-                className={cn(
+                className={classNames(
                   'btn-toolbar',
-                  (isAddMode || showCategoryPanel) && 'active'
+                  (isSelectingElement || isCategoryPanelOpen) && 'active'
                 )}
                 type="button"
-                aria-label={isAddMode ? 'Cancel add annotation' : 'Add annotation'}
-                aria-pressed={isAddMode || showCategoryPanel}
-                aria-expanded={showCategoryPanel}
-                onClick={toggleCategoryPanel}
+                aria-label={isSelectingElement ? 'Cancel add annotation' : 'Add annotation'}
+                aria-pressed={isSelectingElement || isCategoryPanelOpen}
+                aria-expanded={isCategoryPanelOpen}
+                onClick={handleToggleCategoryPanel}
               >
-                {isAddMode ? <IconClose size={18} /> : <IconList size={18} />}
+                {isSelectingElement ? <IconClose size={18} /> : <IconList size={18} />}
               </button>
               <span className="tooltip">
-                {isAddMode ? 'Cancel' : 'Add annotation'}
+                {isSelectingElement ? 'Cancel' : 'Add annotation'}
               </span>
 
               {/* Category selection panel */}
               <AnimatePresence>
-                {showCategoryPanel && (
+                {isCategoryPanelOpen && (
                   <motion.div
                     initial="hidden"
                     animate="visible"
@@ -1058,7 +1058,7 @@ export function FeedbackToolbar({
                 className="btn-toolbar"
                 type="button"
                 aria-label="Export feedback"
-                onClick={() => dispatch({ type: 'setShowExportModal', value: true })}
+                onClick={() => dispatch({ type: 'setExportModalOpen', value: true })}
                 disabled={annotations.length === 0}
               >
                 <IconExport size={18} />
@@ -1073,10 +1073,10 @@ export function FeedbackToolbar({
             {/* Clear button */}
             <div className="relative flex items-center justify-center group">
               <button
-                className={cn('btn-toolbar', 'danger')}
+                className={classNames('btn-toolbar', 'danger')}
                 type="button"
                 aria-label="Clear all annotations"
-                onClick={handleClearAll}
+                onClick={handleClearAllAnnotations}
                 disabled={annotations.length === 0}
               >
                 <IconTrash size={18} />

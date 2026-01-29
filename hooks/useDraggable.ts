@@ -37,19 +37,19 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     }
   }, [initialPosition]);
 
-  const dragStateRef = useRef<{
+  const dragSessionRef = useRef<{
     startX: number;
     startY: number;
-    startPosX: number;
-    startPosY: number;
-    hasMoved: boolean;
+    startPositionX: number;
+    startPositionY: number;
+    hasDragged: boolean;
     target: EventTarget | null;
   } | null>(null);
 
-  const cleanupTimerRef = useRef<number | null>(null);
+  const dragCleanupTimerRef = useRef<number | null>(null);
 
   // Track if we just finished a drag - used to prevent clicks
-  const justDraggedRef = useRef(false);
+  const hasJustDraggedRef = useRef(false);
 
   // Calculate expand direction based on position
   // When position is null (initial state), default to 'left' (toolbar starts on right)
@@ -93,22 +93,23 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     return () => window.removeEventListener('resize', handleResize);
   }, [clampPosition]);
 
-  const handleMouseMove = useCallback(
+  const handleDragMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!dragStateRef.current) return;
+      if (!dragSessionRef.current) return;
 
-      const { startX, startY, startPosX, startPosY, hasMoved } = dragStateRef.current;
+      const { startX, startY, startPositionX, startPositionY, hasDragged } =
+        dragSessionRef.current;
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
 
       // Check threshold before starting drag
-      if (!hasMoved) {
+      if (!hasDragged) {
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         if (distance < DRAG_THRESHOLD) {
           return;
         }
         // Threshold exceeded - this is now a drag, not a click
-        dragStateRef.current.hasMoved = true;
+        dragSessionRef.current.hasDragged = true;
         setIsDragging(true);
 
         // Prevent text selection during drag
@@ -118,8 +119,8 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
       // Prevent default on all moves during active drag
       e.preventDefault();
 
-      const newX = startPosX + deltaX;
-      const newY = startPosY + deltaY;
+      const newX = startPositionX + deltaX;
+      const newY = startPositionY + deltaY;
       const clamped = clampPosition(newX, newY);
       setPosition(clamped);
     },
@@ -127,23 +128,23 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
   );
 
   // Click handler to prevent clicks after drag
-  const handleClick = useCallback((e: MouseEvent) => {
+  const handlePostDragClickCapture = useCallback((e: MouseEvent) => {
     // If we just finished dragging, prevent the click from firing on buttons
     // This runs in capture phase before the button's click handler
-    if (justDraggedRef.current || dragStateRef.current?.hasMoved) {
+    if (hasJustDraggedRef.current || dragSessionRef.current?.hasDragged) {
       e.preventDefault();
       e.stopPropagation();
     }
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    const wasDragging = dragStateRef.current?.hasMoved ?? false;
+  const handleDragMouseUp = useCallback(() => {
+    const wasDragging = dragSessionRef.current?.hasDragged ?? false;
 
     setIsDragging(false);
 
     // Remove listeners
-    window.removeEventListener('mousemove', handleMouseMove);
-    window.removeEventListener('mouseup', handleMouseUp);
+    window.removeEventListener('mousemove', handleDragMouseMove);
+    window.removeEventListener('mouseup', handleDragMouseUp);
 
     // Call onPositionChange callback if drag actually happened
     if (wasDragging && onPositionChange) {
@@ -157,36 +158,36 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
 
     // Set flag to prevent click events that fire shortly after mouseup
     if (wasDragging) {
-      justDraggedRef.current = true;
+      hasJustDraggedRef.current = true;
     }
 
     // Clear drag state and flag after a frame to ensure click events are caught
-    if (cleanupTimerRef.current !== null) {
-      window.clearTimeout(cleanupTimerRef.current);
+    if (dragCleanupTimerRef.current !== null) {
+      window.clearTimeout(dragCleanupTimerRef.current);
     }
-    cleanupTimerRef.current = window.setTimeout(() => {
-      dragStateRef.current = null;
-      justDraggedRef.current = false;
+    dragCleanupTimerRef.current = window.setTimeout(() => {
+      dragSessionRef.current = null;
+      hasJustDraggedRef.current = false;
       if (typeof window !== 'undefined') {
-        window.removeEventListener('click', handleClick, true);
+        window.removeEventListener('click', handlePostDragClickCapture, true);
       }
     }, 16);
-  }, [onPositionChange, handleMouseMove, handleClick]);
+  }, [onPositionChange, handleDragMouseMove, handlePostDragClickCapture]);
 
   // Cleanup listeners on unmount
   useEffect(() => {
     return () => {
       if (typeof window !== 'undefined') {
-        if (cleanupTimerRef.current !== null) {
-          window.clearTimeout(cleanupTimerRef.current);
-          cleanupTimerRef.current = null;
+        if (dragCleanupTimerRef.current !== null) {
+          window.clearTimeout(dragCleanupTimerRef.current);
+          dragCleanupTimerRef.current = null;
         }
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('click', handleClick, true);
+        window.removeEventListener('mousemove', handleDragMouseMove);
+        window.removeEventListener('mouseup', handleDragMouseUp);
+        window.removeEventListener('click', handlePostDragClickCapture, true);
       }
     };
-  }, [handleMouseMove, handleMouseUp, handleClick]);
+  }, [handleDragMouseMove, handleDragMouseUp, handlePostDragClickCapture]);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -194,31 +195,31 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
       if (e.button !== 0) return;
 
       // Get current position or default to element's current rendered position
-      const currentX = position?.x ?? e.clientX;
-      const currentY = position?.y ?? e.clientY;
+      const startPositionX = position?.x ?? e.clientX;
+      const startPositionY = position?.y ?? e.clientY;
 
-      dragStateRef.current = {
+      dragSessionRef.current = {
         startX: e.clientX,
         startY: e.clientY,
-        startPosX: currentX,
-        startPosY: currentY,
-        hasMoved: false,
+        startPositionX,
+        startPositionY,
+        hasDragged: false,
         target: e.target,
       };
 
       // Add listeners
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mousemove', handleDragMouseMove);
+      window.addEventListener('mouseup', handleDragMouseUp);
       // Capture click events to prevent them after drag
-      window.addEventListener('click', handleClick, true);
+      window.addEventListener('click', handlePostDragClickCapture, true);
     },
-    [position, handleMouseMove, handleMouseUp, handleClick]
+    [position, handleDragMouseMove, handleDragMouseUp, handlePostDragClickCapture]
   );
 
   const reset = useCallback(() => {
     setPosition(null);
     setIsDragging(false);
-    dragStateRef.current = null;
+    dragSessionRef.current = null;
   }, []);
 
   return {

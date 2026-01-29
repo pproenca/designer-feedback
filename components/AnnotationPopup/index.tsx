@@ -17,9 +17,9 @@ import type { Annotation } from '@/types';
 // Utility: conditional class name helper
 // =============================================================================
 
-type ClassValue = string | boolean | undefined | null | string[];
+type ClassNameValue = string | boolean | undefined | null | string[];
 
-function cn(...classes: ClassValue[]): string {
+function classNames(...classes: ClassNameValue[]): string {
   return classes
     .flat()
     .filter((c): c is string => typeof c === 'string' && c.length > 0)
@@ -119,18 +119,18 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     ref
   ) {
     void _lightMode;
-    const [text, setText] = useState(initialValue);
-    const [isShaking, setIsShaking] = useState(false);
-    const [isFocused, setIsFocused] = useState(false);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    const [commentText, setCommentText] = useState(initialValue);
+    const [isShakeActive, setIsShakeActive] = useState(false);
+    const [isTextareaFocused, setIsTextareaFocused] = useState(false);
+    const [positionOffset, setPositionOffset] = useState({ x: 0, y: 0 });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
-    const focusTimerRef = useRef<number | null>(null);
-    const shakeTimerRef = useRef<number | null>(null);
+    const autoFocusTimerRef = useRef<number | null>(null);
+    const shakeResetTimerRef = useRef<number | null>(null);
 
     // Focus textarea on mount
     useEffect(() => {
-      focusTimerRef.current = window.setTimeout(() => {
+      autoFocusTimerRef.current = window.setTimeout(() => {
         const textarea = textareaRef.current;
         if (textarea) {
           textarea.focus();
@@ -139,27 +139,27 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         }
       }, 50);
       return () => {
-        if (focusTimerRef.current !== null) {
-          clearTimeout(focusTimerRef.current);
-          focusTimerRef.current = null;
+        if (autoFocusTimerRef.current !== null) {
+          clearTimeout(autoFocusTimerRef.current);
+          autoFocusTimerRef.current = null;
         }
-        if (shakeTimerRef.current !== null) {
-          clearTimeout(shakeTimerRef.current);
-          shakeTimerRef.current = null;
+        if (shakeResetTimerRef.current !== null) {
+          clearTimeout(shakeResetTimerRef.current);
+          shakeResetTimerRef.current = null;
         }
       };
     }, []);
 
     // Shake animation
     const shake = useCallback(() => {
-      setIsShaking(true);
-      if (shakeTimerRef.current !== null) {
-        clearTimeout(shakeTimerRef.current);
+      setIsShakeActive(true);
+      if (shakeResetTimerRef.current !== null) {
+        clearTimeout(shakeResetTimerRef.current);
       }
-      shakeTimerRef.current = window.setTimeout(() => {
-        setIsShaking(false);
+      shakeResetTimerRef.current = window.setTimeout(() => {
+        setIsShakeActive(false);
         textareaRef.current?.focus();
-        shakeTimerRef.current = null;
+        shakeResetTimerRef.current = null;
       }, 250);
     }, []);
 
@@ -179,9 +179,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
 
     // Handle submit
     const handleSubmit = useCallback(() => {
-      if (!text.trim() || !onSubmit) return;
-      onSubmit(text.trim());
-    }, [text, onSubmit]);
+      if (!commentText.trim() || !onSubmit) return;
+      onSubmit(commentText.trim());
+    }, [commentText, onSubmit]);
 
     // Handle keyboard
     const handleKeyDown = useCallback(
@@ -200,7 +200,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       [handleSubmit, handleCancel]
     );
 
-    const updateOffset = useCallback(() => {
+    const updatePositionOffset = useCallback(() => {
       const popup = popupRef.current;
       if (!popup) return;
 
@@ -209,34 +209,44 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       const maxX = window.innerWidth - padding;
       const maxY = window.innerHeight - padding;
 
-      let dx = 0;
-      let dy = 0;
+      let offsetX = 0;
+      let offsetY = 0;
 
       if (rect.left < padding) {
-        dx = padding - rect.left;
+        offsetX = padding - rect.left;
       } else if (rect.right > maxX) {
-        dx = maxX - rect.right;
+        offsetX = maxX - rect.right;
       }
 
       if (rect.top < padding) {
-        dy = padding - rect.top;
+        offsetY = padding - rect.top;
       } else if (rect.bottom > maxY) {
-        dy = maxY - rect.bottom;
+        offsetY = maxY - rect.bottom;
       }
 
-      setOffset((prev) => (prev.x === dx && prev.y === dy ? prev : { x: dx, y: dy }));
+      setPositionOffset((prev) =>
+        prev.x === offsetX && prev.y === offsetY ? prev : { x: offsetX, y: offsetY }
+      );
     }, []);
 
     useLayoutEffect(() => {
-      updateOffset();
-    }, [updateOffset, style?.left, style?.top, text, annotation?.comment, selectedText, mode]);
+      updatePositionOffset();
+    }, [
+      updatePositionOffset,
+      style?.left,
+      style?.top,
+      commentText,
+      annotation?.comment,
+      selectedText,
+      mode,
+    ]);
 
     useEffect(() => {
-      window.addEventListener('resize', updateOffset);
-      return () => window.removeEventListener('resize', updateOffset);
-    }, [updateOffset]);
+      window.addEventListener('resize', updatePositionOffset);
+      return () => window.removeEventListener('resize', updatePositionOffset);
+    }, [updatePositionOffset]);
 
-    const resolvedStyle = useMemo(() => {
+    const adjustedStyle = useMemo(() => {
       if (!style) return style;
 
       const hasLeft = style.left !== undefined && style.left !== null;
@@ -253,18 +263,22 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         : NaN;
 
       const left =
-        hasLeft && Number.isFinite(baseLeft) ? `${baseLeft + offset.x}px` : style.left;
-      const top = hasTop && Number.isFinite(baseTop) ? `${baseTop + offset.y}px` : style.top;
+        hasLeft && Number.isFinite(baseLeft)
+          ? `${baseLeft + positionOffset.x}px`
+          : style.left;
+      const top = hasTop && Number.isFinite(baseTop)
+        ? `${baseTop + positionOffset.y}px`
+        : style.top;
 
       return {
         ...style,
         left,
         top,
       };
-    }, [style, offset]);
+    }, [style, positionOffset]);
 
     // Base popup classes - uses CSS component class with dark: variants
-    const popupClasses = cn(
+    const popupClassName = classNames(
       // Layout
       'fixed w-[300px] -translate-x-1/2 z-panel',
       // Padding & border radius
@@ -283,25 +297,25 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
           {!isExiting && (
             <motion.div
               ref={popupRef}
-              className={popupClasses}
+              className={popupClassName}
               data-annotation-popup
-              style={resolvedStyle}
+              style={adjustedStyle}
               role="dialog"
               aria-label="Annotation details"
               tabIndex={-1}
               variants={popupVariants}
               initial="hidden"
-              animate={isShaking ? 'shake' : 'visible'}
+              animate={isShakeActive ? 'shake' : 'visible'}
               exit="exit"
             >
               <motion.div
                 variants={shakeVariants}
-                animate={isShaking ? 'shake' : undefined}
+                animate={isShakeActive ? 'shake' : undefined}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
                   <span
-                    className={cn(
+                    className={classNames(
                       'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
                       'text-black/60 dark:text-white/65'
                     )}
@@ -312,7 +326,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
 
                 {/* Comment */}
                 <div
-                  className={cn(
+                  className={classNames(
                     'text-[0.8125rem] leading-relaxed py-2 break-words',
                     'text-black/85 dark:text-white/[0.92]'
                   )}
@@ -323,7 +337,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 {/* Actions */}
                 <div className="flex justify-end gap-1.5 mt-2">
                   <button
-                    className={cn(
+                    className={classNames(
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                       'transition-colors duration-150 ease-out',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -336,7 +350,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     Close
                   </button>
                   <button
-                    className={cn(
+                    className={classNames(
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                       'bg-red-500 text-white',
                       'transition-colors duration-150 ease-out',
@@ -362,25 +376,25 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         {!isExiting && (
           <motion.div
             ref={popupRef}
-            className={popupClasses}
+            className={popupClassName}
             data-annotation-popup
-            style={resolvedStyle}
+            style={adjustedStyle}
             role="dialog"
             aria-label="Create annotation"
             tabIndex={-1}
             variants={popupVariants}
             initial="hidden"
-            animate={isShaking ? 'shake' : 'visible'}
+            animate={isShakeActive ? 'shake' : 'visible'}
             exit="exit"
           >
             <motion.div
               variants={shakeVariants}
-              animate={isShaking ? 'shake' : undefined}
+              animate={isShakeActive ? 'shake' : undefined}
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-2">
                 <span
-                  className={cn(
+                  className={classNames(
                     'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
                     'text-black/60 dark:text-white/65'
                   )}
@@ -392,7 +406,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               {/* Selected text quote */}
               {selectedText && (
                 <div
-                  className={cn(
+                  className={classNames(
                     'text-xs italic mb-2 py-1.5 px-2 rounded leading-[1.45]',
                     'text-black/55 bg-black/[0.04]',
                     'dark:text-white/[0.68] dark:bg-white/[0.04]'
@@ -406,7 +420,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               {/* Textarea */}
               <textarea
                 ref={textareaRef}
-                className={cn(
+                className={classNames(
                   'w-full py-2 px-2.5 text-[0.8125rem] font-sans rounded-lg resize-none outline-none',
                   'border transition-colors duration-150 ease-out',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -422,12 +436,12 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   'dark:placeholder:text-white/45',
                   'dark:[&::-webkit-scrollbar-thumb]:bg-white/20'
                 )}
-                style={{ borderColor: isFocused ? accentColor : undefined }}
+                style={{ borderColor: isTextareaFocused ? accentColor : undefined }}
                 placeholder={placeholder}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onFocus={() => setIsTextareaFocused(true)}
+                onBlur={() => setIsTextareaFocused(false)}
                 rows={2}
                 onKeyDown={handleKeyDown}
               />
@@ -435,7 +449,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               {/* Actions */}
               <div className="flex justify-end gap-1.5 mt-2">
                 <button
-                  className={cn(
+                  className={classNames(
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                     'transition-colors duration-150 ease-out',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -448,7 +462,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   Cancel
                 </button>
                 <button
-                  className={cn(
+                  className={classNames(
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer text-white',
                     'transition-all duration-150 ease-out',
                     'hover:enabled:brightness-90',
@@ -457,11 +471,11 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   )}
                   style={{
                     backgroundColor: accentColor,
-                    opacity: text.trim() ? 1 : 0.4,
+                    opacity: commentText.trim() ? 1 : 0.4,
                   }}
                   type="button"
                   onClick={handleSubmit}
-                  disabled={!text.trim()}
+                  disabled={!commentText.trim()}
                 >
                   {submitLabel}
                 </button>

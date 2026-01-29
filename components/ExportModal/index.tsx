@@ -16,7 +16,7 @@ import { IconClose, IconCopy, IconExport, IconImage } from '../Icons';
 // Utility: conditional class name helper
 // =============================================================================
 
-function cn(...classes: (string | boolean | undefined | null)[]): string {
+function classNames(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
@@ -86,10 +86,10 @@ type ExportState = {
 };
 
 type ExportAction =
-  | { type: 'set'; payload: Partial<ExportState> }
+  | { type: 'updateState'; payload: Partial<ExportState> }
   | { type: 'resetStatus' };
 
-const initialExportState: ExportState = {
+const initialExportModalState: ExportState = {
   selectedFormat: 'snapshot',
   isExporting: false,
   exportOutcome: null,
@@ -98,9 +98,9 @@ const initialExportState: ExportState = {
   isRequestingPermission: false,
 };
 
-function exportReducer(state: ExportState, action: ExportAction): ExportState {
+function exportModalReducer(state: ExportState, action: ExportAction): ExportState {
   switch (action.type) {
-    case 'set':
+    case 'updateState':
       return { ...state, ...action.payload };
     case 'resetStatus':
       return { ...state, statusMessage: null, exportOutcome: null };
@@ -109,14 +109,14 @@ function exportReducer(state: ExportState, action: ExportAction): ExportState {
   }
 }
 
-type FormatOption = {
+type ExportFormatOption = {
   id: ExportFormat;
   label: string;
   description: string;
   icon: ReactNode;
 };
 
-const FORMAT_OPTIONS: FormatOption[] = [
+const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
   {
     id: 'image-notes',
     label: 'Markdown (Clipboard)',
@@ -136,7 +136,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
 // =============================================================================
 
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
-  const [state, dispatch] = useReducer(exportReducer, initialExportState);
+  const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
   const {
     isExporting,
     exportOutcome,
@@ -145,10 +145,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     isRequestingPermission,
     selectedFormat,
   } = state;
-  const isMarkdown = selectedFormat === 'image-notes';
-  const isSnapshot = selectedFormat === 'snapshot';
-  const isClipboardExport = isMarkdown;
-  const themeClass = lightMode ? '' : 'dark';
+  const isMarkdownFormat = selectedFormat === 'image-notes';
+  const isSnapshotFormat = selectedFormat === 'snapshot';
+  const isClipboardFormat = isMarkdownFormat;
+  const themeClassName = lightMode ? '' : 'dark';
 
   // Store timer ID for cleanup on unmount
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,7 +166,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     };
   }, []);
 
-  const getOriginPattern = (): string | undefined => {
+  const getScreenshotOriginPattern = (): string | undefined => {
     try {
       const origin = window.location.origin;
       if (!origin || origin === 'null') return undefined;
@@ -179,19 +179,19 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   useEffect(() => {
     dispatch({ type: 'resetStatus' });
     if (selectedFormat !== 'snapshot') {
-      dispatch({ type: 'set', payload: { permissionDenied: false } });
+      dispatch({ type: 'updateState', payload: { permissionDenied: false } });
       return;
     }
 
-    let cancelled = false;
-    const origin = getOriginPattern();
+    let isCancelled = false;
+    const origin = getScreenshotOriginPattern();
     hasScreenshotPermission(origin).then((granted) => {
-      if (!cancelled) {
-        dispatch({ type: 'set', payload: { permissionDenied: !granted } });
+      if (!isCancelled) {
+        dispatch({ type: 'updateState', payload: { permissionDenied: !granted } });
       }
     });
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, [selectedFormat]);
 
@@ -219,15 +219,15 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   const handlePermissionRequest = async () => {
     if (isRequestingPermission) return;
     dispatch({
-      type: 'set',
+      type: 'updateState',
       payload: { isRequestingPermission: true, statusMessage: null },
     });
 
-    const origin = getOriginPattern();
+    const origin = getScreenshotOriginPattern();
     const granted = await requestScreenshotPermission(origin);
     if (granted) {
       dispatch({
-        type: 'set',
+        type: 'updateState',
         payload: {
           isRequestingPermission: false,
           permissionDenied: false,
@@ -239,7 +239,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       });
     } else {
       dispatch({
-        type: 'set',
+        type: 'updateState',
         payload: {
           isRequestingPermission: false,
           permissionDenied: true,
@@ -258,7 +258,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       autoCloseTimerRef.current = null;
     }
     dispatch({
-      type: 'set',
+      type: 'updateState',
       payload: {
         isExporting: true,
         exportOutcome: null,
@@ -271,11 +271,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     });
     try {
       if (selectedFormat === 'snapshot') {
-        const origin = getOriginPattern();
+        const origin = getScreenshotOriginPattern();
         const hasPermission = await requestScreenshotPermission(origin);
         if (!hasPermission) {
           dispatch({
-            type: 'set',
+            type: 'updateState',
             payload: {
               permissionDenied: true,
               statusMessage: {
@@ -286,11 +286,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           });
           return;
         }
-        dispatch({ type: 'set', payload: { permissionDenied: false } });
+        dispatch({ type: 'updateState', payload: { permissionDenied: false } });
         const result = await exportAsSnapshotImage(annotations, { hasPermission });
         if (result.captureMode === 'full') {
           dispatch({
-            type: 'set',
+            type: 'updateState',
             payload: {
               exportOutcome: 'downloaded',
               statusMessage: { type: 'success', text: 'Snapshot downloaded.' },
@@ -303,7 +303,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         }
 
         dispatch({
-          type: 'set',
+          type: 'updateState',
           payload: {
             statusMessage: {
               type: 'warning',
@@ -317,7 +317,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       } else {
         await exportAsImageWithNotes(annotations);
         dispatch({
-          type: 'set',
+          type: 'updateState',
           payload: {
             exportOutcome: 'copied',
             statusMessage: { type: 'success', text: 'Markdown copied to clipboard.' },
@@ -330,11 +330,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     } catch (error) {
       console.error('Export failed:', error);
       dispatch({
-        type: 'set',
+        type: 'updateState',
         payload: { statusMessage: { type: 'error', text: getReadableError(error) } },
       });
     } finally {
-      dispatch({ type: 'set', payload: { isExporting: false } });
+      dispatch({ type: 'updateState', payload: { isExporting: false } });
     }
   };
 
@@ -381,26 +381,29 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
     if (!buttons || buttons.length === 0) return;
 
-    const currentIndex = FORMAT_OPTIONS.findIndex((option) => option.id === selectedFormat);
+    const currentIndex = EXPORT_FORMAT_OPTIONS.findIndex(
+      (option) => option.id === selectedFormat
+    );
     const delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
     const nextIndex =
       currentIndex === -1
         ? 0
-        : (currentIndex + delta + FORMAT_OPTIONS.length) % FORMAT_OPTIONS.length;
-    const nextOption = FORMAT_OPTIONS[nextIndex];
-    dispatch({ type: 'set', payload: { selectedFormat: nextOption.id } });
+        : (currentIndex + delta + EXPORT_FORMAT_OPTIONS.length) %
+          EXPORT_FORMAT_OPTIONS.length;
+    const nextOption = EXPORT_FORMAT_OPTIONS[nextIndex];
+    dispatch({ type: 'updateState', payload: { selectedFormat: nextOption.id } });
     buttons[nextIndex]?.focus();
   };
 
-  const statusId = statusMessage ? 'df-export-status' : undefined;
+  const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
   return (
     <AnimatePresence>
       <motion.div
-        className={cn(
+        className={classNames(
           'fixed inset-0 flex items-center justify-center z-modal',
           'bg-[rgba(250,250,250,0.88)] dark:bg-[rgba(10,10,10,0.82)]',
-          themeClass
+          themeClassName
         )}
         variants={overlayVariants}
         initial="hidden"
@@ -417,7 +420,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
         {/* Modal */}
         <motion.div
-          className={cn(
+          className={classNames(
             'relative z-[1] rounded-[18px] w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden',
             'flex flex-col font-sans',
             'bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.06)]',
@@ -426,7 +429,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           role="dialog"
           aria-modal="true"
           aria-label="Export feedback"
-          aria-describedby={statusId}
+          aria-describedby={statusMessageId}
           aria-busy={isExporting}
           ref={modalRef}
           variants={modalVariants}
@@ -436,13 +439,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         >
           {/* Header */}
           <div
-            className={cn(
+            className={classNames(
               'flex items-center justify-between py-[0.95rem] px-[1.1rem] pb-[0.8rem]',
               'border-b border-black/8 dark:border-white/8'
             )}
           >
             <h2
-              className={cn(
+              className={classNames(
                 'text-[1.05rem] font-semibold m-0 tracking-[0.01em]',
                 'text-[#1a1a1a] dark:text-white'
               )}
@@ -450,7 +453,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               Export Feedback
             </h2>
             <button
-              className={cn(
+              className={classNames(
                 'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
                 'transition-all duration-150 ease-out',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -471,7 +474,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             <div className="mb-4 px-1 bg-transparent rounded-none border-none">
               <div className="flex items-center justify-between">
                 <span
-                  className={cn(
+                  className={classNames(
                     'text-[0.8125rem] tracking-[0.04em]',
                     'text-black/50 dark:text-white/60'
                   )}
@@ -479,7 +482,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   Total annotations
                 </span>
                 <span
-                  className={cn(
+                  className={classNames(
                     'text-[0.82rem] font-semibold p-0 bg-none border-none',
                     'text-[#1a1a1a] dark:text-white'
                   )}
@@ -492,7 +495,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {/* Format Selection */}
             <div className="mb-[0.9rem]">
               <h3
-                className={cn(
+                className={classNames(
                   'text-xs font-medium mb-[0.6rem] tracking-[0.04em]',
                   'text-black/40 dark:text-white/55'
                 )}
@@ -507,12 +510,12 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 onKeyDown={handleFormatKeyDown}
                 tabIndex={0}
               >
-                {FORMAT_OPTIONS.map((option) => {
+                {EXPORT_FORMAT_OPTIONS.map((option) => {
                   const isSelected = selectedFormat === option.id;
                   return (
                     <button
                       key={option.id}
-                      className={cn(
+                      className={classNames(
                         'flex items-start gap-3 py-[0.8rem] px-[0.9rem] bg-transparent border rounded-[10px]',
                         'cursor-pointer text-left relative',
                         'transition-all duration-150 ease-out',
@@ -530,11 +533,14 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                       aria-checked={isSelected}
                       disabled={isExporting}
                       onClick={() =>
-                        dispatch({ type: 'set', payload: { selectedFormat: option.id } })
+                        dispatch({
+                          type: 'updateState',
+                          payload: { selectedFormat: option.id },
+                        })
                       }
                     >
                       <span
-                        className={cn(
+                        className={classNames(
                           'inline-flex items-center justify-center w-8 h-8 rounded-[10px] leading-none',
                           'border',
                           // Not selected
@@ -549,7 +555,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                       </span>
                       <div className="flex flex-col gap-0.5 flex-1">
                         <span
-                          className={cn(
+                          className={classNames(
                             'text-sm font-medium',
                             'text-[#1a1a1a] dark:text-white'
                           )}
@@ -557,7 +563,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                           {option.label}
                         </span>
                         <span
-                          className={cn(
+                          className={classNames(
                             'text-[0.72rem] leading-[1.35]',
                             'text-black/50 dark:text-white/60'
                           )}
@@ -572,9 +578,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             </div>
 
             {/* Permission callout for snapshot */}
-            {isSnapshot && (
+            {isSnapshotFormat && (
               <div
-                className={cn(
+                className={classNames(
                   'flex items-center justify-between gap-3 py-[0.7rem] px-[0.8rem] mb-[0.9rem] rounded-xl border',
                   !permissionDenied && 'bg-[#f4f4f5] border-black/8 dark:bg-[#1c1c1c] dark:border-white/8',
                   permissionDenied && 'bg-red-600/[0.08] border-red-600/[0.35] dark:bg-red-500/[0.12] dark:border-red-500/50'
@@ -582,7 +588,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               >
                 <div className="flex flex-col gap-0.5 flex-1">
                   <span
-                    className={cn(
+                    className={classNames(
                       'text-[0.78rem] font-semibold tracking-[0.02em]',
                       'text-[#1a1a1a] dark:text-white'
                     )}
@@ -590,7 +596,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                     Screenshot access
                   </span>
                   <span
-                    className={cn(
+                    className={classNames(
                       'text-[0.72rem] leading-[1.4]',
                       'text-black/55 dark:text-white/60'
                     )}
@@ -600,7 +606,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 </div>
                 {permissionDenied && (
                   <button
-                    className={cn(
+                    className={classNames(
                       'py-[0.45rem] px-3 rounded-full border text-[0.72rem] font-semibold cursor-pointer',
                       'transition-all duration-150 ease-out',
                       'hover:enabled:-translate-y-px active:enabled:scale-[0.98]',
@@ -622,7 +628,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {/* Preview */}
             <div className="mt-2 mb-[0.9rem] p-0 bg-transparent rounded-none border-none">
               <h3
-                className={cn(
+                className={classNames(
                   'text-xs font-medium mb-[0.55rem] tracking-[0.04em]',
                   'text-black/40 dark:text-white/55'
                 )}
@@ -635,7 +641,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   return (
                     <div
                       key={annotation.id}
-                      className={cn(
+                      className={classNames(
                         'flex items-center gap-2 text-[0.8rem] py-[0.35rem] px-[0.45rem] rounded-lg bg-transparent border-none',
                         'transition-colors duration-150 ease-out',
                         'hover:bg-[#f4f4f5] dark:hover:bg-[#1c1c1c]'
@@ -648,7 +654,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                         {index + 1}
                       </span>
                       <span
-                        className={cn(
+                        className={classNames(
                           'whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]',
                           'text-black/75 dark:text-white/85'
                         )}
@@ -656,7 +662,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                         {annotation.element}
                       </span>
                       <span
-                        className={cn(
+                        className={classNames(
                           'whitespace-nowrap overflow-hidden text-ellipsis flex-1',
                           'text-black/45 dark:text-white/55'
                         )}
@@ -668,7 +674,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 })}
                 {annotations.length > 5 && (
                   <div
-                    className={cn(
+                    className={classNames(
                       'text-xs italic pt-1',
                       'text-black/35 dark:text-white/45'
                     )}
@@ -682,8 +688,8 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {/* Status message */}
             {statusMessage && (
               <div
-                id={statusId}
-                className={cn('status-message', statusMessage.type)}
+                id={statusMessageId}
+                className={classNames('status-message', statusMessage.type)}
                 role={statusMessage.type === 'error' ? 'alert' : 'status'}
                 aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
               >
@@ -694,13 +700,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
           {/* Actions */}
           <div
-            className={cn(
+            className={classNames(
               'flex justify-end gap-2 py-[0.85rem] px-[1.1rem] pb-4 border-t bg-transparent',
               'border-black/8 dark:border-white/8'
             )}
           >
             <button
-              className={cn(
+              className={classNames(
                 'py-2 px-4 text-[0.8125rem] font-medium rounded-full border-none cursor-pointer',
                 'transition-all duration-150 ease-out',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -714,7 +720,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               Cancel
             </button>
             <button
-              className={cn(
+              className={classNames(
                 'flex items-center gap-1.5 py-2 px-4 text-[0.8125rem] font-medium rounded-lg border-none cursor-pointer text-white',
                 'bg-df-blue',
                 'transition-all duration-150 ease-out',
@@ -731,11 +737,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               {exportOutcome ? (
                 exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!'
               ) : isExporting ? (
-                isClipboardExport ? 'Copying...' : 'Exporting...'
+                isClipboardFormat ? 'Copying...' : 'Exporting...'
               ) : (
                 <>
                   <IconExport size={16} />
-                  {isSnapshot ? 'Download Snapshot' : isMarkdown ? 'Copy Markdown' : 'Export'}
+                  {isSnapshotFormat ? 'Download Snapshot' : isMarkdownFormat ? 'Copy Markdown' : 'Export'}
                 </>
               )}
             </button>
