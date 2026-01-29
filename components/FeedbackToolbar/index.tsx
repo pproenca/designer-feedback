@@ -8,7 +8,6 @@ import {
   lazy,
   Suspense,
   startTransition,
-  type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { m, AnimatePresence, useMotionValue, useReducedMotion } from 'framer-motion';
@@ -285,9 +284,7 @@ export function FeedbackToolbar({
 
   const isSelectingElement = addMode === 'selecting';
   const isCategoryPanelOpen = addMode === 'category';
-  const expandedControlsTransition = reduceMotion
-    ? 'transition-[opacity,transform,visibility]'
-    : 'transition-[filter,opacity,transform,visibility]';
+  const expandedControlsTransition = 'transition';
 
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
@@ -705,21 +702,18 @@ export function FeedbackToolbar({
       <m.div
         variants={motionVariants.markerTooltip}
         className={classNames(
-          'absolute top-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-tooltip',
-          'px-3 py-2 rounded-xl min-w-[120px] max-w-[200px] pointer-events-none cursor-default',
+          'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 z-tooltip',
+          'px-3 py-2 rounded-xl min-w-30 max-w-50 pointer-events-none cursor-default',
           'bg-white shadow-popup-light',
-          'dark:bg-[#1a1a1a] dark:shadow-popup'
+          'dark:bg-df-dark-ink dark:shadow-popup'
         )}
       >
-        <span
-          className="block text-xs font-semibold mb-1"
-          style={{ color: config.color }}
-        >
+        <span className={classNames('block text-xs font-semibold mb-1', config.tw.text)}>
           {config.emoji} {config.label}
         </span>
         <span
           className={classNames(
-            'block text-[13px] font-normal leading-tight whitespace-nowrap overflow-hidden text-ellipsis pb-0.5',
+            'block text-sm font-normal leading-tight whitespace-nowrap overflow-hidden text-ellipsis pb-0.5',
             'text-black/85 dark:text-white'
           )}
         >
@@ -754,15 +748,15 @@ export function FeedbackToolbar({
                 whileHover="hover"
                 variants={motionVariants.marker}
                 className={classNames(
-                  'absolute w-[22px] h-[22px] rounded-full flex items-center justify-center',
+                  'absolute w-5.5 h-5.5 rounded-full flex items-center justify-center',
                   'text-xs font-semibold text-white cursor-pointer select-none',
-                  'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
-                  'hover:z-[2]'
+                  'shadow-marker -translate-x-1/2 -translate-y-1/2 z-10',
+                  'hover:z-20',
+                  config.tw.bg
                 )}
                 style={{
                   left: `${annotation.x}px`,
                   top: `${annotation.y}px`,
-                  backgroundColor: config.color,
                 }}
                 data-annotation-marker
                 onClick={() =>
@@ -799,15 +793,15 @@ export function FeedbackToolbar({
                 whileHover="hover"
                 variants={motionVariants.marker}
                 className={classNames(
-                  'fixed w-[22px] h-[22px] rounded-full flex items-center justify-center',
+                  'fixed w-5.5 h-5.5 rounded-full flex items-center justify-center',
                   'text-xs font-semibold text-white cursor-pointer select-none',
-                  'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
-                  'hover:z-[2]'
+                  'shadow-marker -translate-x-1/2 -translate-y-1/2 z-10',
+                  'hover:z-20',
+                  config.tw.bg
                 )}
                 style={{
                   left: `${annotation.x}px`,
                   top: `${annotation.y}px`,
-                  backgroundColor: config.color,
                 }}
                 data-annotation-marker
                 onClick={() =>
@@ -839,7 +833,7 @@ export function FeedbackToolbar({
               exit="hidden"
               variants={motionVariants.marker}
               className={classNames(
-                'w-[22px] h-[22px] rounded-full flex items-center justify-center',
+                'w-5.5 h-5.5 rounded-full flex items-center justify-center',
                 'text-xs font-semibold text-white select-none',
                 'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
               )}
@@ -895,7 +889,7 @@ export function FeedbackToolbar({
               animate="visible"
               exit="hidden"
               variants={motionVariants.hoverTooltip}
-              className="fixed text-xs font-medium text-white bg-black/85 py-1.5 px-2.5 rounded-md pointer-events-none whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
+              className="fixed text-xs font-medium text-white bg-black/85 py-1.5 px-2.5 rounded-md pointer-events-none whitespace-nowrap max-w-50 overflow-hidden text-ellipsis"
               style={{
                 left: hoverTooltipX,
                 top: hoverTooltipY,
@@ -992,18 +986,18 @@ export function FeedbackToolbar({
           variants={motionVariants.toolbar}
           className={classNames(
             'select-none flex items-center justify-center pointer-events-auto cursor-default',
-            'transition-[width] duration-[240ms] ease-[cubic-bezier(0.19,1,0.22,1)]',
+            'transition-all duration-200 ease-out',
             // Light mode (default)
             'bg-white text-black/85 shadow-toolbar-light',
             // Dark mode
             'dark:bg-df-dark dark:text-white dark:border dark:border-white/8 dark:shadow-toolbar',
             // Collapsed/expanded state
             isExpanded
-              ? 'w-auto h-11 rounded-[1.5rem] p-1.5'
+              ? 'w-auto h-11 rounded-toolbar p-1.5'
               : classNames(
-                  'w-11 h-11 rounded-[22px] p-0 cursor-pointer',
-                  'hover:bg-[#f5f5f5] dark:hover:bg-df-dark-hover',
-                  'active:scale-[0.97]'
+                  'w-11 h-11 rounded-full p-0 cursor-pointer',
+                  'hover:bg-df-surface-subtle dark:hover:bg-df-dark-hover',
+                  'active:scale-95'
                 )
           )}
           onClick={() =>
@@ -1025,7 +1019,7 @@ export function FeedbackToolbar({
           {/* Collapsed state: show icon + badge */}
           <div
             className={classNames(
-              'absolute flex items-center justify-center transition-[opacity,visibility] duration-100',
+              'absolute flex items-center justify-center transition-opacity duration-100',
               isExpanded
                 ? 'opacity-0 invisible pointer-events-none'
                 : 'opacity-100 visible pointer-events-auto'
@@ -1039,7 +1033,7 @@ export function FeedbackToolbar({
                   animate="visible"
                   exit="hidden"
                   variants={motionVariants.badge}
-                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-2xs font-semibold flex items-center justify-center shadow-sm"
+                  className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1.25 rounded-full bg-df-blue text-white text-2xs font-semibold flex items-center justify-center shadow-sm"
                 >
                   {annotations.length}
                 </m.span>
@@ -1050,7 +1044,7 @@ export function FeedbackToolbar({
           {/* Expanded state: show controls */}
           <div
             className={classNames(
-              `flex items-center gap-1.5 ${expandedControlsTransition} duration-[220ms]`,
+              `flex items-center gap-1.5 ${expandedControlsTransition} duration-200`,
               isExpanded
                 ? classNames(
                     'opacity-100 scale-100 visible pointer-events-auto',
@@ -1058,7 +1052,7 @@ export function FeedbackToolbar({
                   )
                 : classNames(
                     'opacity-0 scale-60 invisible pointer-events-none',
-                    !reduceMotion && 'blur-[6px]'
+                    !reduceMotion && 'blur-sm'
                   )
             )}
           >
@@ -1120,7 +1114,7 @@ export function FeedbackToolbar({
                       className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('bug')}
-                      style={{ '--category-color': '#FF3B30' } as CSSProperties}
+                      data-category="bug"
                     >
                       <IconBug size={20} />
                       <span>Bug</span>
@@ -1129,7 +1123,7 @@ export function FeedbackToolbar({
                       className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('question')}
-                      style={{ '--category-color': '#FFD60A' } as CSSProperties}
+                      data-category="question"
                     >
                       <IconQuestion size={20} />
                       <span>Question</span>
@@ -1138,7 +1132,7 @@ export function FeedbackToolbar({
                       className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('suggestion')}
-                      style={{ '--category-color': '#3C82F7' } as CSSProperties}
+                      data-category="suggestion"
                     >
                       <IconLightbulb size={20} />
                       <span>Suggestion</span>
@@ -1147,7 +1141,7 @@ export function FeedbackToolbar({
                       className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('accessibility')}
-                      style={{ '--category-color': '#AF52DE' } as CSSProperties}
+                      data-category="accessibility"
                     >
                       <IconAccessibility size={20} />
                       <span>Accessibility</span>

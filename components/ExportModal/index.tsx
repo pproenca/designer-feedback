@@ -418,12 +418,12 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
   return (
     <AnimatePresence>
-      <m.div
-        className={classNames(
-          'fixed inset-0 flex items-center justify-center z-modal',
-          'bg-[rgba(250,250,250,0.88)] dark:bg-[rgba(10,10,10,0.82)]',
-          themeClassName
-        )}
+        <m.div
+          className={classNames(
+            'fixed inset-0 flex items-center justify-center z-modal',
+            'bg-white/90 dark:bg-black/80',
+            themeClassName
+          )}
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
@@ -440,10 +440,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         {/* Modal */}
         <m.div
           className={classNames(
-            'relative z-[1] rounded-2xl w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden overscroll-contain',
+            'relative z-10 rounded-2xl w-11/12 max-w-100 max-h-[80vh] overflow-hidden overscroll-contain',
             'flex flex-col font-sans',
-            'bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.06)]',
-            'dark:bg-[#151515] dark:shadow-[0_18px_48px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.08)]'
+            'bg-white shadow-modal',
+            'dark:bg-df-dark-strong dark:shadow-modal-dark'
           )}
           role="dialog"
           aria-modal="true"
@@ -459,14 +459,14 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           {/* Header */}
           <div
             className={classNames(
-              'flex items-center justify-between py-[0.95rem] px-[1.1rem] pb-[0.8rem]',
+              'flex items-center justify-between py-4 px-4.5 pb-3',
               'border-b border-black/8 dark:border-white/8'
             )}
           >
             <h2
               className={classNames(
-                'text-[1.05rem] font-semibold m-0 tracking-[0.01em]',
-                'text-[#1a1a1a] dark:text-white'
+                'text-base font-semibold m-0 tracking-normal',
+                'text-df-ink dark:text-white'
               )}
             >
               Export Feedback
@@ -476,7 +476,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
                 'transition-interactive',
                 'focus-ring',
-                'text-muted-strong hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
+                'text-muted-strong hover:bg-black/5 hover:text-df-ink hover:-translate-y-px',
                 'dark:hover:bg-white/8 dark:hover:text-white'
               )}
               type="button"
@@ -488,13 +488,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           </div>
 
           {/* Content */}
-          <div className="py-4 px-[1.1rem] pb-[1.1rem] overflow-y-auto flex-1">
+          <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
             {/* Summary */}
             <div className="mb-4 px-1 bg-transparent rounded-none border-none">
               <div className="flex items-center justify-between">
                 <span
                   className={classNames(
-                    'text-sm tracking-[0.04em]',
+                    'text-sm tracking-wider',
                     'text-muted-soft'
                   )}
                 >
@@ -502,8 +502,8 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 </span>
                 <span
                   className={classNames(
-                    'text-[0.82rem] font-semibold p-0 bg-none border-none',
-                    'text-[#1a1a1a] dark:text-white'
+                    'text-sm font-semibold p-0 bg-none border-none',
+                    'text-df-ink dark:text-white'
                   )}
                 >
                   {annotations.length}
@@ -512,10 +512,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             </div>
 
             {/* Format Selection */}
-            <div className="mb-[0.9rem]">
+            <div className="mb-3.5">
               <h3
                 className={classNames(
-                  'text-xs font-medium mb-[0.6rem] tracking-[0.04em]',
+                  'text-xs font-medium mb-2.5 tracking-wider',
                   'text-muted-strong'
                 )}
               >
@@ -535,17 +535,17 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                     <button
                       key={option.id}
                       className={classNames(
-                        'flex items-start gap-3 py-[0.8rem] px-[0.9rem] bg-transparent border rounded-xl',
+                        'flex items-start gap-3 py-3 px-3.5 bg-transparent border rounded-xl',
                         'cursor-pointer text-left relative',
-                        'transition-[background-color,color,border-color,transform] duration-150 ease-out',
-                        'active:scale-[0.99]',
+                        'transition duration-150 ease-out',
+                        'active:scale-95',
                         'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
                         'focus-ring',
                         // Not selected
-                        !isSelected && 'border-transparent hover:bg-[#f4f4f5] dark:hover:bg-[#1c1c1c]',
+                        !isSelected && 'border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
                         // Selected
-                        isSelected && 'bg-[#f4f4f5] border-black/8 border-l-2 border-l-df-blue',
-                        isSelected && 'dark:bg-[#1c1c1c] dark:border-white/8'
+                        isSelected && 'bg-df-surface-muted border-black/8 border-l-2 border-l-df-blue',
+                        isSelected && 'dark:bg-df-dark-muted dark:border-white/8'
                       )}
                       type="button"
                       role="radio"
@@ -563,11 +563,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                           'inline-flex items-center justify-center w-8 h-8 rounded-xl leading-none',
                           'border',
                           // Not selected
-                          !isSelected && 'bg-black/[0.06] border-black/8 text-black/70',
-                          !isSelected && 'dark:bg-[#2a2a2a] dark:border-white/8 dark:text-white/85',
+                          !isSelected && 'bg-black/5 border-black/8 text-black/70',
+                          !isSelected && 'dark:bg-df-dark-subtle dark:border-white/8 dark:text-white/85',
                           // Selected
                           isSelected && 'bg-df-blue/10 border-df-blue/20 text-df-blue',
-                          isSelected && 'dark:bg-df-blue/[0.12] dark:border-df-blue/[0.22] dark:text-[#d5e3ff]'
+                          isSelected && 'dark:bg-df-blue/10 dark:border-df-blue/20 dark:text-df-blue-soft'
                         )}
                       >
                         {option.icon}
@@ -576,14 +576,14 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                         <span
                           className={classNames(
                             'text-sm font-medium',
-                            'text-[#1a1a1a] dark:text-white'
+                            'text-df-ink dark:text-white'
                           )}
                         >
                           {option.label}
                         </span>
                         <span
                           className={classNames(
-                            'text-[0.72rem] leading-[1.35]',
+                            'text-xs leading-snug',
                             'text-muted-soft'
                           )}
                         >
@@ -600,23 +600,23 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {isSnapshotFormat && (
               <div
                 className={classNames(
-                  'flex items-center justify-between gap-3 py-[0.7rem] px-[0.8rem] mb-[0.9rem] rounded-xl border',
-                  !permissionDenied && 'bg-[#f4f4f5] border-black/8 dark:bg-[#1c1c1c] dark:border-white/8',
-                  permissionDenied && 'bg-red-600/[0.08] border-red-600/[0.35] dark:bg-red-500/[0.12] dark:border-red-500/50'
+                  'flex items-center justify-between gap-3 py-3 px-3 mb-3.5 rounded-xl border',
+                  !permissionDenied && 'bg-df-surface-muted border-black/8 dark:bg-df-dark-muted dark:border-white/8',
+                  permissionDenied && 'bg-red-600/10 border-red-600/40 dark:bg-red-500/10 dark:border-red-500/50'
                 )}
               >
                 <div className="flex flex-col gap-0.5 flex-1">
                   <span
                     className={classNames(
-                      'text-[0.78rem] font-semibold tracking-[0.02em]',
-                      'text-[#1a1a1a] dark:text-white'
+                      'text-sm font-semibold tracking-wide',
+                      'text-df-ink dark:text-white'
                     )}
                   >
                     Screenshot access
                   </span>
                   <span
                     className={classNames(
-                      'text-[0.72rem] leading-[1.4]',
+                      'text-xs leading-snug',
                       'text-muted-soft'
                     )}
                   >
@@ -626,13 +626,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 {permissionDenied && (
                   <button
                     className={classNames(
-                      'py-[0.45rem] px-3 rounded-full border text-[0.72rem] font-semibold cursor-pointer',
+                      'py-2 px-3 rounded-full border text-xs font-semibold cursor-pointer',
                       'transition-interactive',
-                      'hover:enabled:-translate-y-px active:enabled:scale-[0.98]',
+                      'hover:enabled:-translate-y-px active:enabled:scale-95',
                       'disabled:opacity-60 disabled:cursor-not-allowed',
                       'focus-ring',
-                      'bg-blue-600/[0.12] border-blue-600/[0.35] text-blue-800 hover:enabled:bg-blue-600/[0.18]',
-                      'dark:bg-df-blue/[0.18] dark:border-df-blue/[0.35] dark:text-[#d5e3ff] dark:hover:enabled:bg-df-blue/[0.28]'
+                      'bg-blue-600/10 border-blue-600/40 text-blue-800 hover:enabled:bg-blue-600/20',
+                      'dark:bg-df-blue/20 dark:border-df-blue/40 dark:text-df-blue-soft dark:hover:enabled:bg-df-blue/30'
                     )}
                     type="button"
                     onClick={handlePermissionRequest}
@@ -645,36 +645,38 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             )}
 
             {/* Preview */}
-            <div className="mt-2 mb-[0.9rem] p-0 bg-transparent rounded-none border-none">
+            <div className="mt-2 mb-3.5 p-0 bg-transparent rounded-none border-none">
               <h3
                 className={classNames(
-                  'text-xs font-medium mb-[0.55rem] tracking-[0.04em]',
+                  'text-xs font-medium mb-2 tracking-wider',
                   'text-muted-strong'
                 )}
               >
                 Preview
               </h3>
-              <div className="flex flex-col gap-[0.4rem]">
+              <div className="flex flex-col gap-1.5">
                 {annotations.slice(0, 5).map((annotation, index) => {
                   const config = getCategoryConfig(annotation.category);
                   return (
                     <div
                       key={annotation.id}
                       className={classNames(
-                        'flex items-center gap-2 text-[0.8rem] py-[0.35rem] px-[0.45rem] rounded-lg bg-transparent border-none',
+                        'flex items-center gap-2 text-sm py-1.5 px-2 rounded-lg bg-transparent border-none',
                         'transition-colors duration-150 ease-out',
-                        'hover:bg-[#f4f4f5] dark:hover:bg-[#1c1c1c]'
+                        'hover:bg-df-surface-muted dark:hover:bg-df-dark-muted'
                       )}
                     >
                       <span
-                        className="flex items-center justify-center w-[18px] h-[18px] rounded-full text-2xs font-semibold text-white shrink-0 shadow-[0_3px_8px_rgba(0,0,0,0.35)]"
-                        style={{ backgroundColor: config.color }}
+                        className={classNames(
+                          'flex items-center justify-center w-4.5 h-4.5 rounded-full text-2xs font-semibold text-white shrink-0 shadow-marker-soft',
+                          config.tw.bg
+                        )}
                       >
                         {index + 1}
                       </span>
                       <span
                         className={classNames(
-                          'whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]',
+                          'whitespace-nowrap overflow-hidden text-ellipsis max-w-30',
                           'text-black/75 dark:text-white/85'
                         )}
                       >
@@ -732,7 +734,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           {/* Actions */}
           <div
             className={classNames(
-              'flex justify-end gap-2 py-[0.85rem] px-[1.1rem] pb-4 border-t bg-transparent',
+              'flex justify-end gap-2 py-3.5 px-4.5 pb-4 border-t bg-transparent',
               'border-black/8 dark:border-white/8'
             )}
           >
@@ -741,9 +743,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 'py-2 px-4 text-sm font-medium rounded-full border-none cursor-pointer',
                 'transition-interactive',
                 'focus-ring',
-                'active:-translate-y-px active:scale-[0.98]',
-                'bg-transparent text-muted-soft hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
-                'dark:hover:bg-white/[0.06] dark:hover:text-white'
+                'active:-translate-y-px active:scale-95',
+                'bg-transparent text-muted-soft hover:bg-black/5 hover:text-df-ink hover:-translate-y-px',
+                'dark:hover:bg-white/5 dark:hover:text-white'
               )}
               type="button"
               onClick={onClose}
@@ -754,9 +756,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               className={classNames(
                 'flex items-center gap-1.5 py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer text-white',
                 'bg-df-blue',
-                'transition-[background-color,color,transform,box-shadow] duration-150 ease-out',
-                'hover:enabled:-translate-y-px hover:enabled:shadow-[0_4px_12px_rgba(60,130,247,0.25)]',
-                'active:enabled:scale-[0.98]',
+                'transition duration-150 ease-out',
+                'hover:enabled:-translate-y-px hover:enabled:shadow-primary-glow',
+                'active:enabled:scale-95',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'focus-ring',
                 isExporting && 'animate-pulse'

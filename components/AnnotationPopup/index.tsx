@@ -100,7 +100,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       onDelete,
       onCancel,
       style,
-      accentColor = '#3c82f7',
+      accentColor = 'var(--color-df-blue)',
       isExiting = false,
       // lightMode is handled by Tailwind dark: variant from parent wrapper
       lightMode: _lightMode = false,
@@ -279,7 +279,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     // Base popup classes - uses CSS component class with dark: variants
     const popupClassName = classNames(
       // Layout
-      'fixed w-[300px] -translate-x-1/2 z-panel',
+      'fixed w-75 -translate-x-1/2 z-panel',
       // Padding & border radius
       'px-4 pt-3 pb-3.5 rounded-2xl',
       // Typography
@@ -327,7 +327,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <div
                   className={classNames(
                     'text-sm leading-relaxed py-2 break-words',
-                    'text-black/85 dark:text-white/[0.92]'
+                    'text-black/85 dark:text-white/90'
                   )}
                 >
                   {annotation.comment}
@@ -340,7 +340,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                       'transition-interactive',
                       'focus-ring',
-                      'bg-transparent text-muted-soft hover:bg-black/[0.06] hover:text-black/75',
+                      'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
                       'dark:hover:bg-white/10 dark:hover:text-white/80'
                     )}
                     type="button"
@@ -406,9 +406,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               {selectedText && (
                 <div
                   className={classNames(
-                    'text-xs italic mb-2 py-1.5 px-2 rounded leading-[1.45]',
-                    'text-black/55 bg-black/[0.04]',
-                    'dark:text-white/[0.68] dark:bg-white/[0.04]'
+                    'text-xs italic mb-2 py-1.5 px-2 rounded leading-normal',
+                    'text-black/55 bg-black/5',
+                    'dark:text-white/70 dark:bg-white/5'
                   )}
                 >
                   &ldquo;{selectedText.slice(0, 80)}
@@ -427,11 +427,11 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   '[&::-webkit-scrollbar]:w-1.5',
                   '[&::-webkit-scrollbar-track]:bg-transparent',
                   // Light mode (default)
-                  'bg-black/[0.03] text-[#1a1a1a] border-black/[0.12]',
+                  'bg-black/5 text-df-ink border-black/10',
                   'placeholder:text-muted-strong',
                   '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
                   // Dark mode
-                  'dark:bg-white/[0.04] dark:text-white dark:border-white/[0.12]',
+                  'dark:bg-white/5 dark:text-white dark:border-white/10',
                   'dark:placeholder:text-white/45',
                   'dark:[&::-webkit-scrollbar-thumb]:bg-white/20'
                 )}
@@ -453,7 +453,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                     'transition-interactive',
                     'focus-ring',
-                    'bg-transparent text-muted-soft hover:bg-black/[0.06] hover:text-black/75',
+                    'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
                     'dark:hover:bg-white/10 dark:hover:text-white/80'
                   )}
                   type="button"
@@ -464,7 +464,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <button
                   className={classNames(
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer text-white',
-                    'transition-[background-color,opacity,filter] duration-150 ease-out',
+                    'transition duration-150 ease-out',
                     'hover:enabled:brightness-90',
                     'disabled:cursor-not-allowed',
                     'focus-ring'

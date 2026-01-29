@@ -10,13 +10,31 @@
 @theme {
   /* Colors */
   --color-df-blue: #3c82f7;
+  --color-df-blue-soft: #d5e3ff;
+  --color-df-yellow: #ffd60a;
   --color-df-red: #ff3b30;
   --color-df-green: #34c759;
+  --color-df-purple: #af52de;
+  --color-df-ink: #1a1a1a;
+  --color-df-surface-muted: #f4f4f5;
+  --color-df-surface-subtle: #f5f5f5;
   --color-df-dark: #1b1b1b;
+  --color-df-dark-ink: #1a1a1a;
+  --color-df-dark-strong: #151515;
+  --color-df-dark-muted: #1c1c1c;
+  --color-df-dark-subtle: #2a2a2a;
   --color-df-dark-hover: #242424;
 
   /* Font family */
   --font-family-sans: "Source Sans 3", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Font sizes */
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 1.4;
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1.4;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.5;
 
   /* Shadows */
   --shadow-toolbar: 0 6px 18px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -24,10 +42,14 @@
   --shadow-tooltip: 0 6px 16px rgba(0, 0, 0, 0.3);
   --shadow-tooltip-light: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
   --shadow-marker: 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-marker-soft: 0 3px 8px rgba(0, 0, 0, 0.35);
   --shadow-panel: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shadow-panel-light: 0 4px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
   --shadow-popup: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-popup-light: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-modal-dark: 0 18px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-primary-glow: 0 4px 12px rgba(60, 130, 247, 0.25);
 
   /* Z-index scale */
   --z-overlay: 99997;
@@ -42,6 +64,8 @@
   --radius-button: 50%;
   --radius-panel: 1rem;
   --radius-tooltip: 0.75rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 1.125rem;
 }
 
 /* =============================================================================
@@ -93,12 +117,12 @@
 
   /* Toolbar button - base styles for all toolbar action buttons */
   .btn-toolbar {
-    @apply relative flex items-center justify-center w-[34px] h-[34px] rounded-full;
+    @apply relative flex items-center justify-center w-8.5 h-8.5 rounded-full;
     @apply border-none cursor-pointer;
-    @apply transition-[background-color,color,transform,opacity] duration-150;
+    @apply transition duration-150;
     @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50;
     @apply disabled:opacity-35 disabled:cursor-not-allowed;
-    @apply active:enabled:scale-[0.97];
+    @apply active:enabled:scale-95;
     /* Light mode (default) */
     @apply bg-transparent text-black/50;
     @apply hover:enabled:bg-black/6 hover:enabled:text-black/85;
@@ -119,19 +143,19 @@
 
   /* Tooltip - appears below toolbar buttons */
   .tooltip {
-    @apply absolute top-[calc(100%+14px)] left-1/2 -translate-x-1/2 scale-95;
+    @apply absolute top-full mt-3.5 left-1/2 -translate-x-1/2 scale-95;
     @apply px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap;
     @apply opacity-0 invisible pointer-events-none;
     z-index: var(--z-tooltip);
-    @apply transition-[opacity,transform,visibility] duration-135;
+    @apply transition duration-150;
     /* Light mode (default) */
     @apply bg-white text-black/85 shadow-tooltip-light;
     /* Dark mode */
-    @apply dark:bg-[#1a1a1a] dark:text-white/90 dark:shadow-tooltip;
+    @apply dark:bg-df-dark-ink dark:text-white/90 dark:shadow-tooltip;
     /* Arrow */
-    @apply after:content-[''] after:absolute after:bottom-[calc(100%-4px)] after:left-1/2 after:-translate-x-1/2 after:rotate-45;
+    @apply after:content-[''] after:absolute after:bottom-full after:translate-y-1 after:left-1/2 after:-translate-x-1/2 after:rotate-45;
     @apply after:w-2 after:h-2 after:rounded-tl-sm;
-    @apply after:bg-white dark:after:bg-[#1a1a1a];
+    @apply after:bg-white dark:after:bg-df-dark-ink;
   }
 
   .group:hover > .tooltip,
@@ -157,8 +181,8 @@
 
   /* Category panel - dropdown for selecting annotation type */
   .category-panel {
-    @apply absolute top-[calc(100%+12px)] left-1/2 -translate-x-1/2;
-    @apply rounded-2xl p-3 flex flex-col gap-1 min-w-[140px];
+    @apply absolute top-full mt-3 left-1/2 -translate-x-1/2;
+    @apply rounded-2xl p-3 flex flex-col gap-1 min-w-35;
     z-index: var(--z-panel);
     /* Light mode (default) */
     @apply bg-white shadow-panel-light;
@@ -173,9 +197,9 @@
   /* Category panel item */
   .category-panel-item {
     @apply flex items-center gap-2.5 py-2.5 px-3.5;
-    @apply border-none bg-transparent text-[13px] font-medium rounded-xl;
+    @apply border-none bg-transparent text-sm font-medium rounded-xl;
     @apply cursor-pointer whitespace-nowrap;
-    @apply transition-[background-color,color] duration-150;
+    @apply transition-colors duration-150;
     /* Light mode (default) */
     @apply text-black/70 hover:bg-black/6 hover:text-black/90;
     /* Dark mode */
@@ -183,6 +207,22 @@
     /* Icon color on hover */
     @apply [&:hover_svg]:text-[var(--category-color)];
     @apply [&_svg]:transition-colors [&_svg]:duration-150;
+  }
+
+  .category-panel-item[data-category='bug'] {
+    --category-color: var(--color-df-red);
+  }
+
+  .category-panel-item[data-category='question'] {
+    --category-color: var(--color-df-yellow);
+  }
+
+  .category-panel-item[data-category='suggestion'] {
+    --category-color: var(--color-df-blue);
+  }
+
+  .category-panel-item[data-category='accessibility'] {
+    --category-color: var(--color-df-purple);
   }
 
 }
@@ -253,6 +293,6 @@
 
   /* Standard interactive transition (bg, color, transform) */
   .transition-interactive {
-    @apply transition-[background-color,color,transform] duration-150 ease-out;
+    @apply transition duration-150 ease-out;
   }
 }
