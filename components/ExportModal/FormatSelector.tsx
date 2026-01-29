@@ -1,4 +1,4 @@
-import type { ReactNode, KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react';
+import { useState, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import type { ExportFormat } from '@/types';
 import { classNames } from '@/utils/classNames';
 
@@ -26,11 +26,15 @@ export function FormatSelector({
   onFormatSelect,
   formatOptionsRef,
 }: FormatSelectorProps) {
+  // Track input method to disable animations for keyboard navigation (Emil's strategy-keyboard-no-animate)
+  const [isKeyboardNav, setIsKeyboardNav] = useState(false);
+
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
     if (!keys.includes(event.key)) return;
 
     event.preventDefault();
+    setIsKeyboardNav(true);
     const buttons = formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
     if (!buttons || buttons.length === 0) return;
 
@@ -43,6 +47,11 @@ export function FormatSelector({
     onFormatSelect(nextOption.id);
     const fullIndex = options.findIndex((opt) => opt.id === nextOption.id);
     buttons[fullIndex]?.focus();
+  };
+
+  const handleClick = (format: ExportFormat) => {
+    setIsKeyboardNav(false);
+    onFormatSelect(format);
   };
 
   return (
@@ -68,7 +77,7 @@ export function FormatSelector({
                 'flex items-start gap-3 py-3 px-3.5 border rounded-xl',
                 'cursor-pointer text-left relative',
                 'transition duration-150 ease-out',
-                'active:scale-[0.98]',
+                'active:scale-[0.97]',
                 'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
                 'focus-ring',
                 !isSelected && 'bg-transparent border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
@@ -79,7 +88,7 @@ export function FormatSelector({
               role="radio"
               aria-checked={isSelected}
               disabled={isDisabled}
-              onClick={() => onFormatSelect(option.id)}
+              onClick={() => handleClick(option.id)}
             >
               {/* Radio indicator */}
               <span
@@ -92,7 +101,8 @@ export function FormatSelector({
               >
                 <span
                   className={classNames(
-                    'w-2 h-2 rounded-full transition-transform duration-150',
+                    'w-2 h-2 rounded-full',
+                    !isKeyboardNav && 'transition-transform duration-150',
                     isSelected ? 'bg-df-blue scale-100' : 'scale-0'
                   )}
                 />

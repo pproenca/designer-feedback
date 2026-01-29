@@ -10,38 +10,42 @@ import { AnnotationPreview } from './AnnotationPreview';
 import { ExportActions } from './ExportActions';
 
 // =============================================================================
-// Framer Motion Variants
+// Framer Motion Variants (Emil Kowalski standards)
 // =============================================================================
+
+// Emil's iOS-style curves for smooth, natural motion
+const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
+const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
 
 const getOverlayVariants = (reduceMotion: boolean): Variants => ({
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: reduceMotion ? 0.12 : 0.2, ease: 'easeOut' },
+    transition: { duration: reduceMotion ? 0.1 : 0.15, ease: EMIL_EASE_OUT },
   },
   exit: {
     opacity: 0,
-    transition: { duration: reduceMotion ? 0.1 : 0.15, ease: 'easeIn' },
+    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN },
   },
 });
 
 const getModalVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: 12, scale: 0.96, filter: 'blur(8px)' }),
+    ...(reduceMotion ? {} : { y: 8, scale: 0.96 }),
   },
   visible: {
     opacity: 1,
-    ...(reduceMotion ? {} : { y: 0, scale: 1, filter: 'blur(0px)' }),
+    ...(reduceMotion ? {} : { y: 0, scale: 1 }),
     transition: {
-      duration: reduceMotion ? 0.16 : 0.25,
-      ease: [0.19, 1, 0.22, 1],
+      duration: reduceMotion ? 0.12 : 0.2,
+      ease: EMIL_EASE_OUT,
     },
   },
   exit: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: -8, scale: 0.98 }),
-    transition: { duration: reduceMotion ? 0.1 : 0.12, ease: 'easeIn' },
+    ...(reduceMotion ? {} : { y: -4, scale: 0.98 }),
+    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN },
   },
 });
 

@@ -61,7 +61,7 @@ export function ExportActions({
             'py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer',
             'transition-interactive',
             'focus-ring',
-            'active:scale-[0.98]',
+            'active:scale-[0.97]',
             'bg-transparent text-muted-soft hover:bg-black/5 hover:text-df-ink',
             'dark:hover:bg-white/5 dark:hover:text-white'
           )}
