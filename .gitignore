@@ -11,3 +11,9 @@ dist/*
 # WXT build outputs
 .wxt/
 .output/
+
+# WXT persistent dev profile
+!.wxt/chrome-data/
+
+# Store submission credentials
+.env.submit

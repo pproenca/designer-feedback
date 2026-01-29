@@ -6,12 +6,16 @@
   "scripts": {
     "prepare": "lefthook install",
     "dev": "wxt",
+    "dev:debug": "wxt --mode debug",
     "build": "wxt build",
+    "build:staging": "wxt build --mode staging",
+    "build:production": "wxt build --mode production",
     "build:firefox": "wxt build -b firefox",
     "build:analyze": "npm run build && open .output/chrome-mv3/stats.html",
     "gen:icons": "npx tsx scripts/render-icons.ts",
     "gen:promo": "npx tsx scripts/render-promo.ts",
     "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
     "pack": "npm run zip",
     "release": "npm version patch --no-git-tag-version && npm run zip",
     "test": "vitest run",
@@ -22,7 +26,12 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "knip": "knip",
-    "knip:fix": "knip --fix"
+    "knip:fix": "knip --fix",
+    "update-server": "npx --yes extension-update-testing-tool",
+    "submit": "wxt submit",
+    "submit:chrome": "wxt submit --chrome-zip .output/*.zip",
+    "submit:firefox": "wxt submit --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip",
+    "submit:dry-run": "wxt submit --dry-run"
   },
   "dependencies": {
     "framer-motion": "^12.29.2",
