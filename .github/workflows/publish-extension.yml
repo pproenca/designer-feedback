@@ -69,7 +69,7 @@ jobs:
       - run: npm ci
 
       - name: Build and package extension
-        run: npm run pack
+        run: npm run zip
 
       - name: Get version from built manifest
         id: version
@@ -141,7 +141,7 @@ jobs:
       - run: npm ci
 
       - name: Build Firefox extension
-        run: npm run zip:firefox
+        run: npx wxt zip -b firefox
 
       - name: Upload Firefox artifact
         uses: actions/upload-artifact@v4
