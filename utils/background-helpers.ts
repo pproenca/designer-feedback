@@ -65,11 +65,61 @@ export function normalizeOriginHash(value: string): string {
 export type ScreenshotResult = { data: string; error?: string };
 
 /**
+ * Get windowId for screenshot capture, with fallback to active tab query
+ * @param senderTabWindowId - windowId from sender.tab (may be undefined)
+ * @returns windowId to use for captureVisibleTab
+ */
+export async function getWindowIdForCapture(senderTabWindowId: number | undefined): Promise<number> {
+  if (senderTabWindowId !== undefined) {
+    console.log('[Background] Using sender.tab.windowId:', senderTabWindowId);
+    return senderTabWindowId;
+  }
+
+  // Fallback: query for the active tab in the current window
+  console.log('[Background] sender.tab.windowId is undefined, querying active tab...');
+  try {
+    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (activeTab?.windowId !== undefined) {
+      console.log('[Background] Fallback to active tab windowId:', activeTab.windowId, 'tabId:', activeTab.id);
+      return activeTab.windowId;
+    }
+  } catch (error) {
+    console.warn('[Background] Failed to query active tab:', error);
+  }
+
+  // Last resort: use WINDOW_ID_CURRENT
+  console.log('[Background] Using WINDOW_ID_CURRENT as last resort');
+  return browser.windows.WINDOW_ID_CURRENT;
+}
+
+/**
+ * Verify screenshot permission for a URL
+ * @param url - The URL to check permission for
+ * @returns true if permission is granted, false otherwise
+ */
+export async function verifyScreenshotPermission(url: string): Promise<boolean> {
+  try {
+    const origin = new URL(url).origin;
+    const hasPermission = await browser.permissions.contains({
+      origins: [`${origin}/*`],
+    });
+    console.log('[Background] Permission check for', url, ':', hasPermission);
+    return hasPermission;
+  } catch (error) {
+    console.error('[Background] Permission check failed:', error);
+    return false;
+  }
+}
+
+/**
  * Capture screenshot of the visible tab (background service worker implementation)
  */
 export async function captureVisibleTabScreenshot(windowId: number): Promise<ScreenshotResult> {
   console.log('[Background] captureScreenshot called with windowId:', windowId);
+  console.log('[Background] WINDOW_ID_CURRENT:', browser.windows.WINDOW_ID_CURRENT);
+  console.log('[Background] windowId === WINDOW_ID_CURRENT:', windowId === browser.windows.WINDOW_ID_CURRENT);
   try {
+    console.log('[Background] Calling captureVisibleTab...');
     const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
     console.log('[Background] captureVisibleTab result:', {
       hasData: !!dataUrl,

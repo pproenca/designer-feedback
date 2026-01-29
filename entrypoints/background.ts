@@ -3,7 +3,8 @@
 // =============================================================================
 
 import { defineBackground } from '#imports';
-import type { MessageType } from '@/types';
+import type { MessageType, Settings } from '@/types';
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 import {
   // URL utilities
   isInjectableUrl,
@@ -12,6 +13,7 @@ import {
   normalizeOriginHash,
   // Screenshot
   captureVisibleTabScreenshot,
+  getWindowIdForCapture,
   // Download
   downloadFile,
   // Settings
@@ -190,9 +192,17 @@ export default defineBackground(() => {
   // Message Handler
   // =============================================================================
 
-  browser.runtime.onMessage.addListener((message: unknown, sender: { id?: string; tab?: { windowId?: number } }) => {
-    const msg = message as MessageType & { target?: string };
-    console.log('[Background] Received message:', msg.type, 'from sender:', sender.id);
+  browser.runtime.onMessage.addListener((
+    message: unknown,
+    sender: { id?: string; tab?: { windowId?: number; id?: number; url?: string } },
+    sendResponse: (response?: unknown) => void
+  ) => {
+    const msg = message as MessageType & { target?: string; settings?: Settings };
+    console.log('[Background] Received message:', msg.type);
+    console.log('[Background] sender.tab:', JSON.stringify(sender.tab));
+    console.log('[Background] sender.tab?.windowId:', sender.tab?.windowId);
+    console.log('[Background] sender.tab?.id:', sender.tab?.id);
+    console.log('[Background] sender.tab?.url:', sender.tab?.url);
 
     // Validate sender is from this extension
     if (!isExtensionSender(sender)) {
@@ -208,49 +218,49 @@ export default defineBackground(() => {
 
     // Handle screenshot capture
     if (msg.type === 'CAPTURE_SCREENSHOT') {
-      const windowId = sender.tab?.windowId ?? browser.windows.WINDOW_ID_CURRENT;
-      console.log('[Background] Handling CAPTURE_SCREENSHOT for windowId:', windowId);
-      return captureVisibleTabScreenshot(windowId)
+      console.log('[Background] Handling CAPTURE_SCREENSHOT');
+      getWindowIdForCapture(sender.tab?.windowId)
+        .then((windowId) => {
+          console.log('[Background] Using windowId for capture:', windowId);
+          return captureVisibleTabScreenshot(windowId);
+        })
         .then((result) => {
           console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
-          return {
-            type: 'SCREENSHOT_CAPTURED',
-            ...result,
-          };
+          sendResponse({ type: 'SCREENSHOT_CAPTURED', ...result });
         })
         .catch((error) => {
           console.error('[Background] captureScreenshot error:', error);
-          return {
-            type: 'SCREENSHOT_CAPTURED',
-            data: '',
-            error: String(error),
-          };
+          sendResponse({ type: 'SCREENSHOT_CAPTURED', data: '', error: String(error) });
         });
+      return true; // Keep message channel open for async response
     }
 
     // Handle file download
     if (msg.type === 'DOWNLOAD_FILE') {
       console.log('[Background] Handling DOWNLOAD_FILE');
-      return downloadFile(msg.dataUrl, msg.filename).catch((error) => {
-        console.error('[Background] downloadFile error:', error);
-        return { ok: false, error: String(error) };
-      });
+      downloadFile(msg.dataUrl, msg.filename)
+        .then((result) => sendResponse(result))
+        .catch((error) => {
+          console.error('[Background] downloadFile error:', error);
+          sendResponse({ ok: false, error: String(error) });
+        });
+      return true; // Keep message channel open for async response
     }
 
     // Handle get settings
     if (msg.type === 'GET_SETTINGS') {
-      return getSettings().then((result) => ({
-        type: 'SETTINGS_RESPONSE',
-        ...result,
-      }));
+      getSettings()
+        .then((result) => sendResponse({ type: 'SETTINGS_RESPONSE', ...result }))
+        .catch((error) => sendResponse({ type: 'SETTINGS_RESPONSE', settings: DEFAULT_SETTINGS, error: String(error) }));
+      return true; // Keep message channel open for async response
     }
 
     // Handle save settings
     if (msg.type === 'SAVE_SETTINGS') {
-      return saveSettings(msg.settings).then((result) => ({
-        type: 'SETTINGS_RESPONSE',
-        ...result,
-      }));
+      saveSettings(msg.settings as Settings)
+        .then((result) => sendResponse({ type: 'SETTINGS_RESPONSE', ...result }))
+        .catch((error) => sendResponse({ type: 'SETTINGS_RESPONSE', settings: msg.settings, error: String(error) }));
+      return true; // Keep message channel open for async response
     }
 
     // Handle badge update (synchronous)

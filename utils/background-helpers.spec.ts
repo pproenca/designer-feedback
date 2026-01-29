@@ -17,6 +17,8 @@ import {
   normalizeOriginHash,
   // Screenshot
   captureVisibleTabScreenshot,
+  getWindowIdForCapture,
+  verifyScreenshotPermission,
   // Download - skip for now as it requires offscreen document mocking
   // Settings
   getSettings,
@@ -170,6 +172,85 @@ describe('Background Helpers', () => {
       await captureVisibleTabScreenshot(42);
 
       expect(captureVisibleTabSpy).toHaveBeenCalledWith(42, { format: 'png' });
+    });
+  });
+
+  describe('getWindowIdForCapture', () => {
+    it('returns sender.tab.windowId when provided', async () => {
+      const windowId = await getWindowIdForCapture(42);
+      expect(windowId).toBe(42);
+    });
+
+    it('queries active tab when sender.tab.windowId is undefined', async () => {
+      vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
+        { id: 1, windowId: 99, url: 'https://example.com' },
+      ]);
+
+      const windowId = await getWindowIdForCapture(undefined);
+
+      expect(fakeBrowser.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
+      expect(windowId).toBe(99);
+    });
+
+    it('returns WINDOW_ID_CURRENT when active tab query returns empty', async () => {
+      vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([]);
+
+      const windowId = await getWindowIdForCapture(undefined);
+
+      expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+    });
+
+    it('returns WINDOW_ID_CURRENT when active tab has no windowId', async () => {
+      vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
+        { id: 1, url: 'https://example.com' }, // no windowId
+      ]);
+
+      const windowId = await getWindowIdForCapture(undefined);
+
+      expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+    });
+
+    it('returns WINDOW_ID_CURRENT when tab query fails', async () => {
+      vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(new Error('Query failed'));
+
+      const windowId = await getWindowIdForCapture(undefined);
+
+      expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+    });
+  });
+
+  describe('verifyScreenshotPermission', () => {
+    it('returns true when permission is granted', async () => {
+      vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true);
+
+      const result = await verifyScreenshotPermission('https://example.com/page');
+
+      expect(result).toBe(true);
+      expect(fakeBrowser.permissions.contains).toHaveBeenCalledWith({
+        origins: ['https://example.com/*'],
+      });
+    });
+
+    it('returns false when permission is not granted', async () => {
+      vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(false);
+
+      const result = await verifyScreenshotPermission('https://example.com/page');
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false for invalid URLs', async () => {
+      const result = await verifyScreenshotPermission('not-a-valid-url');
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false when permission check throws', async () => {
+      vi.spyOn(fakeBrowser.permissions, 'contains').mockRejectedValue(new Error('Permission error'));
+
+      const result = await verifyScreenshotPermission('https://example.com/page');
+
+      expect(result).toBe(false);
     });
   });
 
