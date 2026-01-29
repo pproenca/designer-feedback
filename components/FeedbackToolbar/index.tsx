@@ -473,7 +473,8 @@ export function FeedbackToolbar({
     };
 
     const handleAddModeHover = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
+      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
+      if (!target) return;
 
       if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
         if (hoverInfoRef.current) {
@@ -515,11 +516,11 @@ export function FeedbackToolbar({
 
     const handleAddModeHoverThrottled = throttle(handleAddModeHover, HOVER_THROTTLE_MS);
 
-    document.addEventListener('mouseover', handleAddModeHoverThrottled);
+    document.addEventListener('mousemove', handleAddModeHoverThrottled);
     document.addEventListener('click', handleAddModeClick, true);
 
     return () => {
-      document.removeEventListener('mouseover', handleAddModeHoverThrottled);
+      document.removeEventListener('mousemove', handleAddModeHoverThrottled);
       document.removeEventListener('click', handleAddModeClick, true);
       handleAddModeHoverThrottled.cancel();
     };
