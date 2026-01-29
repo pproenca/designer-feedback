@@ -22,5 +22,10 @@ export default defineConfig({
       '.output/**',
       '.wxt/**',
     ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+    },
   },
 });
