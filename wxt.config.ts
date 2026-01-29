@@ -7,7 +7,7 @@ export default defineConfig({
 
   manifest: {
     name: 'Designer Feedback',
-    version: '1.0.0',
+    version: '1.0.1',
     description: 'Annotate any webpage and share visual feedback with developers',
     permissions: ['storage', 'tabs', 'downloads', 'activeTab', 'scripting'],
     optional_host_permissions: ['http://*/*', 'https://*/*'],
