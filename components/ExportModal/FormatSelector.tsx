@@ -1,4 +1,6 @@
-import { useState, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
+import { Radio } from '@base-ui/react/radio';
+import { RadioGroup } from '@base-ui/react/radio-group';
 import type { ExportFormat } from '@/types';
 import { classNames } from '@/utils/classNames';
 
@@ -29,67 +31,51 @@ export function FormatSelector({
   // Track input method to disable animations for keyboard navigation (Emil's strategy-keyboard-no-animate)
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
 
-  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-    if (!keys.includes(event.key)) return;
-
-    event.preventDefault();
-    setIsKeyboardNav(true);
-    const buttons = formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
-    if (!buttons || buttons.length === 0) return;
-
-    const enabledOptions = options.filter((opt) => !opt.disabled);
-    const currentIndex = enabledOptions.findIndex((option) => option.id === selectedFormat);
-    const delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
-    const nextIndex =
-      currentIndex === -1 ? 0 : (currentIndex + delta + enabledOptions.length) % enabledOptions.length;
-    const nextOption = enabledOptions[nextIndex];
-    onFormatSelect(nextOption.id);
-    const fullIndex = options.findIndex((opt) => opt.id === nextOption.id);
-    buttons[fullIndex]?.focus();
-  };
-
-  const handleClick = (format: ExportFormat) => {
-    setIsKeyboardNav(false);
-    onFormatSelect(format);
+  const handleValueChange = (value: string) => {
+    onFormatSelect(value as ExportFormat);
   };
 
   return (
     <div className="mb-3.5">
-      <h3 className={classNames('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}>
+      <h3
+        id="format-selector-label"
+        className={classNames('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}
+      >
         Format
       </h3>
-      <div
+      <RadioGroup
         className="flex flex-col gap-2"
-        role="radiogroup"
-        aria-label="Export format"
+        aria-labelledby="format-selector-label"
         ref={formatOptionsRef}
-        onKeyDown={handleKeyDown}
-        tabIndex={-1}
+        value={selectedFormat}
+        onValueChange={handleValueChange}
+        disabled={isExporting}
+        onKeyDown={() => setIsKeyboardNav(true)}
+        onPointerDown={() => setIsKeyboardNav(false)}
       >
         {options.map((option) => {
           const isSelected = selectedFormat === option.id;
           const isDisabled = option.disabled || isExporting;
           return (
-            <button
+            <label
               key={option.id}
               className={classNames(
                 'flex items-start gap-3 py-3 px-3.5 border rounded-xl',
                 'cursor-pointer text-left relative',
                 'transition duration-150 ease-out',
                 'active:scale-[0.97]',
-                'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
-                'focus-ring',
+                'has-[[data-disabled]]:opacity-60 has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:transform-none',
+                'focus-within:ring-2 focus-within:ring-df-blue focus-within:ring-offset-1',
                 !isSelected && 'bg-transparent border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
                 isSelected && 'bg-df-blue/5 border-df-blue/15',
                 isSelected && 'dark:bg-df-blue/10 dark:border-df-blue/20'
               )}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              disabled={isDisabled}
-              onClick={() => handleClick(option.id)}
             >
+              <Radio.Root
+                value={option.id}
+                disabled={isDisabled}
+                className="sr-only"
+              />
               {/* Radio indicator */}
               <span
                 className={classNames(
@@ -128,10 +114,10 @@ export function FormatSelector({
                   {option.description}
                 </span>
               </div>
-            </button>
+            </label>
           );
         })}
-      </div>
+      </RadioGroup>
     </div>
   );
 }

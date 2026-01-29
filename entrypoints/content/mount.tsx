@@ -4,6 +4,7 @@ import { LazyMotion, domAnimation } from 'framer-motion';
 import { createShadowRootUi, type ContentScriptContext } from '#imports';
 import { App } from './App';
 import { ErrorBoundary } from './ErrorBoundary';
+import { BaseUIProvider } from '@/components/BaseUIProvider';
 import './style.css';
 
 const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
@@ -18,6 +19,8 @@ export interface MountCleanupHandle {
   root: ReactDOM.Root;
   /** App container element for DOM cleanup */
   appRoot: HTMLDivElement;
+  /** Portal container for Base UI components */
+  portalContainer: HTMLDivElement;
 }
 
 function waitForDomReady(): Promise<void> {
@@ -63,22 +66,30 @@ export async function mountUI(ctx: ContentScriptContext) {
       appRoot.id = 'app';
       container.appendChild(appRoot);
 
+      // Create portal container for Base UI components (tooltips, dialogs, etc.)
+      const portalContainer = document.createElement('div');
+      portalContainer.id = 'base-ui-portal';
+      container.appendChild(portalContainer);
+
       const root = ReactDOM.createRoot(appRoot);
       root.render(
         <React.StrictMode>
           <ErrorBoundary>
-            <LazyMotion features={domAnimation}>
-              <App shadowRoot={shadow} />
-            </LazyMotion>
+            <BaseUIProvider portalContainer={portalContainer}>
+              <LazyMotion features={domAnimation}>
+                <App shadowRoot={shadow} />
+              </LazyMotion>
+            </BaseUIProvider>
           </ErrorBoundary>
         </React.StrictMode>
       );
-      return { root, appRoot };
+      return { root, appRoot, portalContainer };
     },
     onRemove: (handle) => {
       if (handle) {
         handle.root.unmount();
         handle.appRoot.remove();
+        handle.portalContainer.remove();
       }
       globalStyleElement?.remove();
       globalStyleElement = null;

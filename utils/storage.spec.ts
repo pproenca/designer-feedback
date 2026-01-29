@@ -8,6 +8,7 @@ import {
   updateBadgeCount,
   checkStorageQuota,
   saveAnnotation,
+  deleteAnnotation,
 } from './storage';
 import { hashString } from './hash';
 
@@ -166,5 +167,28 @@ describe('Storage helpers and flows', () => {
   it('returns empty array when no annotations exist', async () => {
     const results = await loadAnnotations();
     expect(results).toEqual([]);
+  });
+
+  it('deletes annotation from storage', async () => {
+    const annotation = {
+      id: 'delete-test',
+      x: 100,
+      y: 200,
+      comment: 'To be deleted',
+      category: 'bug' as const,
+      element: 'div.test',
+      elementPath: 'div.test',
+      timestamp: Date.now(),
+      isFixed: false,
+      url: getStorageKey(),
+    };
+
+    await saveAnnotation(annotation);
+    const before = await loadAnnotations();
+    expect(before).toHaveLength(1);
+
+    await deleteAnnotation('delete-test');
+    const after = await loadAnnotations();
+    expect(after).toHaveLength(0);
   });
 });
