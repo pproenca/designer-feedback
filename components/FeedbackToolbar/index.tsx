@@ -164,7 +164,7 @@ export function FeedbackToolbar({
   const [selectedCategory, setSelectedCategory] = useState<FeedbackCategory>('suggestion');
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [pendingAnnotation, setPendingAnnotation] = useState<PendingAnnotation | null>(null);
-  const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
@@ -174,6 +174,29 @@ export function FeedbackToolbar({
   // Refs
   const popupRef = useRef<AnnotationPopupHandle>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const isAddModeRef = useRef(isAddMode);
+  const isMountedRef = useRef(true);
+
+  const selectedAnnotation = useMemo(
+    () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
+    [annotations, selectedAnnotationId]
+  );
+
+  useEffect(() => {
+    isAddModeRef.current = isAddMode;
+  }, [isAddMode]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedAnnotationId && !selectedAnnotation) {
+      setSelectedAnnotationId(null);
+    }
+  }, [selectedAnnotationId, selectedAnnotation]);
 
   // Handle position persistence
   const handlePositionChange = useCallback((position: Position) => {
@@ -208,6 +231,11 @@ export function FeedbackToolbar({
     };
   }, [debouncedUpdateBadge]);
 
+  // Sync badge count with annotations length
+  useEffect(() => {
+    debouncedUpdateBadge(annotations.length);
+  }, [annotations.length, debouncedUpdateBadge]);
+
   // Load saved toolbar position on mount
   useEffect(() => {
     const loadPosition = async () => {
@@ -227,17 +255,18 @@ export function FeedbackToolbar({
       try {
         const loaded = await loadAnnotations();
         setAnnotations(loaded);
-        debouncedUpdateBadge(loaded.length);
       } catch (error) {
         console.error('Failed to load annotations:', error);
       }
     };
     loadData();
+  }, []);
 
-    // Entrance animation complete
+  // Entrance animation complete
+  useEffect(() => {
     const timer = setTimeout(() => setEntranceComplete(true), 500);
     return () => clearTimeout(timer);
-  }, [debouncedUpdateBadge]);
+  }, []);
 
   // Listen for export trigger from popup
   useEffect(() => {
@@ -271,7 +300,7 @@ export function FeedbackToolbar({
   // Handle element click in add mode
   const handleElementClick = useCallback(
     async (e: MouseEvent) => {
-      if (!isAddMode) return;
+      if (!isMountedRef.current || !isAddModeRef.current) return;
 
       const target = e.target as HTMLElement;
 
@@ -306,13 +335,13 @@ export function FeedbackToolbar({
       setIsAddMode(false);
       setHoverInfo(null);
     },
-    [isAddMode]
+    []
   );
 
   // Handle element hover in add mode
   const handleElementHoverRaw = useCallback(
     (e: MouseEvent) => {
-      if (!isAddMode) return;
+      if (!isMountedRef.current || !isAddModeRef.current) return;
 
       const target = e.target as HTMLElement;
 
@@ -330,7 +359,7 @@ export function FeedbackToolbar({
         rect,
       });
     },
-    [isAddMode]
+    []
   );
 
   // Throttled hover handler
@@ -373,8 +402,8 @@ export function FeedbackToolbar({
         e.stopPropagation();
         if (showCategoryPanel) {
           setShowCategoryPanel(false);
-        } else if (selectedAnnotation) {
-          setSelectedAnnotation(null);
+        } else if (selectedAnnotationId) {
+          setSelectedAnnotationId(null);
         } else if (pendingAnnotation) {
           setPendingAnnotation(null);
         } else if (isAddMode) {
@@ -386,11 +415,11 @@ export function FeedbackToolbar({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isAddMode, pendingAnnotation, selectedAnnotation, showCategoryPanel]);
+  }, [isAddMode, pendingAnnotation, selectedAnnotationId, showCategoryPanel]);
 
   // Close active annotation when clicking outside
   useEffect(() => {
-    if (!selectedAnnotation) return;
+    if (!selectedAnnotationId) return;
 
     const handlePointerDown = (event: MouseEvent) => {
       const path = event.composedPath ? event.composedPath() : [];
@@ -405,13 +434,13 @@ export function FeedbackToolbar({
       });
 
       if (!isInside) {
-        setSelectedAnnotation(null);
+        setSelectedAnnotationId(null);
       }
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [selectedAnnotation]);
+  }, [selectedAnnotationId]);
 
   // Handle annotation submit
   const handleAnnotationSubmit = useCallback(
@@ -443,16 +472,14 @@ export function FeedbackToolbar({
 
       try {
         await saveAnnotation({ ...newAnnotation, url: getStorageKey() });
-        const updatedAnnotations = [...annotations, newAnnotation];
-        setAnnotations(updatedAnnotations);
-        debouncedUpdateBadge(updatedAnnotations.length);
+        setAnnotations((current) => [...current, newAnnotation]);
       } catch (error) {
         console.error('Failed to save annotation:', error);
       }
 
       setPendingAnnotation(null);
     },
-    [pendingAnnotation, annotations, selectedCategory, debouncedUpdateBadge]
+    [pendingAnnotation, selectedCategory]
   );
 
   // Handle annotation delete
@@ -460,14 +487,13 @@ export function FeedbackToolbar({
     async (id: string) => {
       try {
         await deleteAnnotation(id);
-        const updatedAnnotations = annotations.filter((a) => a.id !== id);
-        setAnnotations(updatedAnnotations);
-        debouncedUpdateBadge(updatedAnnotations.length);
+        setAnnotations((current) => current.filter((annotation) => annotation.id !== id));
+        setSelectedAnnotationId((current) => (current === id ? null : current));
       } catch (error) {
         console.error('Failed to delete annotation:', error);
       }
     },
-    [annotations, debouncedUpdateBadge]
+    []
   );
 
   // Handle clear all
@@ -475,11 +501,11 @@ export function FeedbackToolbar({
     try {
       await clearAnnotations();
       setAnnotations([]);
-      debouncedUpdateBadge(0);
+      setSelectedAnnotationId(null);
     } catch (error) {
       console.error('Failed to clear annotations:', error);
     }
-  }, [debouncedUpdateBadge]);
+  }, []);
 
   // Toggle category panel
   const toggleCategoryPanel = useCallback(() => {
@@ -574,11 +600,11 @@ export function FeedbackToolbar({
                 data-annotation-marker
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
-                onClick={() => setSelectedAnnotation(annotation)}
+                onClick={() => setSelectedAnnotationId(annotation.id)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setSelectedAnnotation(annotation);
+                    setSelectedAnnotationId(annotation.id);
                   }
                 }}
                 role="button"
@@ -621,11 +647,11 @@ export function FeedbackToolbar({
                 data-annotation-marker
                 onMouseEnter={() => setHoveredMarkerId(annotation.id)}
                 onMouseLeave={() => setHoveredMarkerId(null)}
-                onClick={() => setSelectedAnnotation(annotation)}
+                onClick={() => setSelectedAnnotationId(annotation.id)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setSelectedAnnotation(annotation);
+                    setSelectedAnnotationId(annotation.id);
                   }
                 }}
                 role="button"
@@ -735,9 +761,9 @@ export function FeedbackToolbar({
           annotation={selectedAnnotation}
           onDelete={() => {
             handleDeleteAnnotation(selectedAnnotation.id);
-            setSelectedAnnotation(null);
+            setSelectedAnnotationId(null);
           }}
-          onCancel={() => setSelectedAnnotation(null)}
+          onCancel={() => setSelectedAnnotationId(null)}
           lightMode={lightMode}
           style={{
             left: `${selectedAnnotation.x}px`,

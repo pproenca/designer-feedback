@@ -8,11 +8,11 @@ interface AppProps {
 }
 
 export function App({ shadowRoot }: AppProps) {
-  const [enabled, setEnabled] = useState(DEFAULT_SETTINGS.enabled);
-  const [lightMode, setLightMode] = useState(DEFAULT_SETTINGS.lightMode);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const { enabled, lightMode } = settings;
 
   const handleLightModeChange = useCallback((nextLightMode: boolean) => {
-    setLightMode(nextLightMode);
+    setSettings((prev) => ({ ...prev, lightMode: nextLightMode }));
     browser.storage.sync.set({ lightMode: nextLightMode }).catch((error) => {
       console.error('Failed to save light mode setting:', error);
     });
@@ -22,8 +22,7 @@ export function App({ shadowRoot }: AppProps) {
     // Load initial settings
     browser.storage.sync.get(DEFAULT_SETTINGS).then((result) => {
       const settings = result as Settings;
-      setEnabled(settings.enabled);
-      setLightMode(settings.lightMode);
+      setSettings(settings);
     }).catch((error) => {
       console.error('Failed to get settings:', error);
     });
@@ -33,12 +32,21 @@ export function App({ shadowRoot }: AppProps) {
       area: string
     ) => {
       if (area !== 'sync') return;
-      if (changes.enabled) {
-        setEnabled(Boolean(changes.enabled.newValue));
-      }
-      if (changes.lightMode) {
-        setLightMode(Boolean(changes.lightMode.newValue));
-      }
+      if (!changes.enabled && !changes.lightMode) return;
+
+      setSettings((prev) => {
+        let next = prev;
+        if (changes.enabled || changes.lightMode) {
+          next = { ...prev };
+          if (changes.enabled) {
+            next.enabled = Boolean(changes.enabled.newValue);
+          }
+          if (changes.lightMode) {
+            next.lightMode = Boolean(changes.lightMode.newValue);
+          }
+        }
+        return next;
+      });
     };
 
     browser.storage.onChanged.addListener(handleStorageChanges);

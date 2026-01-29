@@ -32,10 +32,10 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
 
   // Sync position with initialPosition when it changes (e.g., loaded from storage)
   useEffect(() => {
-    if (initialPosition && !position) {
+    if (initialPosition) {
       setPosition(initialPosition);
     }
-  }, [initialPosition, position]);
+  }, [initialPosition]);
 
   const dragStateRef = useRef<{
     startX: number;

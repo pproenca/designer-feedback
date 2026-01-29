@@ -123,10 +123,12 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
+    const focusTimerRef = useRef<number | null>(null);
+    const shakeTimerRef = useRef<number | null>(null);
 
     // Focus textarea on mount
     useEffect(() => {
-      const focusTimer = setTimeout(() => {
+      focusTimerRef.current = window.setTimeout(() => {
         const textarea = textareaRef.current;
         if (textarea) {
           textarea.focus();
@@ -135,16 +137,27 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         }
       }, 50);
       return () => {
-        clearTimeout(focusTimer);
+        if (focusTimerRef.current !== null) {
+          clearTimeout(focusTimerRef.current);
+          focusTimerRef.current = null;
+        }
+        if (shakeTimerRef.current !== null) {
+          clearTimeout(shakeTimerRef.current);
+          shakeTimerRef.current = null;
+        }
       };
     }, []);
 
     // Shake animation
     const shake = useCallback(() => {
       setIsShaking(true);
-      setTimeout(() => {
+      if (shakeTimerRef.current !== null) {
+        clearTimeout(shakeTimerRef.current);
+      }
+      shakeTimerRef.current = window.setTimeout(() => {
         setIsShaking(false);
         textareaRef.current?.focus();
+        shakeTimerRef.current = null;
       }, 250);
     }, []);
 
