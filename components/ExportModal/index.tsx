@@ -279,7 +279,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         statusMessage: {
           type: 'info',
           text:
-            selectedFormat === 'snapshot' ? 'Capturing full page...' : 'Preparing export...',
+            selectedFormat === 'snapshot' ? 'Capturing full page…' : 'Preparing export…',
         },
       },
     });
@@ -426,7 +426,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       >
         {/* Overlay dismiss button */}
         <button
-          className="absolute inset-0 border-0 p-0 m-0 bg-transparent cursor-pointer z-0"
+          className="absolute inset-0 border-0 p-0 m-0 bg-transparent cursor-pointer z-0 focus-visible:ring-2 focus-visible:ring-df-blue/50"
           type="button"
           aria-label="Close export dialog"
           onClick={onClose}
@@ -435,7 +435,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         {/* Modal */}
         <motion.div
           className={classNames(
-            'relative z-[1] rounded-[18px] w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden',
+            'relative z-[1] rounded-[18px] w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden overscroll-contain',
             'flex flex-col font-sans',
             'bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.06)]',
             'dark:bg-[#151515] dark:shadow-[0_18px_48px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.08)]'
@@ -522,7 +522,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 aria-label="Export format"
                 ref={formatOptionsRef}
                 onKeyDown={handleFormatKeyDown}
-                tabIndex={0}
+                tabIndex={-1}
               >
                 {EXPORT_FORMAT_OPTIONS.map((option) => {
                   const isSelected = selectedFormat === option.id;
@@ -633,7 +633,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                     onClick={handlePermissionRequest}
                     disabled={isRequestingPermission}
                   >
-                    {isRequestingPermission ? 'Requesting...' : 'Grant access'}
+                    {isRequestingPermission ? 'Requesting…' : 'Grant access'}
                   </button>
                 )}
               </div>
@@ -708,7 +708,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   exit="exit"
                   variants={statusMessageVariants}
                   id={statusMessageId}
-                  className={classNames('status-message', statusMessage.type)}
+                  className={classNames(
+                    'text-[0.8125rem] py-2 px-3 rounded-lg mt-2',
+                    statusMessage.type === 'success' && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                    statusMessage.type === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                    statusMessage.type === 'warning' && 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                    statusMessage.type === 'info' && 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                  )}
                   role={statusMessage.type === 'error' ? 'alert' : 'status'}
                   aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
                 >
@@ -757,7 +763,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               {exportOutcome ? (
                 exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!'
               ) : isExporting ? (
-                isClipboardFormat ? 'Copying...' : 'Exporting...'
+                isClipboardFormat ? 'Copying…' : 'Exporting…'
               ) : (
                 <>
                   <IconExport size={16} />

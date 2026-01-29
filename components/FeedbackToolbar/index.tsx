@@ -1008,6 +1008,7 @@ export function FeedbackToolbar({
                 aria-label={isSelectingElement ? 'Cancel add annotation' : 'Add annotation'}
                 aria-pressed={isSelectingElement || isCategoryPanelOpen}
                 aria-expanded={isCategoryPanelOpen}
+                aria-describedby="tooltip-add-annotation"
                 onClick={handleToggleCategoryPanel}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -1036,7 +1037,7 @@ export function FeedbackToolbar({
                   )}
                 </AnimatePresence>
               </button>
-              <span className="tooltip">
+              <span className="tooltip" role="tooltip" id="tooltip-add-annotation">
                 {isSelectingElement ? 'Cancel' : 'Add annotation'}
               </span>
 
@@ -1051,7 +1052,7 @@ export function FeedbackToolbar({
                     className="category-panel"
                   >
                     <button
-                      className="category-panel-item"
+                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
                       type="button"
                       onClick={() => handleCategorySelect('bug')}
                       style={{ '--category-color': '#FF3B30' } as CSSProperties}
@@ -1060,7 +1061,7 @@ export function FeedbackToolbar({
                       <span>Bug</span>
                     </button>
                     <button
-                      className="category-panel-item"
+                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
                       type="button"
                       onClick={() => handleCategorySelect('question')}
                       style={{ '--category-color': '#FFD60A' } as CSSProperties}
@@ -1069,7 +1070,7 @@ export function FeedbackToolbar({
                       <span>Question</span>
                     </button>
                     <button
-                      className="category-panel-item"
+                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
                       type="button"
                       onClick={() => handleCategorySelect('suggestion')}
                       style={{ '--category-color': '#3C82F7' } as CSSProperties}
@@ -1078,7 +1079,7 @@ export function FeedbackToolbar({
                       <span>Suggestion</span>
                     </button>
                     <button
-                      className="category-panel-item"
+                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
                       type="button"
                       onClick={() => handleCategorySelect('accessibility')}
                       style={{ '--category-color': '#AF52DE' } as CSSProperties}
@@ -1099,12 +1100,13 @@ export function FeedbackToolbar({
                 className="btn-toolbar"
                 type="button"
                 aria-label="Export feedback"
+                aria-describedby="tooltip-export"
                 onClick={() => dispatch({ type: 'setExportModalOpen', value: true })}
                 disabled={annotations.length === 0}
               >
                 <IconExport size={18} />
               </button>
-              <span className="tooltip">
+              <span className="tooltip" role="tooltip" id="tooltip-export">
                 Export feedback
               </span>
             </div>
@@ -1117,12 +1119,13 @@ export function FeedbackToolbar({
                 className={classNames('btn-toolbar', 'danger')}
                 type="button"
                 aria-label="Clear all annotations"
+                aria-describedby="tooltip-clear"
                 onClick={handleClearAllAnnotations}
                 disabled={annotations.length === 0}
               >
                 <IconTrash size={18} />
               </button>
-              <span className="tooltip">
+              <span className="tooltip" role="tooltip" id="tooltip-clear">
                 Clear all
               </span>
             </div>
@@ -1135,6 +1138,7 @@ export function FeedbackToolbar({
                 className="btn-toolbar"
                 type="button"
                 aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+                aria-describedby="tooltip-theme"
                 onClick={() => onLightModeChange?.(!lightMode)}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -1163,7 +1167,7 @@ export function FeedbackToolbar({
                   )}
                 </AnimatePresence>
               </button>
-              <span className="tooltip">
+              <span className="tooltip" role="tooltip" id="tooltip-theme">
                 {lightMode ? 'Dark mode' : 'Light mode'}
               </span>
             </div>
@@ -1174,11 +1178,12 @@ export function FeedbackToolbar({
                 className="btn-toolbar"
                 type="button"
                 aria-label="Minimize toolbar"
+                aria-describedby="tooltip-minimize"
                 onClick={() => dispatch({ type: 'setExpanded', value: false })}
               >
                 <IconClose size={18} />
               </button>
-              <span className="tooltip">
+              <span className="tooltip" role="tooltip" id="tooltip-minimize">
                 Minimize
               </span>
             </div>

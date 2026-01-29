@@ -104,7 +104,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       element,
       annotation,
       selectedText,
-      placeholder = 'What should change?',
+      placeholder = 'What should change?…',
       initialValue = '',
       submitLabel = 'Add',
       onSubmit,
@@ -413,7 +413,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   )}
                 >
                   &ldquo;{selectedText.slice(0, 80)}
-                  {selectedText.length > 80 ? '...' : ''}&rdquo;
+                  {selectedText.length > 80 ? '…' : ''}&rdquo;
                 </div>
               )}
 
@@ -438,6 +438,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 )}
                 style={{ borderColor: isTextareaFocused ? accentColor : undefined }}
                 placeholder={placeholder}
+                aria-label="Annotation comment"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onFocus={() => setIsTextareaFocused(true)}
