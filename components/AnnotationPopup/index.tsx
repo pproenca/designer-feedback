@@ -49,10 +49,10 @@ const popupVariants: Variants = {
   },
   exit: {
     opacity: 0,
-    scale: 0.95,
-    y: 4,
+    scale: 0.98,
+    y: -4,
     transition: {
-      duration: 0.15,
+      duration: 0.12,
       ease: 'easeIn',
     },
   },

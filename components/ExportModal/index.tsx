@@ -49,15 +49,29 @@ const modalVariants: Variants = {
     scale: 1,
     filter: 'blur(0px)',
     transition: {
-      duration: 0.35,
+      duration: 0.25,
       ease: [0.19, 1, 0.22, 1],
     },
   },
   exit: {
     opacity: 0,
-    y: 8,
+    y: -8,
     scale: 0.98,
-    transition: { duration: 0.15, ease: 'easeIn' },
+    transition: { duration: 0.12, ease: 'easeIn' },
+  },
+};
+
+const statusMessageVariants: Variants = {
+  hidden: { opacity: 0, y: 4 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.15, ease: 'easeOut' },
+  },
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: { duration: 0.1, ease: 'easeIn' },
   },
 };
 
@@ -686,16 +700,22 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             </div>
 
             {/* Status message */}
-            {statusMessage && (
-              <div
-                id={statusMessageId}
-                className={classNames('status-message', statusMessage.type)}
-                role={statusMessage.type === 'error' ? 'alert' : 'status'}
-                aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
-              >
-                {statusMessage.text}
-              </div>
-            )}
+            <AnimatePresence>
+              {statusMessage && (
+                <motion.div
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={statusMessageVariants}
+                  id={statusMessageId}
+                  className={classNames('status-message', statusMessage.type)}
+                  role={statusMessage.type === 'error' ? 'alert' : 'status'}
+                  aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
+                >
+                  {statusMessage.text}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Actions */}

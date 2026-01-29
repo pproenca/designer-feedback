@@ -50,7 +50,7 @@ const toolbarVariants = {
 };
 
 const badgeVariants = {
-  hidden: { opacity: 0, scale: 0 },
+  hidden: { opacity: 0, scale: 0.9 },
   visible: {
     opacity: 1,
     scale: 1,
@@ -59,7 +59,7 @@ const badgeVariants = {
 };
 
 const markerVariants = {
-  hidden: { opacity: 0, scale: 0.3 },
+  hidden: { opacity: 0, scale: 0.9 },
   visible: {
     opacity: 1,
     scale: 1,
@@ -84,10 +84,10 @@ const categoryPanelVariants = {
 };
 
 const tooltipVariants = {
-  hidden: { opacity: 0, scale: 0.91, y: 2 },
+  hidden: { opacity: 0, scale: 0.95, y: 2 },
   visible: {
     opacity: 1,
-    scale: 0.909,
+    scale: 1,
     y: 0,
     transition: { duration: 0.1, ease: 'easeOut' },
   },
@@ -109,6 +109,20 @@ const hoverTooltipVariants = {
     scale: 1,
     y: 0,
     transition: { duration: 0.1, ease: 'easeOut' },
+  },
+};
+
+const iconSwapVariants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.12, ease: 'easeOut' },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.8,
+    transition: { duration: 0.08, ease: 'easeIn' },
   },
 };
 
@@ -764,24 +778,30 @@ export function FeedbackToolbar({
         </div>
 
         {/* Pending marker */}
-        {pendingAnnotation && (
-          <div
-            className={classNames(
-              'w-[22px] h-[22px] rounded-full flex items-center justify-center',
-              'text-[0.6875rem] font-semibold text-white select-none',
-              'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
-            )}
-            style={{
-              left: `${pendingAnnotation.x}px`,
-              top: pendingAnnotation.isFixed
-                ? `${pendingAnnotation.rect.top + pendingAnnotation.rect.height / 2}px`
-                : `${pendingAnnotation.y}px`,
-              position: pendingAnnotation.isFixed ? 'fixed' : 'absolute',
-            }}
-          >
-            {annotations.length + 1}
-          </div>
-        )}
+        <AnimatePresence>
+          {pendingAnnotation && (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={markerVariants}
+              className={classNames(
+                'w-[22px] h-[22px] rounded-full flex items-center justify-center',
+                'text-[0.6875rem] font-semibold text-white select-none',
+                'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
+              )}
+              style={{
+                left: `${pendingAnnotation.x}px`,
+                top: pendingAnnotation.isFixed
+                  ? `${pendingAnnotation.rect.top + pendingAnnotation.rect.height / 2}px`
+                  : `${pendingAnnotation.y}px`,
+                position: pendingAnnotation.isFixed ? 'fixed' : 'absolute',
+              }}
+            >
+              {annotations.length + 1}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </>
     );
   };
@@ -874,13 +894,15 @@ export function FeedbackToolbar({
       )}
 
       {/* Export Modal */}
-      {isExportModalOpen && (
-        <ExportModal
-          annotations={annotations}
-          onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
-          lightMode={lightMode}
-        />
-      )}
+      <AnimatePresence>
+        {isExportModalOpen && (
+          <ExportModal
+            annotations={annotations}
+            onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
+            lightMode={lightMode}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toolbar */}
       <div
@@ -952,9 +974,9 @@ export function FeedbackToolbar({
           >
             <IconList size={20} />
             <AnimatePresence>
-              {annotations.length > 0 && !isEntranceComplete && (
+              {annotations.length > 0 && (
                 <motion.span
-                  initial="hidden"
+                  initial={!isEntranceComplete ? 'hidden' : false}
                   animate="visible"
                   exit="hidden"
                   variants={badgeVariants}
@@ -962,11 +984,6 @@ export function FeedbackToolbar({
                 >
                   {annotations.length}
                 </motion.span>
-              )}
-              {annotations.length > 0 && isEntranceComplete && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-[0.625rem] font-semibold flex items-center justify-center shadow-sm">
-                  {annotations.length}
-                </span>
               )}
             </AnimatePresence>
           </div>
@@ -993,7 +1010,31 @@ export function FeedbackToolbar({
                 aria-expanded={isCategoryPanelOpen}
                 onClick={handleToggleCategoryPanel}
               >
-                {isSelectingElement ? <IconClose size={18} /> : <IconList size={18} />}
+                <AnimatePresence mode="wait" initial={false}>
+                  {isSelectingElement ? (
+                    <motion.span
+                      key="close"
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={iconSwapVariants}
+                      className="flex items-center justify-center"
+                    >
+                      <IconClose size={18} />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="list"
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={iconSwapVariants}
+                      className="flex items-center justify-center"
+                    >
+                      <IconList size={18} />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
               <span className="tooltip">
                 {isSelectingElement ? 'Cancel' : 'Add annotation'}
@@ -1096,7 +1137,31 @@ export function FeedbackToolbar({
                 aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                 onClick={() => onLightModeChange?.(!lightMode)}
               >
-                {lightMode ? <IconMoon size={18} /> : <IconSun size={18} />}
+                <AnimatePresence mode="wait" initial={false}>
+                  {lightMode ? (
+                    <motion.span
+                      key="moon"
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={iconSwapVariants}
+                      className="flex items-center justify-center"
+                    >
+                      <IconMoon size={18} />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="sun"
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={iconSwapVariants}
+                      className="flex items-center justify-center"
+                    >
+                      <IconSun size={18} />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
               <span className="tooltip">
                 {lightMode ? 'Dark mode' : 'Light mode'}
