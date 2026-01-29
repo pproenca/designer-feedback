@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { LazyMotion, domAnimation } from 'framer-motion';
 import { createShadowRootUi, type ContentScriptContext } from 'wxt/client';
 import { App } from './App';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -55,7 +56,9 @@ export async function mountUI(ctx: ContentScriptContext) {
       root.render(
         <React.StrictMode>
           <ErrorBoundary>
-            <App shadowRoot={shadow} />
+            <LazyMotion features={domAnimation}>
+              <App shadowRoot={shadow} />
+            </LazyMotion>
           </ErrorBoundary>
         </React.StrictMode>
       );

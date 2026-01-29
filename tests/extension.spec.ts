@@ -31,9 +31,10 @@ test.describe('Feedback Toolbar flows', () => {
     await expect(exportButton).toBeEnabled();
     await exportButton.click();
 
+    const exportDialog = page.getByRole('dialog', { name: 'Export feedback' });
     await expect(page.getByRole('heading', { name: 'Export Feedback' })).toBeVisible();
-    await expect(page.getByText(comment)).toBeVisible();
-    await page.getByRole('dialog', { name: 'Export feedback' }).getByLabel('Close export dialog').click();
+    await expect(exportDialog.getByText(comment)).toBeVisible();
+    await exportDialog.getByLabel('Close export dialog').click();
   });
 
   test('happy path: delete annotation from marker', async ({ page, helpers }) => {

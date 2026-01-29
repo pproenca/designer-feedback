@@ -35,8 +35,11 @@ vi.mock('@/utils/permissions', () => ({
 
 // Mock Framer Motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
-  motion: {
+  m: {
     div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => (
+      <span {...props}>{children}</span>
+    ),
   },
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   useReducedMotion: () => false,

@@ -10,21 +10,9 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
-import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
+import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation } from '@/types';
-
-// =============================================================================
-// Utility: conditional class name helper
-// =============================================================================
-
-type ClassNameValue = string | boolean | undefined | null | string[];
-
-function classNames(...classes: ClassNameValue[]): string {
-  return classes
-    .flat()
-    .filter((c): c is string => typeof c === 'string' && c.length > 0)
-    .join(' ');
-}
+import { classNames } from '@/utils/classNames';
 
 // =============================================================================
 // Framer Motion Variants
@@ -306,7 +294,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       return (
         <AnimatePresence mode="wait">
           {!isExiting && (
-            <motion.div
+            <m.div
               ref={popupRef}
               className={popupClassName}
               data-annotation-popup
@@ -316,10 +304,10 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               tabIndex={-1}
               variants={popupVariants}
               initial="hidden"
-              animate={isShakeActive ? 'shake' : 'visible'}
+              animate="visible"
               exit="exit"
             >
-              <motion.div
+              <m.div
                 variants={shakeVariants}
                 animate={isShakeActive ? 'shake' : undefined}
               >
@@ -328,7 +316,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   <span
                     className={classNames(
                       'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                      'text-black/60 dark:text-white/65'
+                      'text-muted'
                     )}
                   >
                     {element}
@@ -338,7 +326,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 {/* Comment */}
                 <div
                   className={classNames(
-                    'text-[0.8125rem] leading-relaxed py-2 break-words',
+                    'text-sm leading-relaxed py-2 break-words',
                     'text-black/85 dark:text-white/[0.92]'
                   )}
                 >
@@ -350,10 +338,10 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   <button
                     className={classNames(
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
-                      'transition-colors duration-150 ease-out',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
-                      'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75',
-                      'dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/80'
+                      'transition-interactive',
+                      'focus-ring',
+                      'bg-transparent text-muted-soft hover:bg-black/[0.06] hover:text-black/75',
+                      'dark:hover:bg-white/10 dark:hover:text-white/80'
                     )}
                     type="button"
                     onClick={handleCancel}
@@ -364,7 +352,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     className={classNames(
                       'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
                       'bg-red-500 text-white',
-                      'transition-colors duration-150 ease-out',
+                      'transition-interactive',
                       'hover:bg-red-600',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500/50'
                     )}
@@ -374,8 +362,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     Delete
                   </button>
                 </div>
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           )}
         </AnimatePresence>
       );
@@ -385,7 +373,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     return (
       <AnimatePresence mode="wait">
         {!isExiting && (
-          <motion.div
+          <m.div
             ref={popupRef}
             className={popupClassName}
             data-annotation-popup
@@ -395,10 +383,10 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
             tabIndex={-1}
             variants={popupVariants}
             initial="hidden"
-            animate={isShakeActive ? 'shake' : 'visible'}
+            animate="visible"
             exit="exit"
           >
-            <motion.div
+            <m.div
               variants={shakeVariants}
               animate={isShakeActive ? 'shake' : undefined}
             >
@@ -407,7 +395,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <span
                   className={classNames(
                     'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                    'text-black/60 dark:text-white/65'
+                    'text-muted'
                   )}
                 >
                   {element}
@@ -432,15 +420,15 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               <textarea
                 ref={textareaRef}
                 className={classNames(
-                  'w-full py-2 px-2.5 text-[0.8125rem] font-sans rounded-lg resize-none outline-none',
+                  'w-full py-2 px-2.5 text-sm font-sans rounded-lg resize-none outline-none',
                   'border transition-colors duration-150 ease-out',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
+                  'focus-ring',
                   // Scrollbar styling
                   '[&::-webkit-scrollbar]:w-1.5',
                   '[&::-webkit-scrollbar-track]:bg-transparent',
                   // Light mode (default)
                   'bg-black/[0.03] text-[#1a1a1a] border-black/[0.12]',
-                  'placeholder:text-black/40',
+                  'placeholder:text-muted-strong',
                   '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
                   // Dark mode
                   'dark:bg-white/[0.04] dark:text-white dark:border-white/[0.12]',
@@ -463,10 +451,10 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <button
                   className={classNames(
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
-                    'transition-colors duration-150 ease-out',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
-                    'bg-transparent text-black/50 hover:bg-black/[0.06] hover:text-black/75',
-                    'dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/80'
+                    'transition-interactive',
+                    'focus-ring',
+                    'bg-transparent text-muted-soft hover:bg-black/[0.06] hover:text-black/75',
+                    'dark:hover:bg-white/10 dark:hover:text-white/80'
                   )}
                   type="button"
                   onClick={handleCancel}
@@ -479,7 +467,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                     'transition-[background-color,opacity,filter] duration-150 ease-out',
                     'hover:enabled:brightness-90',
                     'disabled:cursor-not-allowed',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50'
+                    'focus-ring'
                   )}
                   style={{
                     backgroundColor: accentColor,
@@ -492,8 +480,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                   {submitLabel}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     );

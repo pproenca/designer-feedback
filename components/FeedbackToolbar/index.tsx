@@ -11,7 +11,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { m, AnimatePresence, useMotionValue, useReducedMotion } from 'framer-motion';
 
 import { AnnotationPopup } from '../AnnotationPopup';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
@@ -44,6 +44,7 @@ import {
 import { throttle, debounce } from '@/utils/timing';
 import type { Annotation, FeedbackCategory } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
+import { classNames } from '@/utils/classNames';
 
 // Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
@@ -84,6 +85,10 @@ const getMotionVariants = (reduceMotion: boolean) => ({
         ? { duration: 0.12, ease: 'easeOut' }
         : { type: 'spring', stiffness: 400, damping: 20 },
     },
+    hover: {
+      ...(reduceMotion ? {} : { scale: 1.08 }),
+      transition: { duration: 0.1, ease: 'easeOut' },
+    },
   },
   categoryPanel: {
     hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: -8 }) },
@@ -98,9 +103,10 @@ const getMotionVariants = (reduceMotion: boolean) => ({
       transition: { duration: 0.1, ease: 'easeIn' },
     },
   },
-  tooltip: {
+  markerTooltip: {
     hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 2 }) },
-    visible: {
+    visible: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 2 }) },
+    hover: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1, y: 0 }),
       transition: { duration: 0.1, ease: 'easeOut' },
@@ -149,8 +155,6 @@ interface FeedbackToolbarProps {
 
 type HoverInfo = {
   element: string;
-  elementPath: string;
-  rect: DOMRect | null;
 };
 
 type PendingAnnotation = {
@@ -174,7 +178,6 @@ type ToolbarState = {
   hoverInfo: HoverInfo | null;
   pendingAnnotation: PendingAnnotation | null;
   selectedAnnotationId: string | null;
-  hoveredMarkerId: string | null;
   isExportModalOpen: boolean;
   isEntranceComplete: boolean;
   isHidden: boolean;
@@ -187,7 +190,6 @@ type ToolbarAction =
   | { type: 'setHoverInfo'; value: HoverInfo | null }
   | { type: 'setPendingAnnotation'; value: PendingAnnotation | null }
   | { type: 'setSelectedAnnotationId'; value: string | null }
-  | { type: 'setHoveredMarkerId'; value: string | null }
   | { type: 'setExportModalOpen'; value: boolean }
   | { type: 'setEntranceComplete'; value: boolean }
   | { type: 'setHidden'; value: boolean };
@@ -199,7 +201,6 @@ const initialToolbarState: ToolbarState = {
   hoverInfo: null,
   pendingAnnotation: null,
   selectedAnnotationId: null,
-  hoveredMarkerId: null,
   isExportModalOpen: false,
   isEntranceComplete: false,
   isHidden: false,
@@ -229,8 +230,6 @@ function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarStat
         : { ...state, pendingAnnotation: null };
     case 'setSelectedAnnotationId':
       return { ...state, selectedAnnotationId: action.value };
-    case 'setHoveredMarkerId':
-      return { ...state, hoveredMarkerId: action.value };
     case 'setExportModalOpen':
       return { ...state, isExportModalOpen: action.value };
     case 'setEntranceComplete':
@@ -241,13 +240,6 @@ function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarStat
       return state;
   }
 }
-
-// =============================================================================
-// Utility classes
-// =============================================================================
-
-const classNames = (...classes: (string | false | undefined | null)[]) =>
-  classes.filter(Boolean).join(' ');
 
 // =============================================================================
 // Component
@@ -269,6 +261,15 @@ export function FeedbackToolbar({
     [reduceMotion]
   );
   const tooltipDelayTimerRef = useRef<number | null>(null);
+  const hoverHighlightX = useMotionValue(0);
+  const hoverHighlightY = useMotionValue(0);
+  const hoverHighlightWidth = useMotionValue(0);
+  const hoverHighlightHeight = useMotionValue(0);
+  const hoverTooltipX = useMotionValue(0);
+  const hoverTooltipY = useMotionValue(0);
+  const hoverElementPathRef = useRef<string | null>(null);
+  const hoverElementLabelRef = useRef<string | null>(null);
+  const hoverInfoRef = useRef<HoverInfo | null>(null);
 
   const {
     isExpanded,
@@ -277,7 +278,6 @@ export function FeedbackToolbar({
     hoverInfo,
     pendingAnnotation,
     selectedAnnotationId,
-    hoveredMarkerId,
     isExportModalOpen,
     isEntranceComplete,
     isHidden,
@@ -318,6 +318,10 @@ export function FeedbackToolbar({
       dispatch({ type: 'setSelectedAnnotationId', value: null });
     }
   }, [selectedAnnotationId, selectedAnnotation]);
+
+  useEffect(() => {
+    hoverInfoRef.current = hoverInfo;
+  }, [hoverInfo]);
 
   const { absoluteMarkers, fixedMarkers } = useMemo(() => {
     const absolute: Annotation[] = [];
@@ -475,21 +479,41 @@ export function FeedbackToolbar({
       const target = e.target as HTMLElement;
 
       if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
-        dispatch({ type: 'setHoverInfo', value: null });
+        if (hoverInfoRef.current) {
+          hoverElementPathRef.current = null;
+          hoverElementLabelRef.current = null;
+          dispatch({ type: 'setHoverInfo', value: null });
+        }
         return;
       }
 
       const rect = target.getBoundingClientRect();
       const { name, path } = identifyElement(target);
 
-      dispatch({
-        type: 'setHoverInfo',
-        value: {
-          element: name,
-          elementPath: path,
-          rect,
-        },
-      });
+      hoverHighlightX.set(rect.left);
+      hoverHighlightY.set(rect.top);
+      hoverHighlightWidth.set(rect.width);
+      hoverHighlightHeight.set(rect.height);
+      hoverTooltipX.set(rect.left);
+      hoverTooltipY.set(rect.bottom + 8);
+
+      if (hoverElementPathRef.current !== path || hoverElementLabelRef.current !== name) {
+        hoverElementPathRef.current = path;
+        hoverElementLabelRef.current = name;
+        dispatch({
+          type: 'setHoverInfo',
+          value: {
+            element: name,
+          },
+        });
+      } else if (!hoverInfoRef.current) {
+        dispatch({
+          type: 'setHoverInfo',
+          value: {
+            element: name,
+          },
+        });
+      }
     };
 
     const handleAddModeHoverThrottled = throttle(handleAddModeHover, HOVER_THROTTLE_MS);
@@ -502,6 +526,10 @@ export function FeedbackToolbar({
       document.removeEventListener('click', handleAddModeClick, true);
       handleAddModeHoverThrottled.cancel();
     };
+    // Motion values are stable refs (from useMotionValue) that never change identity.
+    // They're only mutated via .set() inside the callback, so adding them to deps
+    // would cause unnecessary re-subscriptions without any benefit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelectingElement]);
 
   // Toggle body class for crosshair cursor in add mode
@@ -674,10 +702,8 @@ export function FeedbackToolbar({
   const renderAnnotationTooltip = (annotation: Annotation) => {
     const config = getCategoryConfig(annotation.category);
     return (
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={motionVariants.tooltip}
+      <m.div
+        variants={motionVariants.markerTooltip}
         className={classNames(
           'absolute top-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-tooltip',
           'px-3 py-2 rounded-xl min-w-[120px] max-w-[200px] pointer-events-none cursor-default',
@@ -686,7 +712,7 @@ export function FeedbackToolbar({
         )}
       >
         <span
-          className="block text-[0.6875rem] font-semibold mb-1"
+          className="block text-xs font-semibold mb-1"
           style={{ color: config.color }}
         >
           {config.emoji} {config.label}
@@ -701,13 +727,13 @@ export function FeedbackToolbar({
         </span>
         <span
           className={classNames(
-            'block text-[0.625rem] font-normal mt-1.5 whitespace-nowrap',
+            'block text-2xs font-normal mt-1.5 whitespace-nowrap',
             'text-black/35 dark:text-white/60'
           )}
         >
           Click to view
         </span>
-      </motion.div>
+      </m.div>
     );
   };
 
@@ -719,19 +745,19 @@ export function FeedbackToolbar({
         <div className="absolute top-0 left-0 right-0 h-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
           {absoluteMarkers.map((annotation, index) => {
             const config = getCategoryConfig(annotation.category);
-            const isHovered = hoveredMarkerId === annotation.id;
 
             return (
-              <motion.div
+              <m.div
                 key={annotation.id}
                 initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
+                whileHover="hover"
                 variants={motionVariants.marker}
                 className={classNames(
                   'absolute w-[22px] h-[22px] rounded-full flex items-center justify-center',
-                  'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
+                  'text-xs font-semibold text-white cursor-pointer select-none',
                   'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
-                  'hover:z-[2] hover:scale-110 transition-transform'
+                  'hover:z-[2]'
                 )}
                 style={{
                   left: `${annotation.x}px`,
@@ -739,10 +765,6 @@ export function FeedbackToolbar({
                   backgroundColor: config.color,
                 }}
                 data-annotation-marker
-                onMouseEnter={() =>
-                  dispatch({ type: 'setHoveredMarkerId', value: annotation.id })
-                }
-                onMouseLeave={() => dispatch({ type: 'setHoveredMarkerId', value: null })}
                 onClick={() =>
                   dispatch({ type: 'setSelectedAnnotationId', value: annotation.id })
                 }
@@ -757,10 +779,8 @@ export function FeedbackToolbar({
                 aria-label={`Annotation ${index + 1} (${config.label})`}
               >
                 {index + 1}
-                <AnimatePresence>
-                  {isHovered && renderAnnotationTooltip(annotation)}
-                </AnimatePresence>
-              </motion.div>
+                {renderAnnotationTooltip(annotation)}
+              </m.div>
             );
           })}
         </div>
@@ -769,20 +789,20 @@ export function FeedbackToolbar({
         <div className="fixed inset-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
           {fixedMarkers.map((annotation, index) => {
             const config = getCategoryConfig(annotation.category);
-            const isHovered = hoveredMarkerId === annotation.id;
             const globalIndex = absoluteMarkers.length + index + 1;
 
             return (
-              <motion.div
+              <m.div
                 key={annotation.id}
                 initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
+                whileHover="hover"
                 variants={motionVariants.marker}
                 className={classNames(
                   'fixed w-[22px] h-[22px] rounded-full flex items-center justify-center',
-                  'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
+                  'text-xs font-semibold text-white cursor-pointer select-none',
                   'shadow-marker -translate-x-1/2 -translate-y-1/2 z-[1]',
-                  'hover:z-[2] hover:scale-110 transition-transform'
+                  'hover:z-[2]'
                 )}
                 style={{
                   left: `${annotation.x}px`,
@@ -790,10 +810,6 @@ export function FeedbackToolbar({
                   backgroundColor: config.color,
                 }}
                 data-annotation-marker
-                onMouseEnter={() =>
-                  dispatch({ type: 'setHoveredMarkerId', value: annotation.id })
-                }
-                onMouseLeave={() => dispatch({ type: 'setHoveredMarkerId', value: null })}
                 onClick={() =>
                   dispatch({ type: 'setSelectedAnnotationId', value: annotation.id })
                 }
@@ -808,10 +824,8 @@ export function FeedbackToolbar({
                 aria-label={`Annotation ${globalIndex} (${config.label})`}
               >
                 {globalIndex}
-                <AnimatePresence>
-                  {isHovered && renderAnnotationTooltip(annotation)}
-                </AnimatePresence>
-              </motion.div>
+                {renderAnnotationTooltip(annotation)}
+              </m.div>
             );
           })}
         </div>
@@ -819,14 +833,14 @@ export function FeedbackToolbar({
         {/* Pending marker */}
         <AnimatePresence>
           {pendingAnnotation && (
-            <motion.div
+            <m.div
               initial="hidden"
               animate="visible"
               exit="hidden"
               variants={motionVariants.marker}
               className={classNames(
                 'w-[22px] h-[22px] rounded-full flex items-center justify-center',
-                'text-[0.6875rem] font-semibold text-white select-none',
+                'text-xs font-semibold text-white select-none',
                 'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
               )}
               style={{
@@ -838,7 +852,7 @@ export function FeedbackToolbar({
               }}
             >
               {annotations.length + 1}
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </>
@@ -861,34 +875,34 @@ export function FeedbackToolbar({
     >
       {/* Hover highlight overlay */}
       <AnimatePresence>
-        {isSelectingElement && hoverInfo?.rect ? (
+        {isSelectingElement && hoverInfo ? (
           <div className="fixed inset-0 z-overlay pointer-events-none [&>*]:pointer-events-auto">
-            <motion.div
+            <m.div
               initial="hidden"
               animate="visible"
               exit="hidden"
               variants={motionVariants.hoverHighlight}
               className="fixed border-2 border-df-blue/50 rounded bg-df-blue/4 pointer-events-none box-border"
               style={{
-                left: hoverInfo.rect.left,
-                top: hoverInfo.rect.top,
-                width: hoverInfo.rect.width,
-                height: hoverInfo.rect.height,
+                left: hoverHighlightX,
+                top: hoverHighlightY,
+                width: hoverHighlightWidth,
+                height: hoverHighlightHeight,
               }}
             />
-            <motion.div
+            <m.div
               initial="hidden"
               animate="visible"
               exit="hidden"
               variants={motionVariants.hoverTooltip}
-              className="fixed text-[0.6875rem] font-medium text-white bg-black/85 py-1.5 px-2.5 rounded-md pointer-events-none whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
+              className="fixed text-xs font-medium text-white bg-black/85 py-1.5 px-2.5 rounded-md pointer-events-none whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
               style={{
-                left: hoverInfo.rect.left,
-                top: hoverInfo.rect.bottom + 8,
+                left: hoverTooltipX,
+                top: hoverTooltipY,
               }}
             >
               {hoverInfo.element}
-            </motion.div>
+            </m.div>
           </div>
         ) : null}
       </AnimatePresence>
@@ -972,7 +986,7 @@ export function FeedbackToolbar({
             : undefined
         }
       >
-        <motion.div
+        <m.div
           initial={!isEntranceComplete ? 'hidden' : false}
           animate="visible"
           variants={motionVariants.toolbar}
@@ -1020,15 +1034,15 @@ export function FeedbackToolbar({
             <IconList size={20} />
             <AnimatePresence>
               {annotations.length > 0 && (
-                <motion.span
+                <m.span
                   initial={!isEntranceComplete ? 'hidden' : false}
                   animate="visible"
                   exit="hidden"
                   variants={motionVariants.badge}
-                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-[0.625rem] font-semibold flex items-center justify-center shadow-sm"
+                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-2xs font-semibold flex items-center justify-center shadow-sm"
                 >
                   {annotations.length}
-                </motion.span>
+                </m.span>
               )}
             </AnimatePresence>
           </div>
@@ -1064,7 +1078,7 @@ export function FeedbackToolbar({
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {isSelectingElement ? (
-                    <motion.span
+                    <m.span
                       key="close"
                       initial="hidden"
                       animate="visible"
@@ -1073,9 +1087,9 @@ export function FeedbackToolbar({
                       className="flex items-center justify-center"
                     >
                       <IconClose size={18} />
-                    </motion.span>
+                    </m.span>
                   ) : (
-                    <motion.span
+                    <m.span
                       key="list"
                       initial="hidden"
                       animate="visible"
@@ -1084,7 +1098,7 @@ export function FeedbackToolbar({
                       className="flex items-center justify-center"
                     >
                       <IconList size={18} />
-                    </motion.span>
+                    </m.span>
                   )}
                 </AnimatePresence>
               </button>
@@ -1095,7 +1109,7 @@ export function FeedbackToolbar({
               {/* Category selection panel */}
               <AnimatePresence>
                 {isCategoryPanelOpen && (
-                  <motion.div
+                  <m.div
                     initial="hidden"
                     animate="visible"
                     exit="exit"
@@ -1103,7 +1117,7 @@ export function FeedbackToolbar({
                     className="category-panel"
                   >
                     <button
-                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
+                      className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('bug')}
                       style={{ '--category-color': '#FF3B30' } as CSSProperties}
@@ -1112,7 +1126,7 @@ export function FeedbackToolbar({
                       <span>Bug</span>
                     </button>
                     <button
-                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
+                      className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('question')}
                       style={{ '--category-color': '#FFD60A' } as CSSProperties}
@@ -1121,7 +1135,7 @@ export function FeedbackToolbar({
                       <span>Question</span>
                     </button>
                     <button
-                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
+                      className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('suggestion')}
                       style={{ '--category-color': '#3C82F7' } as CSSProperties}
@@ -1130,7 +1144,7 @@ export function FeedbackToolbar({
                       <span>Suggestion</span>
                     </button>
                     <button
-                      className="category-panel-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50"
+                      className="category-panel-item focus-ring"
                       type="button"
                       onClick={() => handleCategorySelect('accessibility')}
                       style={{ '--category-color': '#AF52DE' } as CSSProperties}
@@ -1138,7 +1152,7 @@ export function FeedbackToolbar({
                       <IconAccessibility size={20} />
                       <span>Accessibility</span>
                     </button>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </div>
@@ -1198,7 +1212,7 @@ export function FeedbackToolbar({
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {lightMode ? (
-                    <motion.span
+                    <m.span
                       key="moon"
                       initial="hidden"
                       animate="visible"
@@ -1207,9 +1221,9 @@ export function FeedbackToolbar({
                       className="flex items-center justify-center"
                     >
                       <IconMoon size={18} />
-                    </motion.span>
+                    </m.span>
                   ) : (
-                    <motion.span
+                    <m.span
                       key="sun"
                       initial="hidden"
                       animate="visible"
@@ -1218,7 +1232,7 @@ export function FeedbackToolbar({
                       className="flex items-center justify-center"
                     >
                       <IconSun size={18} />
-                    </motion.span>
+                    </m.span>
                   )}
                 </AnimatePresence>
               </button>
@@ -1243,7 +1257,7 @@ export function FeedbackToolbar({
               </span>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       </div>
     </div>,
     shadowRoot

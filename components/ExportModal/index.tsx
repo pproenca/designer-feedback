@@ -6,20 +6,13 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
+import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
 import { getCategoryConfig } from '@/shared/categories';
 import { IconClose, IconCopy, IconExport, IconImage } from '../Icons';
-
-// =============================================================================
-// Utility: conditional class name helper
-// =============================================================================
-
-function classNames(...classes: (string | boolean | undefined | null)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
+import { classNames } from '@/utils/classNames';
 
 // =============================================================================
 // Framer Motion Variants
@@ -425,7 +418,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         className={classNames(
           'fixed inset-0 flex items-center justify-center z-modal',
           'bg-[rgba(250,250,250,0.88)] dark:bg-[rgba(10,10,10,0.82)]',
@@ -445,9 +438,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         />
 
         {/* Modal */}
-        <motion.div
+        <m.div
           className={classNames(
-            'relative z-[1] rounded-[18px] w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden overscroll-contain',
+            'relative z-[1] rounded-2xl w-[90%] max-w-[400px] max-h-[80vh] overflow-hidden overscroll-contain',
             'flex flex-col font-sans',
             'bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.06)]',
             'dark:bg-[#151515] dark:shadow-[0_18px_48px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.08)]'
@@ -481,10 +474,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             <button
               className={classNames(
                 'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
-                'transition-[background-color,color,transform] duration-150 ease-out',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
-                'text-black/40 hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
-                'dark:text-white/55 dark:hover:bg-white/8 dark:hover:text-white'
+                'transition-interactive',
+                'focus-ring',
+                'text-muted-strong hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
+                'dark:hover:bg-white/8 dark:hover:text-white'
               )}
               type="button"
               aria-label="Close export dialog"
@@ -501,8 +494,8 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               <div className="flex items-center justify-between">
                 <span
                   className={classNames(
-                    'text-[0.8125rem] tracking-[0.04em]',
-                    'text-black/50 dark:text-white/60'
+                    'text-sm tracking-[0.04em]',
+                    'text-muted-soft'
                   )}
                 >
                   Total annotations
@@ -523,7 +516,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               <h3
                 className={classNames(
                   'text-xs font-medium mb-[0.6rem] tracking-[0.04em]',
-                  'text-black/40 dark:text-white/55'
+                  'text-muted-strong'
                 )}
               >
                 Export Format
@@ -542,12 +535,12 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                     <button
                       key={option.id}
                       className={classNames(
-                        'flex items-start gap-3 py-[0.8rem] px-[0.9rem] bg-transparent border rounded-[10px]',
+                        'flex items-start gap-3 py-[0.8rem] px-[0.9rem] bg-transparent border rounded-xl',
                         'cursor-pointer text-left relative',
                         'transition-[background-color,color,border-color,transform] duration-150 ease-out',
                         'active:scale-[0.99]',
                         'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
-                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
+                        'focus-ring',
                         // Not selected
                         !isSelected && 'border-transparent hover:bg-[#f4f4f5] dark:hover:bg-[#1c1c1c]',
                         // Selected
@@ -567,7 +560,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                     >
                       <span
                         className={classNames(
-                          'inline-flex items-center justify-center w-8 h-8 rounded-[10px] leading-none',
+                          'inline-flex items-center justify-center w-8 h-8 rounded-xl leading-none',
                           'border',
                           // Not selected
                           !isSelected && 'bg-black/[0.06] border-black/8 text-black/70',
@@ -591,7 +584,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                         <span
                           className={classNames(
                             'text-[0.72rem] leading-[1.35]',
-                            'text-black/50 dark:text-white/60'
+                            'text-muted-soft'
                           )}
                         >
                           {option.description}
@@ -624,7 +617,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   <span
                     className={classNames(
                       'text-[0.72rem] leading-[1.4]',
-                      'text-black/55 dark:text-white/60'
+                      'text-muted-soft'
                     )}
                   >
                     Needed to include the page in your snapshot. Long pages can take a few seconds.
@@ -634,10 +627,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   <button
                     className={classNames(
                       'py-[0.45rem] px-3 rounded-full border text-[0.72rem] font-semibold cursor-pointer',
-                      'transition-[background-color,color,border-color,transform] duration-150 ease-out',
+                      'transition-interactive',
                       'hover:enabled:-translate-y-px active:enabled:scale-[0.98]',
                       'disabled:opacity-60 disabled:cursor-not-allowed',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
+                      'focus-ring',
                       'bg-blue-600/[0.12] border-blue-600/[0.35] text-blue-800 hover:enabled:bg-blue-600/[0.18]',
                       'dark:bg-df-blue/[0.18] dark:border-df-blue/[0.35] dark:text-[#d5e3ff] dark:hover:enabled:bg-df-blue/[0.28]'
                     )}
@@ -656,7 +649,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               <h3
                 className={classNames(
                   'text-xs font-medium mb-[0.55rem] tracking-[0.04em]',
-                  'text-black/40 dark:text-white/55'
+                  'text-muted-strong'
                 )}
               >
                 Preview
@@ -674,7 +667,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                       )}
                     >
                       <span
-                        className="flex items-center justify-center w-[18px] h-[18px] rounded-full text-[0.625rem] font-semibold text-white shrink-0 shadow-[0_3px_8px_rgba(0,0,0,0.35)]"
+                        className="flex items-center justify-center w-[18px] h-[18px] rounded-full text-2xs font-semibold text-white shrink-0 shadow-[0_3px_8px_rgba(0,0,0,0.35)]"
                         style={{ backgroundColor: config.color }}
                       >
                         {index + 1}
@@ -714,14 +707,14 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {/* Status message */}
             <AnimatePresence>
               {statusMessage && (
-                <motion.div
+                <m.div
                   initial="hidden"
                   animate="visible"
                   exit="exit"
                   variants={statusMessageVariants}
                   id={statusMessageId}
                   className={classNames(
-                    'text-[0.8125rem] py-2 px-3 rounded-lg mt-2',
+                    'text-sm py-2 px-3 rounded-lg mt-2',
                     statusMessage.type === 'success' && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
                     statusMessage.type === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
                     statusMessage.type === 'warning' && 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
@@ -731,7 +724,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
                 >
                   {statusMessage.text}
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
@@ -745,12 +738,12 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
           >
             <button
               className={classNames(
-                'py-2 px-4 text-[0.8125rem] font-medium rounded-full border-none cursor-pointer',
-                'transition-[background-color,color,transform] duration-150 ease-out',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
+                'py-2 px-4 text-sm font-medium rounded-full border-none cursor-pointer',
+                'transition-interactive',
+                'focus-ring',
                 'active:-translate-y-px active:scale-[0.98]',
-                'bg-transparent text-black/50 hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
-                'dark:text-white/45 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                'bg-transparent text-muted-soft hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
+                'dark:hover:bg-white/[0.06] dark:hover:text-white'
               )}
               type="button"
               onClick={onClose}
@@ -759,13 +752,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             </button>
             <button
               className={classNames(
-                'flex items-center gap-1.5 py-2 px-4 text-[0.8125rem] font-medium rounded-lg border-none cursor-pointer text-white',
+                'flex items-center gap-1.5 py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer text-white',
                 'bg-df-blue',
                 'transition-[background-color,color,transform,box-shadow] duration-150 ease-out',
                 'hover:enabled:-translate-y-px hover:enabled:shadow-[0_4px_12px_rgba(60,130,247,0.25)]',
                 'active:enabled:scale-[0.98]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
+                'focus-ring',
                 isExporting && 'animate-pulse'
               )}
               type="button"
@@ -784,8 +777,8 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               )}
             </button>
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </AnimatePresence>
   );
 }
