@@ -53,6 +53,8 @@ import { debounce } from '@/utils/timing';
 import { classNames } from '@/utils/classNames';
 import type { Annotation, FeedbackCategory } from '@/types';
 import type { Position } from '@/hooks/useDraggable';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { toolbarReducer, initialToolbarState } from './context';
 
 // Lazy load ExportModal for bundle size optimization
@@ -264,68 +266,59 @@ export function FeedbackToolbar({
     return () => document.body.classList.remove('designer-feedback-add-mode');
   }, [isSelectingElement]);
 
-  // Escape key handler
-  const escapeStateRef = useRef({
-    hasSelectedAnnotation,
-    isSelectingElement,
-    pendingAnnotation,
-    isCategoryPanelOpen,
-  });
+  // Escape key handler - closes panels/selections in priority order
+  type EscapeState = {
+    hasSelectedAnnotation: boolean;
+    isSelectingElement: boolean;
+    pendingAnnotation: typeof pendingAnnotation;
+    isCategoryPanelOpen: boolean;
+  };
 
-  useEffect(() => {
-    escapeStateRef.current = {
+  const escapeState: EscapeState = useMemo(
+    () => ({
       hasSelectedAnnotation,
       isSelectingElement,
       pendingAnnotation,
       isCategoryPanelOpen,
-    };
-  });
+    }),
+    [hasSelectedAnnotation, isSelectingElement, pendingAnnotation, isCategoryPanelOpen]
+  );
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        const state = escapeStateRef.current;
-        if (state.isCategoryPanelOpen) {
-          dispatch({ type: 'setAddMode', value: 'idle' });
-        } else if (state.hasSelectedAnnotation) {
-          dispatch({ type: 'setSelectedAnnotationId', value: null });
-        } else if (state.pendingAnnotation) {
-          dispatch({ type: 'setPendingAnnotation', value: null });
-        } else if (state.isSelectingElement) {
-          dispatch({ type: 'setAddMode', value: 'idle' });
-        }
-      }
-    };
+  const escapeHandlers = useMemo(
+    () => [
+      {
+        condition: (s: EscapeState) => s.isCategoryPanelOpen,
+        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+      },
+      {
+        condition: (s: EscapeState) => s.hasSelectedAnnotation,
+        handler: () => dispatch({ type: 'setSelectedAnnotationId', value: null }),
+      },
+      {
+        condition: (s: EscapeState) => Boolean(s.pendingAnnotation),
+        handler: () => dispatch({ type: 'setPendingAnnotation', value: null }),
+      },
+      {
+        condition: (s: EscapeState) => s.isSelectingElement,
+        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+      },
+    ],
+    []
+  );
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+  useEscapeKey(escapeState, escapeHandlers);
 
   // Click outside handler for selected annotation
-  useEffect(() => {
-    if (!selectedAnnotation) return;
+  const handleClickOutside = useCallback(() => {
+    dispatch({ type: 'setSelectedAnnotationId', value: null });
+  }, []);
 
-    const handlePointerDown = (event: MouseEvent) => {
-      const path = event.composedPath ? event.composedPath() : [];
-      const isInside = path.some((node) => {
-        if (!(node instanceof HTMLElement)) return false;
-        return Boolean(
-          node.hasAttribute('data-annotation-popup') ||
-          node.hasAttribute('data-annotation-marker') ||
-          node.hasAttribute('data-toolbar') ||
-          node.closest?.('[data-annotation-popup], [data-annotation-marker], [data-toolbar]')
-        );
-      });
+  const clickOutsideSelectors = useMemo(
+    () => ['data-annotation-popup', 'data-annotation-marker', 'data-toolbar'],
+    []
+  );
 
-      if (!isInside) {
-        dispatch({ type: 'setSelectedAnnotationId', value: null });
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [selectedAnnotation]);
+  useClickOutside(Boolean(selectedAnnotation), clickOutsideSelectors, handleClickOutside);
 
   // Handlers
   const handleAnnotationSubmit = useCallback(

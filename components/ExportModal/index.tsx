@@ -1,18 +1,13 @@
-import {
-  useReducer,
-  useRef,
-  useEffect,
-  useMemo,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useReducer, useRef, useEffect, useMemo } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { isRestrictedPage } from '@/utils/screenshot';
-import { getCategoryConfig } from '@/shared/categories';
-import { IconClose, IconCopy, IconExport, IconImage } from '../Icons';
+import { IconClose, IconCopy, IconImage } from '../Icons';
 import { classNames } from '@/utils/classNames';
+import { FormatSelector, type ExportFormatOption } from './FormatSelector';
+import { AnnotationPreview } from './AnnotationPreview';
+import { ExportActions } from './ExportActions';
 
 // =============================================================================
 // Framer Motion Variants
@@ -47,23 +42,6 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
     opacity: 0,
     ...(reduceMotion ? {} : { y: -8, scale: 0.98 }),
     transition: { duration: reduceMotion ? 0.1 : 0.12, ease: 'easeIn' },
-  },
-});
-
-const getStatusMessageVariants = (reduceMotion: boolean): Variants => ({
-  hidden: {
-    opacity: 0,
-    ...(reduceMotion ? {} : { y: 4 }),
-  },
-  visible: {
-    opacity: 1,
-    ...(reduceMotion ? {} : { y: 0 }),
-    transition: { duration: reduceMotion ? 0.12 : 0.15, ease: 'easeOut' },
-  },
-  exit: {
-    opacity: 0,
-    ...(reduceMotion ? {} : { y: -4 }),
-    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: 'easeIn' },
   },
 });
 
@@ -111,15 +89,6 @@ function exportModalReducer(state: ExportState, action: ExportAction): ExportSta
   }
 }
 
-type ExportFormatOption = {
-  id: ExportFormat;
-  label: string;
-  description: string;
-  icon: ReactNode;
-  disabled?: boolean;
-  disabledHint?: string;
-};
-
 // =============================================================================
 // Component
 // =============================================================================
@@ -129,37 +98,36 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   const reduceMotion = useReducedMotion() ?? false;
   const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
   const modalVariants = useMemo(() => getModalVariants(reduceMotion), [reduceMotion]);
-  const statusMessageVariants = useMemo(() => getStatusMessageVariants(reduceMotion), [reduceMotion]);
   const { isExporting, exportOutcome, statusMessage, selectedFormat } = state;
   const isMarkdownFormat = selectedFormat === 'image-notes';
   const isSnapshotFormat = selectedFormat === 'snapshot';
   const isClipboardFormat = isMarkdownFormat;
   const themeClassName = lightMode ? '' : 'dark';
 
-  // Check if we're on a restricted page where screenshots cannot be captured
   const restricted = isRestrictedPage();
 
-  // Build format options with disabled state for restricted pages
-  const formatOptions: ExportFormatOption[] = [
-    {
-      id: 'image-notes',
-      label: 'Markdown (Clipboard)',
-      description: 'Copies a concise markdown report to your clipboard.',
-      icon: <IconCopy size={18} aria-hidden="true" />,
-    },
-    {
-      id: 'snapshot',
-      label: 'Snapshot (Download)',
-      description: restricted
-        ? 'Not available on browser pages (chrome://, about:, etc.)'
-        : 'Full-page image with highlights and details sidebar.',
-      icon: <IconImage size={18} aria-hidden="true" />,
-      disabled: restricted,
-      disabledHint: 'Not available on browser pages',
-    },
-  ];
+  const formatOptions: ExportFormatOption[] = useMemo(
+    () => [
+      {
+        id: 'image-notes',
+        label: 'Markdown (Clipboard)',
+        description: 'Copies a concise markdown report to your clipboard.',
+        icon: <IconCopy size={18} aria-hidden="true" />,
+      },
+      {
+        id: 'snapshot',
+        label: 'Snapshot (Download)',
+        description: restricted
+          ? 'Not available on browser pages (chrome://, about:, etc.)'
+          : 'Full-page image with highlights and details sidebar.',
+        icon: <IconImage size={18} aria-hidden="true" />,
+        disabled: restricted,
+        disabledHint: 'Not available on browser pages',
+      },
+    ],
+    [restricted]
+  );
 
-  // Store timer ID for cleanup on unmount
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const formatOptionsRef = useRef<HTMLDivElement | null>(null);
@@ -172,7 +140,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     }
   }, [restricted, selectedFormat]);
 
-  // Cleanup timer on unmount to prevent memory leaks
+  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (autoCloseTimerRef.current !== null) {
@@ -182,6 +150,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     };
   }, []);
 
+  // Focus management
   useEffect(() => {
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
     const focusTimer = window.setTimeout(() => {
@@ -230,9 +199,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               statusMessage: { type: 'success', text: 'Snapshot downloaded.' },
             },
           });
-          autoCloseTimerRef.current = setTimeout(() => {
-            onClose();
-          }, 1500);
+          autoCloseTimerRef.current = setTimeout(() => onClose(), 1500);
           return;
         }
 
@@ -257,9 +224,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             statusMessage: { type: 'success', text: 'Markdown copied to clipboard.' },
           },
         });
-        autoCloseTimerRef.current = setTimeout(() => {
-          onClose();
-        }, 1500);
+        autoCloseTimerRef.current = setTimeout(() => onClose(), 1500);
       }
     } catch (error) {
       console.error('Export failed:', error);
@@ -272,6 +237,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     }
   };
 
+  // Keyboard handling
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!modalRef.current || !modalRef.current.contains(document.activeElement)) return;
@@ -305,26 +271,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleFormatKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-    if (!keys.includes(event.key)) return;
-
-    event.preventDefault();
-    const buttons = formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
-    if (!buttons || buttons.length === 0) return;
-
-    const enabledOptions = formatOptions.filter((opt) => !opt.disabled);
-    const currentIndex = enabledOptions.findIndex((option) => option.id === selectedFormat);
-    const delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
-    const nextIndex =
-      currentIndex === -1 ? 0 : (currentIndex + delta + enabledOptions.length) % enabledOptions.length;
-    const nextOption = enabledOptions[nextIndex];
-    dispatch({ type: 'updateState', payload: { selectedFormat: nextOption.id } });
-    // Find the button index in the full list
-    const fullIndex = formatOptions.findIndex((opt) => opt.id === nextOption.id);
-    buttons[fullIndex]?.focus();
-  };
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
@@ -398,231 +344,29 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
           {/* Content */}
           <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
-            {/* Format Selection */}
-            <div className="mb-3.5">
-              <h3 className={classNames('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}>
-                Format
-              </h3>
-              <div
-                className="flex flex-col gap-2"
-                role="radiogroup"
-                aria-label="Export format"
-                ref={formatOptionsRef}
-                onKeyDown={handleFormatKeyDown}
-                tabIndex={-1}
-              >
-                {formatOptions.map((option) => {
-                  const isSelected = selectedFormat === option.id;
-                  const isDisabled = option.disabled || isExporting;
-                  return (
-                    <button
-                      key={option.id}
-                      className={classNames(
-                        'flex items-start gap-3 py-3 px-3.5 border rounded-xl',
-                        'cursor-pointer text-left relative',
-                        'transition duration-150 ease-out',
-                        'active:scale-[0.98]',
-                        'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
-                        'focus-ring',
-                        // Not selected
-                        !isSelected && 'bg-transparent border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
-                        // Selected - subtle background, no heavy borders
-                        isSelected && 'bg-df-blue/5 border-df-blue/15',
-                        isSelected && 'dark:bg-df-blue/10 dark:border-df-blue/20'
-                      )}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      disabled={isDisabled}
-                      onClick={() =>
-                        dispatch({
-                          type: 'updateState',
-                          payload: { selectedFormat: option.id },
-                        })
-                      }
-                    >
-                      {/* Radio indicator */}
-                      <span
-                        className={classNames(
-                          'flex items-center justify-center w-4.5 h-4.5 rounded-full border-2 shrink-0 mt-0.5',
-                          'transition-colors duration-150',
-                          !isSelected && 'border-black/20 dark:border-white/25',
-                          isSelected && 'border-df-blue dark:border-df-blue'
-                        )}
-                      >
-                        <span
-                          className={classNames(
-                            'w-2 h-2 rounded-full transition-transform duration-150',
-                            isSelected ? 'bg-df-blue scale-100' : 'scale-0'
-                          )}
-                        />
-                      </span>
-                      {/* Icon */}
-                      <span
-                        className={classNames(
-                          'inline-flex items-center justify-center w-8 h-8 rounded-xl leading-none',
-                          'transition-colors duration-150',
-                          // Not selected
-                          !isSelected && 'bg-black/5 text-black/60',
-                          !isSelected && 'dark:bg-white/8 dark:text-white/70',
-                          // Selected
-                          isSelected && 'bg-df-blue/10 text-df-blue',
-                          isSelected && 'dark:bg-df-blue/15 dark:text-df-blue'
-                        )}
-                      >
-                        {option.icon}
-                      </span>
-                      <div className="flex flex-col gap-0.5 flex-1">
-                        <span className={classNames('text-sm font-medium', 'text-df-ink dark:text-white')}>
-                          {option.label}
-                        </span>
-                        <span className={classNames('text-xs leading-snug', 'text-muted-soft')}>
-                          {option.description}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="mt-2 mb-3.5 p-0 bg-transparent rounded-none border-none">
-              <h3 className={classNames('text-xs font-semibold mb-2 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}>Preview</h3>
-              <div className="flex flex-col gap-1.5">
-                {annotations.slice(0, 5).map((annotation, index) => {
-                  const config = getCategoryConfig(annotation.category);
-                  return (
-                    <div
-                      key={annotation.id}
-                      className={classNames(
-                        'flex items-center gap-2 text-sm py-1.5 px-2 rounded-lg bg-transparent border-none',
-                        'transition-colors duration-150 ease-out',
-                        'hover:bg-df-surface-muted dark:hover:bg-df-dark-muted'
-                      )}
-                    >
-                      <span
-                        className={classNames(
-                          'flex items-center justify-center w-5 h-5 rounded-full text-2xs font-bold shrink-0',
-                          'shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]',
-                          // Use category background with proper text contrast
-                          config.tw.bg,
-                          // Yellow category needs dark text for contrast
-                          annotation.category === 'question' ? 'text-black/80' : 'text-white'
-                        )}
-                      >
-                        {index + 1}
-                      </span>
-                      <span
-                        className={classNames(
-                          'whitespace-nowrap overflow-hidden text-ellipsis max-w-30',
-                          'text-black/75 dark:text-white/85'
-                        )}
-                      >
-                        {annotation.element}
-                      </span>
-                      <span
-                        className={classNames(
-                          'whitespace-nowrap overflow-hidden text-ellipsis flex-1',
-                          'text-black/45 dark:text-white/55'
-                        )}
-                      >
-                        {annotation.comment}
-                      </span>
-                    </div>
-                  );
-                })}
-                {annotations.length > 5 && (
-                  <div className={classNames('text-xs italic pt-1', 'text-black/35 dark:text-white/45')}>
-                    +{annotations.length - 5} more annotations
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Status message */}
-            <AnimatePresence>
-              {statusMessage && (
-                <m.div
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  variants={statusMessageVariants}
-                  id={statusMessageId}
-                  className={classNames(
-                    'text-sm py-2 px-3 rounded-lg mt-2',
-                    statusMessage.type === 'success' &&
-                      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                    statusMessage.type === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                    statusMessage.type === 'warning' &&
-                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-                    statusMessage.type === 'info' && 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                  )}
-                  role={statusMessage.type === 'error' ? 'alert' : 'status'}
-                  aria-live={statusMessage.type === 'error' ? 'assertive' : 'polite'}
-                >
-                  {statusMessage.text}
-                </m.div>
-              )}
-            </AnimatePresence>
+            <FormatSelector
+              options={formatOptions}
+              selectedFormat={selectedFormat}
+              isExporting={isExporting}
+              onFormatSelect={(format) =>
+                dispatch({ type: 'updateState', payload: { selectedFormat: format } })
+              }
+              formatOptionsRef={formatOptionsRef}
+            />
+            <AnnotationPreview annotations={annotations} />
           </div>
 
-          {/* Actions */}
-          <div
-            className={classNames(
-              'flex justify-end gap-2.5 py-4 px-4.5 pb-4.5 border-t',
-              'border-black/8 dark:border-white/8'
-            )}
-          >
-            <button
-              className={classNames(
-                'py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer',
-                'transition-interactive',
-                'focus-ring',
-                'active:scale-[0.98]',
-                'bg-transparent text-muted-soft hover:bg-black/5 hover:text-df-ink',
-                'dark:hover:bg-white/5 dark:hover:text-white'
-              )}
-              type="button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              className={classNames(
-                'flex items-center gap-1.5 py-2.5 px-5 text-sm font-semibold rounded-lg border-none cursor-pointer text-white',
-                'bg-df-blue',
-                'transition duration-150 ease-out',
-                'hover:enabled:brightness-110 hover:enabled:shadow-primary-glow',
-                'active:enabled:scale-[0.98]',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus-ring',
-                isExporting && 'animate-pulse'
-              )}
-              type="button"
-              onClick={handleExport}
-              disabled={isExporting}
-            >
-              {exportOutcome ? (
-                exportOutcome === 'copied' ? (
-                  '✓ Copied!'
-                ) : (
-                  '✓ Downloaded!'
-                )
-              ) : isExporting ? (
-                isClipboardFormat ? (
-                  'Copying…'
-                ) : (
-                  'Exporting…'
-                )
-              ) : (
-                <>
-                  <IconExport size={16} aria-hidden="true" />
-                  {isSnapshotFormat ? 'Download Snapshot' : isMarkdownFormat ? 'Copy Markdown' : 'Export'}
-                </>
-              )}
-            </button>
-          </div>
+          <ExportActions
+            isExporting={isExporting}
+            exportOutcome={exportOutcome}
+            isSnapshotFormat={isSnapshotFormat}
+            isMarkdownFormat={isMarkdownFormat}
+            isClipboardFormat={isClipboardFormat}
+            statusMessage={statusMessage}
+            statusMessageId={statusMessageId}
+            onCancel={onClose}
+            onExport={handleExport}
+          />
         </m.div>
       </m.div>
     </AnimatePresence>
