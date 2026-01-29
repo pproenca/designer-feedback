@@ -19,10 +19,6 @@ const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
 
 let lastCleanupAt = 0;
 
-function getBucketKey(urlKey: string): string {
-  return getAnnotationsBucketKey(urlKey);
-}
-
 function stripUrl(annotation: Annotation & { url?: string }): Annotation {
   // Avoid persisting page-origin identifiers in storage payloads.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -173,18 +169,18 @@ async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
 }
 
 async function loadAnnotationsForKey(urlKey: string): Promise<Annotation[]> {
-  const bucketKey = getBucketKey(urlKey);
+  const bucketKey = getAnnotationsBucketKey(urlKey);
   const result = await getLocal<Annotation[]>({ [bucketKey]: [] });
   return normalizeStoredAnnotations(result[bucketKey]);
 }
 
 async function saveAnnotationsForKey(urlKey: string, annotations: Annotation[]): Promise<void> {
-  const bucketKey = getBucketKey(urlKey);
+  const bucketKey = getAnnotationsBucketKey(urlKey);
   await setLocal({ [bucketKey]: annotations.map(stripUrl) });
 }
 
 async function clearAnnotationsForKey(urlKey: string): Promise<void> {
-  const bucketKey = getBucketKey(urlKey);
+  const bucketKey = getAnnotationsBucketKey(urlKey);
   await removeLocal(bucketKey);
 }
 

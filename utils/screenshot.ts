@@ -2,6 +2,8 @@
 // Screenshot Utilities
 // =============================================================================
 
+import { loadImage } from '@/utils/image';
+
 export type FullPageCaptureResult = {
   dataUrl: string;
   isPlaceholder: boolean;
@@ -319,18 +321,6 @@ async function stitchScreenshots(
   }
 
   return canvas.toDataURL('image/png');
-}
-
-/**
- * Load an image from a data URL
- */
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
 }
 
 function getDocumentSize(): { width: number; height: number } {

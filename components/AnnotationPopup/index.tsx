@@ -57,6 +57,27 @@ const getShakeVariants = (reduceMotion: boolean): Variants => ({
 });
 
 // =============================================================================
+// Shared Styles
+// =============================================================================
+
+const BUTTON_BASE = [
+  'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
+  'transition-interactive',
+  'focus-ring',
+].join(' ');
+
+const BUTTON_SECONDARY = classNames(
+  BUTTON_BASE,
+  'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
+  'dark:hover:bg-white/10 dark:hover:text-white/80'
+);
+
+const ELEMENT_LABEL = classNames(
+  'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
+  'text-muted'
+);
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -252,47 +273,23 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
-                  <span
-                    className={classNames(
-                      'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                      'text-muted'
-                    )}
-                  >
-                    {element}
-                  </span>
+                  <span className={ELEMENT_LABEL}>{element}</span>
                 </div>
 
                 {/* Comment */}
-                <div
-                  className={classNames(
-                    'text-sm leading-relaxed py-2 break-words',
-                    'text-black/85 dark:text-white/90'
-                  )}
-                >
+                <div className="text-sm leading-relaxed py-2 break-words text-black/85 dark:text-white/90">
                   {annotation.comment}
                 </div>
 
                 {/* Actions */}
                 <div className="flex justify-end gap-1.5 mt-2">
-                  <button
-                    className={classNames(
-                      'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
-                      'transition-interactive',
-                      'focus-ring',
-                      'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
-                      'dark:hover:bg-white/10 dark:hover:text-white/80'
-                    )}
-                    type="button"
-                    onClick={handleCancel}
-                  >
+                  <button className={BUTTON_SECONDARY} type="button" onClick={handleCancel}>
                     Close
                   </button>
                   <button
                     className={classNames(
-                      'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
-                      'bg-red-500 text-white',
-                      'transition-interactive',
-                      'hover:bg-red-600',
+                      BUTTON_BASE,
+                      'bg-red-500 text-white hover:bg-red-600',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500/50'
                     )}
                     type="button"
@@ -330,25 +327,12 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-2">
-                <span
-                  className={classNames(
-                    'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-                    'text-muted'
-                  )}
-                >
-                  {element}
-                </span>
+                <span className={ELEMENT_LABEL}>{element}</span>
               </div>
 
               {/* Selected text quote */}
               {selectedText && (
-                <div
-                  className={classNames(
-                    'text-xs italic mb-2 py-1.5 px-2 rounded leading-normal',
-                    'text-black/55 bg-black/5',
-                    'dark:text-white/70 dark:bg-white/5'
-                  )}
-                >
+                <div className="text-xs italic mb-2 py-1.5 px-2 rounded leading-normal text-black/55 bg-black/5 dark:text-white/70 dark:bg-white/5">
                   &ldquo;{selectedText.slice(0, 80)}
                   {selectedText.length > 80 ? '…' : ''}&rdquo;
                 </div>
@@ -359,18 +343,11 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 ref={textareaRef}
                 className={classNames(
                   'w-full py-2 px-2.5 text-sm font-sans rounded-lg resize-none outline-none',
-                  'border transition-colors duration-150 ease-out',
-                  'focus-ring',
-                  // Scrollbar styling
-                  '[&::-webkit-scrollbar]:w-1.5',
-                  '[&::-webkit-scrollbar-track]:bg-transparent',
-                  // Light mode (default)
-                  'bg-black/5 text-df-ink border-black/10',
-                  'placeholder:text-muted-strong',
+                  'border transition-colors duration-150 ease-out focus-ring',
+                  '[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent',
+                  'bg-black/5 text-df-ink border-black/10 placeholder:text-muted-strong',
                   '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
-                  // Dark mode
-                  'dark:bg-white/5 dark:text-white dark:border-white/10',
-                  'dark:placeholder:text-white/45',
+                  'dark:bg-white/5 dark:text-white dark:border-white/10 dark:placeholder:text-white/45',
                   'dark:[&::-webkit-scrollbar-thumb]:bg-white/20'
                 )}
                 style={{ borderColor: isTextareaFocused ? accentColor : undefined }}
@@ -386,26 +363,13 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
 
               {/* Actions */}
               <div className="flex justify-end gap-1.5 mt-2">
-                <button
-                  className={classNames(
-                    'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
-                    'transition-interactive',
-                    'focus-ring',
-                    'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
-                    'dark:hover:bg-white/10 dark:hover:text-white/80'
-                  )}
-                  type="button"
-                  onClick={handleCancel}
-                >
+                <button className={BUTTON_SECONDARY} type="button" onClick={handleCancel}>
                   Cancel
                 </button>
                 <button
                   className={classNames(
-                    'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer text-white',
-                    'transition duration-150 ease-out',
-                    'hover:enabled:brightness-90',
-                    'disabled:cursor-not-allowed',
-                    'focus-ring'
+                    BUTTON_BASE,
+                    'text-white hover:enabled:brightness-90 disabled:cursor-not-allowed'
                   )}
                   style={{
                     backgroundColor: accentColor,

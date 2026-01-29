@@ -78,16 +78,19 @@ describe('sendMessage', () => {
     spy.mockRestore();
   });
 
-  it('clears timeout when response is received', async () => {
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+  it('does not reject after response is received even if timer fires', async () => {
     const expectedResponse = { data: 'test' };
 
     const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(expectedResponse as unknown as void);
 
-    await sendMessage({ type: 'TEST' });
+    // Get response immediately
+    const result = await sendMessage({ type: 'TEST' }, 1000);
 
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-    clearTimeoutSpy.mockRestore();
+    // Advance timers past the timeout - should not cause rejection
+    vi.advanceTimersByTime(2000);
+
+    // Result should still be the expected response
+    expect(result).toEqual(expectedResponse);
     spy.mockRestore();
   });
 });

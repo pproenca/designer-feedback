@@ -5,6 +5,7 @@
 import type { Annotation } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { sendMessage } from '@/utils/messaging';
+import { loadImage } from '@/utils/image';
 import { captureFullPage } from './screenshot';
 import { emitUiEvent } from './ui-events';
 
@@ -518,11 +519,3 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
