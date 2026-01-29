@@ -10,11 +10,11 @@ import { emitUiEvent } from './ui-events';
 
 type DownloadResponse = { ok: boolean; error?: string };
 
-function canUseBackgroundDownload(): boolean {
-  return typeof browser !== 'undefined' && Boolean(browser?.runtime?.id);
-}
-
-async function requestBackgroundDownload(dataUrl: string, filename: string): Promise<void> {
+/**
+ * Download a data URL as a file via the background service worker.
+ * Uses the downloads API which provides better UX than anchor downloads.
+ */
+export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
   const response = await sendMessage<DownloadResponse>({
     type: 'DOWNLOAD_FILE',
     filename,
@@ -23,30 +23,6 @@ async function requestBackgroundDownload(dataUrl: string, filename: string): Pro
   if (!response?.ok) {
     throw new Error(response?.error ?? 'Download failed');
   }
-}
-
-function triggerAnchorDownload(url: string, filename: string): void {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.rel = 'noopener';
-  link.style.display = 'none';
-  (document.body ?? document.documentElement).appendChild(link);
-  link.click();
-  link.remove();
-}
-
-export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
-  if (canUseBackgroundDownload()) {
-    try {
-      await requestBackgroundDownload(dataUrl, filename);
-      return;
-    } catch (error) {
-      console.warn('Background download failed, falling back to anchor download.', error);
-    }
-  }
-
-  triggerAnchorDownload(dataUrl, filename);
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -86,11 +62,11 @@ function showExtensionUI(): void {
 }
 
 /**
- * Export full-page snapshot with markers + details sidebar to clipboard
+ * Export full-page snapshot with markers + details sidebar.
+ * Uses activeTab permission which is granted when user clicks the extension icon.
  */
 export async function exportAsSnapshotImage(
-  annotations: Annotation[],
-  options: { hasPermission?: boolean } = {}
+  annotations: Annotation[]
 ): Promise<{ captureMode: 'full' | 'viewport' | 'placeholder'; error?: string }> {
   // Hide UI before capture
   hideExtensionUI();
@@ -102,7 +78,7 @@ export async function exportAsSnapshotImage(
   let captureMode: 'full' | 'viewport' | 'placeholder' = 'full';
   let captureError: string | undefined;
   try {
-    const capture = await captureFullPage({ hasPermission: options.hasPermission });
+    const capture = await captureFullPage();
     screenshot = capture.dataUrl;
     captureMode = capture.mode;
     captureError = capture.error;

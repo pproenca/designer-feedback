@@ -2,17 +2,16 @@ import {
   useState,
   useRef,
   useEffect,
-  useLayoutEffect,
   useCallback,
   useMemo,
   forwardRef,
   useImperativeHandle,
-  type CSSProperties,
   type KeyboardEvent,
 } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation } from '@/types';
 import { classNames } from '@/utils/classNames';
+import { usePopupPosition } from './usePopupPosition';
 
 // =============================================================================
 // Framer Motion Variants
@@ -72,7 +71,12 @@ interface AnnotationPopupProps {
   onSubmit?: (text: string) => void;
   onDelete?: () => void;
   onCancel: () => void;
-  style?: CSSProperties;
+  /** Target x coordinate (center position) */
+  x: number;
+  /** Target y coordinate (top position) */
+  y: number;
+  /** Whether to use fixed positioning */
+  isFixed: boolean;
   accentColor?: string;
   isExiting?: boolean;
   lightMode?: boolean;
@@ -99,7 +103,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       onSubmit,
       onDelete,
       onCancel,
-      style,
+      x,
+      y,
+      isFixed,
       accentColor = 'var(--color-df-blue)',
       isExiting = false,
       // lightMode is handled by Tailwind dark: variant from parent wrapper
@@ -111,10 +117,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     const [commentText, setCommentText] = useState(initialValue);
     const [isShakeActive, setIsShakeActive] = useState(false);
     const [isTextareaFocused, setIsTextareaFocused] = useState(false);
-    const [positionOffset, setPositionOffset] = useState({ x: 0, y: 0 });
     const reduceMotion = useReducedMotion() ?? false;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const popupRef = useRef<HTMLDivElement>(null);
     const autoFocusTimerRef = useRef<number | null>(null);
     const shakeResetTimerRef = useRef<number | null>(null);
     const popupVariants = useMemo(
@@ -126,6 +130,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       [reduceMotion]
     );
     const shakeDurationMs = reduceMotion ? 200 : 250;
+
+    // Use the popup position hook for viewport clamping
+    const position = usePopupPosition({ x, y, isFixed });
 
     // Focus textarea on mount
     useEffect(() => {
@@ -199,87 +206,20 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       [handleSubmit, handleCancel]
     );
 
-    const updatePositionOffset = useCallback(() => {
-      const popup = popupRef.current;
-      if (!popup) return;
-
-      const rect = popup.getBoundingClientRect();
-      const padding = 8;
-      const maxX = window.innerWidth - padding;
-      const maxY = window.innerHeight - padding;
-
-      let offsetX = 0;
-      let offsetY = 0;
-
-      if (rect.left < padding) {
-        offsetX = padding - rect.left;
-      } else if (rect.right > maxX) {
-        offsetX = maxX - rect.right;
-      }
-
-      if (rect.top < padding) {
-        offsetY = padding - rect.top;
-      } else if (rect.bottom > maxY) {
-        offsetY = maxY - rect.bottom;
-      }
-
-      setPositionOffset((prev) =>
-        prev.x === offsetX && prev.y === offsetY ? prev : { x: offsetX, y: offsetY }
-      );
-    }, []);
-
-    useLayoutEffect(() => {
-      updatePositionOffset();
-    }, [
-      updatePositionOffset,
-      style?.left,
-      style?.top,
-      commentText,
-      annotation?.comment,
-      selectedText,
-      mode,
-    ]);
-
-    useEffect(() => {
-      window.addEventListener('resize', updatePositionOffset);
-      return () => window.removeEventListener('resize', updatePositionOffset);
-    }, [updatePositionOffset]);
-
-    const adjustedStyle = useMemo(() => {
-      if (!style) return style;
-
-      const hasLeft = style.left !== undefined && style.left !== null;
-      const hasTop = style.top !== undefined && style.top !== null;
-      const baseLeft = hasLeft
-        ? typeof style.left === 'number'
-          ? style.left
-          : parseFloat(String(style.left))
-        : NaN;
-      const baseTop = hasTop
-        ? typeof style.top === 'number'
-          ? style.top
-          : parseFloat(String(style.top))
-        : NaN;
-
-      const left =
-        hasLeft && Number.isFinite(baseLeft)
-          ? `${baseLeft + positionOffset.x}px`
-          : style.left;
-      const top = hasTop && Number.isFinite(baseTop)
-        ? `${baseTop + positionOffset.y}px`
-        : style.top;
-
-      return {
-        ...style,
-        left,
-        top,
-      };
-    }, [style, positionOffset]);
+    // Computed style from position hook
+    const popupStyle = useMemo(
+      () => ({
+        left: position.x,
+        top: position.y,
+        position: position.isFixed ? 'fixed' : 'absolute',
+      } as const),
+      [position.x, position.y, position.isFixed]
+    );
 
     // Base popup classes - uses CSS component class with dark: variants
     const popupClassName = classNames(
-      // Layout
-      'fixed w-75 -translate-x-1/2 z-panel',
+      // Layout (position comes from popupStyle)
+      'w-75 -translate-x-1/2 z-panel',
       // Padding & border radius
       'px-4 pt-3 pb-3.5 rounded-2xl',
       // Typography
@@ -295,10 +235,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         <AnimatePresence mode="wait">
           {!isExiting && (
             <m.div
-              ref={popupRef}
               className={popupClassName}
               data-annotation-popup
-              style={adjustedStyle}
+              style={popupStyle}
               role="dialog"
               aria-label="Annotation details"
               tabIndex={-1}
@@ -374,10 +313,9 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       <AnimatePresence mode="wait">
         {!isExiting && (
           <m.div
-            ref={popupRef}
             className={popupClassName}
             data-annotation-popup
-            style={adjustedStyle}
+            style={popupStyle}
             role="dialog"
             aria-label="Create annotation"
             tabIndex={-1}

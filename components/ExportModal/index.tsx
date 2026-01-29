@@ -9,7 +9,7 @@ import {
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
+import { isRestrictedPage } from '@/utils/screenshot';
 import { getCategoryConfig } from '@/shared/categories';
 import { IconClose, IconCopy, IconExport, IconImage } from '../Icons';
 import { classNames } from '@/utils/classNames';
@@ -87,8 +87,6 @@ type ExportState = {
   isExporting: boolean;
   exportOutcome: 'copied' | 'downloaded' | null;
   statusMessage: ExportStatus | null;
-  permissionDenied: boolean;
-  isRequestingPermission: boolean;
 };
 
 type ExportAction =
@@ -100,8 +98,6 @@ const initialExportModalState: ExportState = {
   isExporting: false,
   exportOutcome: null,
   statusMessage: null,
-  permissionDenied: false,
-  isRequestingPermission: false,
 };
 
 function exportModalReducer(state: ExportState, action: ExportAction): ExportState {
@@ -120,22 +116,9 @@ type ExportFormatOption = {
   label: string;
   description: string;
   icon: ReactNode;
+  disabled?: boolean;
+  disabledHint?: string;
 };
-
-const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
-  {
-    id: 'image-notes',
-    label: 'Markdown (Clipboard)',
-    description: 'Copies a concise markdown report to your clipboard.',
-    icon: <IconCopy size={18} />,
-  },
-  {
-    id: 'snapshot',
-    label: 'Snapshot (Download)',
-    description: 'Full-page image with highlights and details sidebar.',
-    icon: <IconImage size={18} />,
-  },
-];
 
 // =============================================================================
 // Component
@@ -144,36 +127,50 @@ const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
   const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
   const reduceMotion = useReducedMotion() ?? false;
-  const overlayVariants = useMemo(
-    () => getOverlayVariants(reduceMotion),
-    [reduceMotion]
-  );
-  const modalVariants = useMemo(
-    () => getModalVariants(reduceMotion),
-    [reduceMotion]
-  );
-  const statusMessageVariants = useMemo(
-    () => getStatusMessageVariants(reduceMotion),
-    [reduceMotion]
-  );
-  const {
-    isExporting,
-    exportOutcome,
-    statusMessage,
-    permissionDenied,
-    isRequestingPermission,
-    selectedFormat,
-  } = state;
+  const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
+  const modalVariants = useMemo(() => getModalVariants(reduceMotion), [reduceMotion]);
+  const statusMessageVariants = useMemo(() => getStatusMessageVariants(reduceMotion), [reduceMotion]);
+  const { isExporting, exportOutcome, statusMessage, selectedFormat } = state;
   const isMarkdownFormat = selectedFormat === 'image-notes';
   const isSnapshotFormat = selectedFormat === 'snapshot';
   const isClipboardFormat = isMarkdownFormat;
   const themeClassName = lightMode ? '' : 'dark';
+
+  // Check if we're on a restricted page where screenshots cannot be captured
+  const restricted = isRestrictedPage();
+
+  // Build format options with disabled state for restricted pages
+  const formatOptions: ExportFormatOption[] = [
+    {
+      id: 'image-notes',
+      label: 'Markdown (Clipboard)',
+      description: 'Copies a concise markdown report to your clipboard.',
+      icon: <IconCopy size={18} />,
+    },
+    {
+      id: 'snapshot',
+      label: 'Snapshot (Download)',
+      description: restricted
+        ? 'Not available on browser pages (chrome://, about:, etc.)'
+        : 'Full-page image with highlights and details sidebar.',
+      icon: <IconImage size={18} />,
+      disabled: restricted,
+      disabledHint: 'Not available on browser pages',
+    },
+  ];
 
   // Store timer ID for cleanup on unmount
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const formatOptionsRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // Auto-select markdown format on restricted pages
+  useEffect(() => {
+    if (restricted && selectedFormat === 'snapshot') {
+      dispatch({ type: 'updateState', payload: { selectedFormat: 'image-notes' } });
+    }
+  }, [restricted, selectedFormat]);
 
   // Cleanup timer on unmount to prevent memory leaks
   useEffect(() => {
@@ -184,35 +181,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
       }
     };
   }, []);
-
-  const getScreenshotOriginPattern = (): string | undefined => {
-    try {
-      const origin = window.location.origin;
-      if (!origin || origin === 'null') return undefined;
-      return `${origin}/*`;
-    } catch {
-      return undefined;
-    }
-  };
-
-  useEffect(() => {
-    dispatch({ type: 'resetStatus' });
-    if (selectedFormat !== 'snapshot') {
-      dispatch({ type: 'updateState', payload: { permissionDenied: false } });
-      return;
-    }
-
-    let isCancelled = false;
-    const origin = getScreenshotOriginPattern();
-    hasScreenshotPermission(origin).then((granted) => {
-      if (!isCancelled) {
-        dispatch({ type: 'updateState', payload: { permissionDenied: !granted } });
-      }
-    });
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedFormat]);
 
   useEffect(() => {
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -235,42 +203,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     return 'Export failed. Please try again.';
   };
 
-  const handlePermissionRequest = async () => {
-    if (isRequestingPermission) return;
-    dispatch({
-      type: 'updateState',
-      payload: { isRequestingPermission: true, statusMessage: null },
-    });
-
-    const origin = getScreenshotOriginPattern();
-    const granted = await requestScreenshotPermission(origin);
-    if (granted) {
-      dispatch({
-        type: 'updateState',
-        payload: {
-          isRequestingPermission: false,
-          permissionDenied: false,
-          statusMessage: {
-            type: 'success',
-            text: 'Permission granted. You can export the snapshot now.',
-          },
-        },
-      });
-    } else {
-      dispatch({
-        type: 'updateState',
-        payload: {
-          isRequestingPermission: false,
-          permissionDenied: true,
-          statusMessage: {
-            type: 'error',
-            text: 'Permission is required to capture screenshots. Please grant access to continue.',
-          },
-        },
-      });
-    }
-  };
-
   const handleExport = async () => {
     if (autoCloseTimerRef.current !== null) {
       clearTimeout(autoCloseTimerRef.current);
@@ -283,30 +215,13 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         exportOutcome: null,
         statusMessage: {
           type: 'info',
-          text:
-            selectedFormat === 'snapshot' ? 'Capturing full page…' : 'Preparing export…',
+          text: selectedFormat === 'snapshot' ? 'Capturing full page…' : 'Preparing export…',
         },
       },
     });
     try {
       if (selectedFormat === 'snapshot') {
-        const origin = getScreenshotOriginPattern();
-        const hasPermission = await requestScreenshotPermission(origin);
-        if (!hasPermission) {
-          dispatch({
-            type: 'updateState',
-            payload: {
-              permissionDenied: true,
-              statusMessage: {
-                type: 'error',
-                text: 'Screenshot permission is required. Click "Grant access" and try again.',
-              },
-            },
-          });
-          return;
-        }
-        dispatch({ type: 'updateState', payload: { permissionDenied: false } });
-        const result = await exportAsSnapshotImage(annotations, { hasPermission });
+        const result = await exportAsSnapshotImage(annotations);
         if (result.captureMode === 'full') {
           dispatch({
             type: 'updateState',
@@ -396,34 +311,31 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     if (!keys.includes(event.key)) return;
 
     event.preventDefault();
-    const buttons =
-      formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
+    const buttons = formatOptionsRef.current?.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
     if (!buttons || buttons.length === 0) return;
 
-    const currentIndex = EXPORT_FORMAT_OPTIONS.findIndex(
-      (option) => option.id === selectedFormat
-    );
+    const enabledOptions = formatOptions.filter((opt) => !opt.disabled);
+    const currentIndex = enabledOptions.findIndex((option) => option.id === selectedFormat);
     const delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
     const nextIndex =
-      currentIndex === -1
-        ? 0
-        : (currentIndex + delta + EXPORT_FORMAT_OPTIONS.length) %
-          EXPORT_FORMAT_OPTIONS.length;
-    const nextOption = EXPORT_FORMAT_OPTIONS[nextIndex];
+      currentIndex === -1 ? 0 : (currentIndex + delta + enabledOptions.length) % enabledOptions.length;
+    const nextOption = enabledOptions[nextIndex];
     dispatch({ type: 'updateState', payload: { selectedFormat: nextOption.id } });
-    buttons[nextIndex]?.focus();
+    // Find the button index in the full list
+    const fullIndex = formatOptions.findIndex((opt) => opt.id === nextOption.id);
+    buttons[fullIndex]?.focus();
   };
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
   return (
     <AnimatePresence>
-        <m.div
-          className={classNames(
-            'fixed inset-0 flex items-center justify-center z-modal',
-            'bg-white/90 dark:bg-black/80',
-            themeClassName
-          )}
+      <m.div
+        className={classNames(
+          'fixed inset-0 flex items-center justify-center z-modal',
+          'bg-white/90 dark:bg-black/80',
+          themeClassName
+        )}
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
@@ -464,10 +376,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             )}
           >
             <h2
-              className={classNames(
-                'text-base font-semibold m-0 tracking-normal',
-                'text-df-ink dark:text-white'
-              )}
+              className={classNames('text-base font-semibold m-0 tracking-normal', 'text-df-ink dark:text-white')}
             >
               Export Feedback
             </h2>
@@ -492,20 +401,8 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             {/* Summary */}
             <div className="mb-4 px-1 bg-transparent rounded-none border-none">
               <div className="flex items-center justify-between">
-                <span
-                  className={classNames(
-                    'text-sm tracking-wider',
-                    'text-muted-soft'
-                  )}
-                >
-                  Total annotations
-                </span>
-                <span
-                  className={classNames(
-                    'text-sm font-semibold p-0 bg-none border-none',
-                    'text-df-ink dark:text-white'
-                  )}
-                >
+                <span className={classNames('text-sm tracking-wider', 'text-muted-soft')}>Total annotations</span>
+                <span className={classNames('text-sm font-semibold p-0 bg-none border-none', 'text-df-ink dark:text-white')}>
                   {annotations.length}
                 </span>
               </div>
@@ -513,12 +410,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
             {/* Format Selection */}
             <div className="mb-3.5">
-              <h3
-                className={classNames(
-                  'text-xs font-medium mb-2.5 tracking-wider',
-                  'text-muted-strong'
-                )}
-              >
+              <h3 className={classNames('text-xs font-medium mb-2.5 tracking-wider', 'text-muted-strong')}>
                 Export Format
               </h3>
               <div
@@ -529,8 +421,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                 onKeyDown={handleFormatKeyDown}
                 tabIndex={-1}
               >
-                {EXPORT_FORMAT_OPTIONS.map((option) => {
+                {formatOptions.map((option) => {
                   const isSelected = selectedFormat === option.id;
+                  const isDisabled = option.disabled || isExporting;
                   return (
                     <button
                       key={option.id}
@@ -550,7 +443,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                       type="button"
                       role="radio"
                       aria-checked={isSelected}
-                      disabled={isExporting}
+                      disabled={isDisabled}
                       onClick={() =>
                         dispatch({
                           type: 'updateState',
@@ -573,20 +466,10 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                         {option.icon}
                       </span>
                       <div className="flex flex-col gap-0.5 flex-1">
-                        <span
-                          className={classNames(
-                            'text-sm font-medium',
-                            'text-df-ink dark:text-white'
-                          )}
-                        >
+                        <span className={classNames('text-sm font-medium', 'text-df-ink dark:text-white')}>
                           {option.label}
                         </span>
-                        <span
-                          className={classNames(
-                            'text-xs leading-snug',
-                            'text-muted-soft'
-                          )}
-                        >
+                        <span className={classNames('text-xs leading-snug', 'text-muted-soft')}>
                           {option.description}
                         </span>
                       </div>
@@ -596,64 +479,9 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               </div>
             </div>
 
-            {/* Permission callout for snapshot */}
-            {isSnapshotFormat && (
-              <div
-                className={classNames(
-                  'flex items-center justify-between gap-3 py-3 px-3 mb-3.5 rounded-xl border',
-                  !permissionDenied && 'bg-df-surface-muted border-black/8 dark:bg-df-dark-muted dark:border-white/8',
-                  permissionDenied && 'bg-red-600/10 border-red-600/40 dark:bg-red-500/10 dark:border-red-500/50'
-                )}
-              >
-                <div className="flex flex-col gap-0.5 flex-1">
-                  <span
-                    className={classNames(
-                      'text-sm font-semibold tracking-wide',
-                      'text-df-ink dark:text-white'
-                    )}
-                  >
-                    Screenshot access
-                  </span>
-                  <span
-                    className={classNames(
-                      'text-xs leading-snug',
-                      'text-muted-soft'
-                    )}
-                  >
-                    Needed to include the page in your snapshot. Long pages can take a few seconds.
-                  </span>
-                </div>
-                {permissionDenied && (
-                  <button
-                    className={classNames(
-                      'py-2 px-3 rounded-full border text-xs font-semibold cursor-pointer',
-                      'transition-interactive',
-                      'hover:enabled:-translate-y-px active:enabled:scale-95',
-                      'disabled:opacity-60 disabled:cursor-not-allowed',
-                      'focus-ring',
-                      'bg-blue-600/10 border-blue-600/40 text-blue-800 hover:enabled:bg-blue-600/20',
-                      'dark:bg-df-blue/20 dark:border-df-blue/40 dark:text-df-blue-soft dark:hover:enabled:bg-df-blue/30'
-                    )}
-                    type="button"
-                    onClick={handlePermissionRequest}
-                    disabled={isRequestingPermission}
-                  >
-                    {isRequestingPermission ? 'Requesting…' : 'Grant access'}
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* Preview */}
             <div className="mt-2 mb-3.5 p-0 bg-transparent rounded-none border-none">
-              <h3
-                className={classNames(
-                  'text-xs font-medium mb-2 tracking-wider',
-                  'text-muted-strong'
-                )}
-              >
-                Preview
-              </h3>
+              <h3 className={classNames('text-xs font-medium mb-2 tracking-wider', 'text-muted-strong')}>Preview</h3>
               <div className="flex flex-col gap-1.5">
                 {annotations.slice(0, 5).map((annotation, index) => {
                   const config = getCategoryConfig(annotation.category);
@@ -694,12 +522,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   );
                 })}
                 {annotations.length > 5 && (
-                  <div
-                    className={classNames(
-                      'text-xs italic pt-1',
-                      'text-black/35 dark:text-white/45'
-                    )}
-                  >
+                  <div className={classNames('text-xs italic pt-1', 'text-black/35 dark:text-white/45')}>
                     +{annotations.length - 5} more annotations
                   </div>
                 )}
@@ -717,9 +540,11 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   id={statusMessageId}
                   className={classNames(
                     'text-sm py-2 px-3 rounded-lg mt-2',
-                    statusMessage.type === 'success' && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                    statusMessage.type === 'success' &&
+                      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
                     statusMessage.type === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                    statusMessage.type === 'warning' && 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                    statusMessage.type === 'warning' &&
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
                     statusMessage.type === 'info' && 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                   )}
                   role={statusMessage.type === 'error' ? 'alert' : 'status'}
@@ -768,9 +593,17 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               disabled={isExporting}
             >
               {exportOutcome ? (
-                exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!'
+                exportOutcome === 'copied' ? (
+                  '✓ Copied!'
+                ) : (
+                  '✓ Downloaded!'
+                )
               ) : isExporting ? (
-                isClipboardFormat ? 'Copying…' : 'Exporting…'
+                isClipboardFormat ? (
+                  'Copying…'
+                ) : (
+                  'Exporting…'
+                )
               ) : (
                 <>
                   <IconExport size={16} />

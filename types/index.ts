@@ -44,10 +44,6 @@ export type ExportFormat = 'image-notes' | 'snapshot';
 export type MessageType =
   | { type: 'CAPTURE_SCREENSHOT' }
   | { type: 'SCREENSHOT_CAPTURED'; data: string; error?: string }
-  | { type: 'CHECK_SCREENSHOT_PERMISSION'; origin?: string }
-  | { type: 'SCREENSHOT_PERMISSION_STATUS'; granted: boolean; error?: string }
-  | { type: 'REQUEST_SCREENSHOT_PERMISSION'; origin?: string }
-  | { type: 'SCREENSHOT_PERMISSION_RESPONSE'; granted: boolean; error?: string }
   | { type: 'DOWNLOAD_FILE'; filename: string; dataUrl: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SETTINGS_RESPONSE'; settings: Settings; error?: string }

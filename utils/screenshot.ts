@@ -2,8 +2,6 @@
 // Screenshot Utilities
 // =============================================================================
 
-import { hasScreenshotPermission } from './permissions';
-
 export type FullPageCaptureResult = {
   dataUrl: string;
   isPlaceholder: boolean;
@@ -12,10 +10,24 @@ export type FullPageCaptureResult = {
 };
 
 /**
+ * Check if the current page is a restricted page where screenshots cannot be captured
+ * (chrome://, edge://, about:, etc.)
+ */
+export function isRestrictedPage(): boolean {
+  try {
+    const protocol = window.location.protocol;
+    // Only http and https pages can be captured
+    return protocol !== 'http:' && protocol !== 'https:';
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Capture the visible tab screenshot via the background service worker
  */
 export async function captureScreenshot(): Promise<string> {
-  const response = await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' }) as {
+  const response = (await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' })) as {
     data?: string;
     error?: string;
   };
@@ -30,25 +42,10 @@ export async function captureScreenshot(): Promise<string> {
 }
 
 /**
- * Capture full page by scrolling through the document and stitching screenshots
+ * Capture full page by scrolling through the document and stitching screenshots.
+ * Uses activeTab permission which is granted when user clicks the extension icon.
  */
-export async function captureFullPage(
-  options: { hasPermission?: boolean } = {}
-): Promise<FullPageCaptureResult> {
-  const hasPermission = options.hasPermission ?? (await hasScreenshotPermission());
-
-  if (!hasPermission) {
-    return {
-      dataUrl: createPlaceholderScreenshot(
-        'Grant permission to capture screenshots',
-        'Click Export again after granting permission.'
-      ),
-      isPlaceholder: true,
-      mode: 'placeholder',
-      error: 'permission-required',
-    };
-  }
-
+export async function captureFullPage(): Promise<FullPageCaptureResult> {
   try {
     return { dataUrl: await captureFullPageFromExtension(), isPlaceholder: false, mode: 'full' };
   } catch (error) {
@@ -121,10 +118,7 @@ async function captureFullPageFromExtension(): Promise<string> {
   const originalScrollY = window.scrollY;
 
   // Get document dimensions
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight
-  );
+  const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   const dpr = window.devicePixelRatio || 1;
@@ -172,14 +166,7 @@ async function captureFullPageFromExtension(): Promise<string> {
   }
 
   // Stitch screenshots on canvas
-  return stitchScreenshots(
-    screenshots,
-    viewportWidth,
-    viewportHeight,
-    docHeight,
-    dpr,
-    scrollPositions
-  );
+  return stitchScreenshots(screenshots, viewportWidth, viewportHeight, docHeight, dpr, scrollPositions);
 }
 
 const MAX_CANVAS_DIMENSION = 16384;
@@ -232,25 +219,14 @@ function collectStickyElements(edge: StickyEdge): Set<HTMLElement> {
   const root = document.getElementById('designer-feedback-root');
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const y = edge === 'top'
-    ? EDGE_OFFSET_PX
-    : Math.max(EDGE_OFFSET_PX, viewportHeight - EDGE_OFFSET_PX);
+  const y = edge === 'top' ? EDGE_OFFSET_PX : Math.max(EDGE_OFFSET_PX, viewportHeight - EDGE_OFFSET_PX);
   const elements = new Set<HTMLElement>();
 
   EDGE_SAMPLE_POINTS.forEach((ratio) => {
-    const x = Math.min(
-      viewportWidth - EDGE_OFFSET_PX,
-      Math.max(EDGE_OFFSET_PX, Math.round(viewportWidth * ratio))
-    );
+    const x = Math.min(viewportWidth - EDGE_OFFSET_PX, Math.max(EDGE_OFFSET_PX, Math.round(viewportWidth * ratio)));
     const stack = document.elementsFromPoint(x, y) as HTMLElement[];
     stack.forEach((candidate) => {
-      const sticky = findStickyAncestor(
-        candidate,
-        edge,
-        viewportWidth,
-        viewportHeight,
-        root
-      );
+      const sticky = findStickyAncestor(candidate, edge, viewportWidth, viewportHeight, root);
       if (sticky) {
         elements.add(sticky);
       }
@@ -308,10 +284,7 @@ async function stitchScreenshots(
   const rawWidth = Math.max(1, viewportWidth * dpr);
   const rawHeight = Math.max(1, totalHeight * dpr);
   const areaScale = Math.sqrt(MAX_CANVAS_AREA / (rawWidth * rawHeight));
-  const dimensionScale = Math.min(
-    MAX_CANVAS_DIMENSION / rawWidth,
-    MAX_CANVAS_DIMENSION / rawHeight
-  );
+  const dimensionScale = Math.min(MAX_CANVAS_DIMENSION / rawWidth, MAX_CANVAS_DIMENSION / rawHeight);
   const scale = Math.min(1, areaScale, dimensionScale);
 
   const canvas = document.createElement('canvas');
@@ -334,17 +307,7 @@ async function stitchScreenshots(
 
     if (sourceHeight <= 0) continue;
 
-    ctx.drawImage(
-      img,
-      0,
-      0,
-      img.width,
-      sourceHeight,
-      0,
-      destY,
-      destWidth,
-      destHeight
-    );
+    ctx.drawImage(img, 0, 0, img.width, sourceHeight, 0, destY, destWidth, destHeight);
   }
 
   return canvas.toDataURL('image/png');

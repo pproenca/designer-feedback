@@ -72,11 +72,9 @@ describe('truncateText utility', () => {
 
 describe('export utilities', () => {
   const originalClipboard = navigator.clipboard;
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
   beforeEach(() => {
     vi.useFakeTimers();
-    clickSpy.mockClear();
     resetMockStorage();
   });
 
@@ -84,35 +82,24 @@ describe('export utilities', () => {
     vi.useRealTimers();
   });
 
-  it('falls back to anchor download when background download is unavailable', async () => {
-    // Simulate no extension context by having sendMessage reject
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockRejectedValue(new Error('No extension context'));
-
-    await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
-
-    expect(clickSpy).toHaveBeenCalled();
-    spy.mockRestore();
-  });
-
-  it('falls back to anchor download when background download fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: false, error: 'nope' } as unknown as void);
-
-    await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
-
-    expect(browser.runtime.sendMessage).toHaveBeenCalled();
-    expect(clickSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
-    spy.mockRestore();
-  });
-
-  it('uses background download when available and successful', async () => {
+  it('downloads file via background service worker', async () => {
     const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: true } as unknown as void);
 
     await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
 
-    expect(browser.runtime.sendMessage).toHaveBeenCalled();
-    expect(clickSpy).not.toHaveBeenCalled();
+    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'DOWNLOAD_FILE',
+      filename: 'test.txt',
+      dataUrl: 'data:text/plain;base64,SGVsbG8=',
+    });
+    spy.mockRestore();
+  });
+
+  it('throws error when background download fails', async () => {
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: false, error: 'nope' } as unknown as void);
+
+    await expect(downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt')).rejects.toThrow('nope');
+
     spy.mockRestore();
   });
 

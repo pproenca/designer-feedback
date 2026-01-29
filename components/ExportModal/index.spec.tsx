@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { ExportModal } from './index';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
+import { isRestrictedPage } from '@/utils/screenshot';
 import type { Annotation } from '@/types';
 
 // Verify ExportModal is a named export (supports lazy loading with transform)
@@ -28,18 +28,15 @@ vi.mock('@/utils/export', () => ({
   exportAsSnapshotImage: vi.fn().mockResolvedValue({ captureMode: 'full' }),
 }));
 
-vi.mock('@/utils/permissions', () => ({
-  hasScreenshotPermission: vi.fn().mockResolvedValue(true),
-  requestScreenshotPermission: vi.fn().mockResolvedValue(true),
+vi.mock('@/utils/screenshot', () => ({
+  isRestrictedPage: vi.fn().mockReturnValue(false),
 }));
 
 // Mock Framer Motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
   m: {
     div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => (
-      <span {...props}>{children}</span>
-    ),
+    span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => <span {...props}>{children}</span>,
   },
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   useReducedMotion: () => false,
@@ -63,16 +60,14 @@ const mockAnnotations: Annotation[] = [
 describe('ExportModal', () => {
   const mockedExportAsImageWithNotes = vi.mocked(exportAsImageWithNotes);
   const mockedExportAsSnapshotImage = vi.mocked(exportAsSnapshotImage);
-  const mockedHasScreenshotPermission = vi.mocked(hasScreenshotPermission);
-  const mockedRequestScreenshotPermission = vi.mocked(requestScreenshotPermission);
+  const mockedIsRestrictedPage = vi.mocked(isRestrictedPage);
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'full' });
-    mockedHasScreenshotPermission.mockResolvedValue(true);
-    mockedRequestScreenshotPermission.mockResolvedValue(true);
+    mockedIsRestrictedPage.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -84,9 +79,7 @@ describe('ExportModal', () => {
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const onClose = vi.fn();
 
-    const { unmount } = render(
-      <ExportModal annotations={mockAnnotations} onClose={onClose} />
-    );
+    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
@@ -108,9 +101,7 @@ describe('ExportModal', () => {
   it('does not call onClose after component unmounts', async () => {
     const onClose = vi.fn();
 
-    const { unmount } = render(
-      <ExportModal annotations={mockAnnotations} onClose={onClose} />
-    );
+    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
@@ -167,10 +158,7 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(mockedRequestScreenshotPermission).toHaveBeenCalled();
-    expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations, {
-      hasPermission: true,
-    });
+    expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations);
     expect(screen.getByText(/snapshot downloaded\./i)).toBeInTheDocument();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -204,9 +192,7 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(
-      screen.getByText(/only the visible area was captured/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/only the visible area was captured/i)).toBeInTheDocument();
     vi.advanceTimersByTime(2000);
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -232,8 +218,8 @@ describe('ExportModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows permission callout when permission is denied', async () => {
-    mockedHasScreenshotPermission.mockResolvedValue(false);
+  it('disables snapshot option on restricted pages', async () => {
+    mockedIsRestrictedPage.mockReturnValue(true);
 
     render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
 
@@ -241,12 +227,16 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByRole('button', { name: /grant access/i })).toBeInTheDocument();
+    // Snapshot option should be disabled
+    const snapshotButton = screen.getByRole('radio', { name: /snapshot/i });
+    expect(snapshotButton).toBeDisabled();
+
+    // Should show "not available" message
+    expect(screen.getByText(/not available on browser pages/i)).toBeInTheDocument();
   });
 
-  it('handles permission request success', async () => {
-    mockedHasScreenshotPermission.mockResolvedValue(false);
-    mockedRequestScreenshotPermission.mockResolvedValue(true);
+  it('auto-selects markdown format on restricted pages', async () => {
+    mockedIsRestrictedPage.mockReturnValue(true);
 
     render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
 
@@ -254,18 +244,13 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    const grantButton = screen.getByRole('button', { name: /grant access/i });
-    await act(async () => {
-      fireEvent.click(grantButton);
-      await vi.runAllTimersAsync();
-    });
-
-    expect(mockedRequestScreenshotPermission).toHaveBeenCalled();
-    expect(screen.getByText(/permission granted/i)).toBeInTheDocument();
+    // Markdown option should be selected
+    const markdownButton = screen.getByRole('radio', { name: /markdown/i });
+    expect(markdownButton).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('shows error when permission is denied on export', async () => {
-    mockedRequestScreenshotPermission.mockResolvedValue(false);
+  it('shows error when export fails', async () => {
+    mockedExportAsSnapshotImage.mockRejectedValue(new Error('Network error'));
     const onClose = vi.fn();
 
     render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
@@ -276,8 +261,7 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(mockedExportAsSnapshotImage).not.toHaveBeenCalled();
-    expect(screen.getByText(/screenshot permission is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/network error/i)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 });

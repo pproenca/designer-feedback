@@ -378,46 +378,6 @@ export default defineBackground(() => {
       }));
     }
 
-    // Handle screenshot permission status
-    if (msg.type === 'CHECK_SCREENSHOT_PERMISSION') {
-      if (!browser.permissions) {
-        return Promise.resolve({
-          type: 'SCREENSHOT_PERMISSION_STATUS',
-          granted: false,
-          error: 'Permissions API unavailable',
-        });
-      }
-      const origin = msg.origin && msg.origin.trim().length > 0 ? msg.origin : '<all_urls>';
-      return browser.permissions.contains({ origins: [origin] }).then((granted) => ({
-        type: 'SCREENSHOT_PERMISSION_STATUS',
-        granted: Boolean(granted),
-      })).catch((error) => ({
-        type: 'SCREENSHOT_PERMISSION_STATUS',
-        granted: false,
-        error: String(error),
-      }));
-    }
-
-    // Handle screenshot permission request
-    if (msg.type === 'REQUEST_SCREENSHOT_PERMISSION') {
-      if (!browser.permissions) {
-        return Promise.resolve({
-          type: 'SCREENSHOT_PERMISSION_RESPONSE',
-          granted: false,
-          error: 'Permissions API unavailable',
-        });
-      }
-      const origin = msg.origin && msg.origin.trim().length > 0 ? msg.origin : '<all_urls>';
-      return browser.permissions.request({ origins: [origin] }).then((granted) => ({
-        type: 'SCREENSHOT_PERMISSION_RESPONSE',
-        granted: Boolean(granted),
-      })).catch((error) => ({
-        type: 'SCREENSHOT_PERMISSION_RESPONSE',
-        granted: false,
-        error: String(error),
-      }));
-    }
-
     // Handle file download
     if (msg.type === 'DOWNLOAD_FILE') {
       return downloadFile(msg.dataUrl, msg.filename);
