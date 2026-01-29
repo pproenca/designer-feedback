@@ -182,7 +182,7 @@
   /* Category panel - dropdown for selecting annotation type */
   .category-panel {
     @apply absolute top-full mt-3 left-1/2 -translate-x-1/2;
-    @apply rounded-2xl p-3 flex flex-col gap-1 min-w-35;
+    @apply rounded-3xl p-3.5 flex flex-col gap-1 min-w-38;
     z-index: var(--z-panel);
     /* Light mode (default) */
     @apply bg-white shadow-panel-light;
@@ -196,7 +196,7 @@
 
   /* Category panel item */
   .category-panel-item {
-    @apply flex items-center gap-2.5 py-2.5 px-3.5;
+    @apply flex items-center gap-3 py-2.5 px-3;
     @apply border-none bg-transparent text-sm font-medium rounded-xl;
     @apply cursor-pointer whitespace-nowrap;
     @apply transition-colors duration-150;
@@ -204,9 +204,22 @@
     @apply text-black/70 hover:bg-black/6 hover:text-black/90;
     /* Dark mode */
     @apply dark:text-white/85 dark:hover:bg-white/10 dark:hover:text-white;
-    /* Icon color on hover */
-    @apply [&:hover_svg]:text-[var(--category-color)];
-    @apply [&_svg]:transition-colors [&_svg]:duration-150;
+    /* Icon wrapper styling */
+    @apply [&_svg]:transition-all [&_svg]:duration-150;
+  }
+
+  /* Icon wrapper with background circle */
+  .category-panel-item svg {
+    @apply p-1.5 rounded-lg;
+    @apply bg-black/5 dark:bg-white/8;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* On hover, apply category color to icon */
+  .category-panel-item:hover svg {
+    color: var(--category-color);
+    background-color: color-mix(in srgb, var(--category-color) 12%, transparent);
   }
 
   .category-panel-item[data-category='bug'] {

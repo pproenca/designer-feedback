@@ -61,15 +61,16 @@ const getShakeVariants = (reduceMotion: boolean): Variants => ({
 // =============================================================================
 
 const BUTTON_BASE = [
-  'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer',
+  'px-4 py-2 text-xs font-medium rounded-lg border-none cursor-pointer',
   'transition-interactive',
   'focus-ring',
+  'active:scale-[0.98]',
 ].join(' ');
 
 const BUTTON_SECONDARY = classNames(
   BUTTON_BASE,
-  'bg-transparent text-muted-soft hover:bg-black/5 hover:text-black/75',
-  'dark:hover:bg-white/10 dark:hover:text-white/80'
+  'bg-black/5 text-black/60 hover:bg-black/8 hover:text-black/75',
+  'dark:bg-white/8 dark:text-white/70 dark:hover:bg-white/12 dark:hover:text-white/85'
 );
 
 const ELEMENT_LABEL = classNames(
@@ -282,14 +283,15 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-1.5 mt-2">
+                <div className="flex justify-end gap-2 mt-3">
                   <button className={BUTTON_SECONDARY} type="button" onClick={handleCancel}>
                     Close
                   </button>
                   <button
                     className={classNames(
                       BUTTON_BASE,
-                      'bg-red-500 text-white hover:bg-red-600',
+                      'font-semibold bg-red-500 text-white',
+                      'hover:bg-red-600 hover:shadow-[0_2px_8px_rgba(239,68,68,0.25)]',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500/50'
                     )}
                     type="button"
@@ -343,14 +345,17 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 ref={textareaRef}
                 className={classNames(
                   'w-full py-2 px-2.5 text-sm font-sans rounded-lg resize-none outline-none',
-                  'border transition-colors duration-150 ease-out focus-ring',
+                  'border transition-all duration-200 ease-out',
                   '[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent',
                   'bg-black/5 text-df-ink border-black/10 placeholder:text-muted-strong',
                   '[&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-sm',
                   'dark:bg-white/5 dark:text-white dark:border-white/10 dark:placeholder:text-white/45',
                   'dark:[&::-webkit-scrollbar-thumb]:bg-white/20'
                 )}
-                style={{ borderColor: isTextareaFocused ? accentColor : undefined }}
+                style={{
+                  borderColor: isTextareaFocused ? accentColor : undefined,
+                  boxShadow: isTextareaFocused ? `0 0 0 3px color-mix(in srgb, ${accentColor} 15%, transparent)` : undefined,
+                }}
                 placeholder={placeholder}
                 aria-label="Annotation comment"
                 value={commentText}
@@ -362,19 +367,18 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
               />
 
               {/* Actions */}
-              <div className="flex justify-end gap-1.5 mt-2">
+              <div className="flex justify-end gap-2 mt-3">
                 <button className={BUTTON_SECONDARY} type="button" onClick={handleCancel}>
                   Cancel
                 </button>
                 <button
                   className={classNames(
                     BUTTON_BASE,
-                    'text-white hover:enabled:brightness-90 disabled:cursor-not-allowed'
+                    'font-semibold text-white',
+                    'hover:enabled:brightness-110 hover:enabled:shadow-[0_2px_8px_rgba(0,0,0,0.15)]',
+                    'disabled:cursor-not-allowed disabled:opacity-50'
                   )}
-                  style={{
-                    backgroundColor: accentColor,
-                    opacity: commentText.trim() ? 1 : 0.4,
-                  }}
+                  style={{ backgroundColor: accentColor }}
                   type="button"
                   onClick={handleSubmit}
                   disabled={!commentText.trim()}

@@ -71,7 +71,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
             data-category="bug"
             aria-label="Bug"
           >
-            <IconBug size={20} />
+            <IconBug size={20} aria-hidden="true" />
             <span>Bug</span>
           </button>
           <button
@@ -81,7 +81,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
             data-category="question"
             aria-label="Question"
           >
-            <IconQuestion size={20} />
+            <IconQuestion size={20} aria-hidden="true" />
             <span>Question</span>
           </button>
           <button
@@ -91,7 +91,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
             data-category="suggestion"
             aria-label="Suggestion"
           >
-            <IconLightbulb size={20} />
+            <IconLightbulb size={20} aria-hidden="true" />
             <span>Suggestion</span>
           </button>
           <button
@@ -101,7 +101,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
             data-category="accessibility"
             aria-label="Accessibility"
           >
-            <IconAccessibility size={20} />
+            <IconAccessibility size={20} aria-hidden="true" />
             <span>Accessibility</span>
           </button>
         </m.div>
