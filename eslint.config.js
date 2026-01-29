@@ -34,6 +34,7 @@ export default [
       'test-results/**',
       '.wxt/**',
       '.output/**',
+      '.agents/**',
     ],
   },
   js.configs.recommended,
