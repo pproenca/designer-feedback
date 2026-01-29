@@ -269,6 +269,7 @@ export function FeedbackToolbar({
   const hoverElementPathRef = useRef<string | null>(null);
   const hoverElementLabelRef = useRef<string | null>(null);
   const hoverInfoRef = useRef<HoverInfo | null>(null);
+  const hoverTargetRef = useRef<HTMLElement | null>(null);
 
   const {
     isExpanded,
@@ -473,8 +474,11 @@ export function FeedbackToolbar({
     };
 
     const handleAddModeHover = (e: MouseEvent) => {
-      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
-      if (!target) return;
+      const target = e.target as HTMLElement;
+
+      // Skip if hovering same element (prevents flashing on child boundaries)
+      if (target === hoverTargetRef.current) return;
+      hoverTargetRef.current = target;
 
       if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
         if (hoverInfoRef.current) {
@@ -516,13 +520,14 @@ export function FeedbackToolbar({
 
     const handleAddModeHoverThrottled = throttle(handleAddModeHover, HOVER_THROTTLE_MS);
 
-    document.addEventListener('mousemove', handleAddModeHoverThrottled);
+    document.addEventListener('mouseover', handleAddModeHoverThrottled);
     document.addEventListener('click', handleAddModeClick, true);
 
     return () => {
-      document.removeEventListener('mousemove', handleAddModeHoverThrottled);
+      document.removeEventListener('mouseover', handleAddModeHoverThrottled);
       document.removeEventListener('click', handleAddModeClick, true);
       handleAddModeHoverThrottled.cancel();
+      hoverTargetRef.current = null;
     };
     // Motion values are stable refs (from useMotionValue) that never change identity.
     // They're only mutated via .set() inside the callback, so adding them to deps
