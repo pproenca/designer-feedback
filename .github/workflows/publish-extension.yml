@@ -94,11 +94,14 @@ jobs:
 
       - name: Normalize package name
         run: |
-          if [ ! -f dist/designer-feedback.zip ]; then
-            echo "Error: dist/designer-feedback.zip not found."
+          ZIP_FILE=$(find .output -name "*.zip" -type f | head -1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Error: No zip file found in .output/"
+            ls -la .output/
             exit 1
           fi
-          mv dist/designer-feedback.zip "${{ env.EXTENSION_ZIP }}"
+          echo "Found zip: $ZIP_FILE"
+          mv "$ZIP_FILE" "${{ env.EXTENSION_ZIP }}"
 
       - uses: actions/upload-artifact@v4
         with:
