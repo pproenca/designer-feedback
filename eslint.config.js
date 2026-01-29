@@ -20,9 +20,21 @@ const vitestGlobals = {
   vi: 'readonly',
 };
 
+// WXT globals - browser API polyfill
+const wxtGlobals = {
+  browser: 'readonly',
+  chrome: 'readonly',
+};
+
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'test-results/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'test-results/**',
+      '.wxt/**',
+      '.output/**',
+    ],
   },
   js.configs.recommended,
   {
@@ -39,7 +51,7 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.es2021,
-        chrome: 'readonly',
+        ...wxtGlobals,
       },
     },
     plugins: {
@@ -68,6 +80,7 @@ export default [
         ...globals.node,
         ...globals.es2021,
         ...vitestGlobals,
+        ...wxtGlobals,
       },
     },
     rules: {
@@ -75,13 +88,14 @@ export default [
     },
   },
   {
-    files: ['src/test/**/*.ts'],
+    files: ['test/**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.node,
         ...globals.es2021,
         ...vitestGlobals,
+        ...wxtGlobals,
       },
     },
   },
@@ -97,7 +111,8 @@ export default [
       'tests/**/*.ts',
       'scripts/**/*.{js,ts,mjs,cjs}',
       '*.{config,conf}.{js,ts,mjs,cjs}',
-      'vite.config.ts',
+      'vitest.config.ts',
+      'wxt.config.ts',
       'playwright.config.ts',
     ],
     languageOptions: {

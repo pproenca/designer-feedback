@@ -1,72 +1,5 @@
-import type { Page, BrowserContext } from '@playwright/test';
 import { test, expect } from './fixtures';
-
-/**
- * Wait for the toolbar to be visible on the page.
- * The content script auto-mounts the toolbar when enabled.
- * The toolbar is rendered inside a shadow DOM, so we check for
- * the toolbar element using shadow DOM piercing.
- */
-async function waitForToolbar(page: Page) {
-  // Wait for the shadow host to be attached
-  await expect(page.locator('#designer-feedback-root')).toBeAttached({ timeout: 10000 });
-  // Wait for the actual toolbar inside the shadow DOM to be visible
-  await expect(page.locator('#designer-feedback-root [data-toolbar]')).toBeVisible({ timeout: 10000 });
-}
-
-async function activateToolbar(page: Page, context: BrowserContext, extensionId: string) {
-  const targetUrl = page.url();
-  const activationPage = await context.newPage();
-  await activationPage.goto(
-    `chrome-extension://${extensionId}/test-activate.html?target=${encodeURIComponent(targetUrl)}`
-  );
-  await activationPage.waitForLoadState('domcontentloaded');
-  try {
-    await activationPage.waitForFunction(() => {
-      const status = window['__dfActivateStatus'];
-      return status === 'done' || (typeof status === 'string' && status.startsWith('error:'));
-    }, { timeout: 2000 });
-  } catch {
-    const diagnostics = await activationPage.evaluate(() => ({
-      status: window['__dfActivateStatus'],
-      debug: window['__dfActivateDebug'],
-      hasChrome: Boolean(window.chrome),
-      hasScripting: Boolean(window.chrome?.scripting),
-      url: window.location.href,
-    }));
-    throw new Error(`Activation timed out: ${JSON.stringify(diagnostics)}`);
-  }
-  const status = await activationPage.evaluate(() => window['__dfActivateStatus']);
-  if (status !== 'done') {
-    const diagnostics = await activationPage.evaluate(() => ({
-      status: window['__dfActivateStatus'],
-      debug: window['__dfActivateDebug'],
-    }));
-    throw new Error(`Activation failed: ${JSON.stringify(diagnostics)}`);
-  }
-  await activationPage.close();
-  await page.bringToFront();
-  await page.waitForFunction(() => window.__designerFeedbackInjected === true, {
-    timeout: 2000,
-  });
-}
-
-async function createAnnotation(
-  page: Page,
-  comment: string,
-  category: 'Bug' | 'Question' | 'Suggestion'
-) {
-  await page.getByRole('button', { name: 'Add annotation', exact: true }).click();
-  await page.getByRole('button', { name: category, exact: true }).click();
-  await expect(page.locator('body')).toHaveClass(/designer-feedback-add-mode/);
-  await page.getByRole('heading', { name: 'Example Domain' }).click();
-
-  const popup = page.locator('[data-annotation-popup]');
-  await expect(popup).toBeVisible();
-  await popup.getByPlaceholder('What should change?').fill(comment);
-  await popup.getByRole('button', { name: 'Add' }).click();
-  await expect(page.locator('[data-annotation-marker]')).toHaveCount(1);
-}
+import './types';
 
 test.describe('Extension Basic Tests', () => {
   test('service worker loads successfully', async ({ context, extensionId }) => {
@@ -75,25 +8,24 @@ test.describe('Extension Basic Tests', () => {
     expect(serviceWorkers.some((sw) => sw.url().includes(extensionId))).toBe(true);
   });
 
-  test('toolbar activates on action click', async ({ page, context, extensionId }) => {
+  test('toolbar activates on action click', async ({ page, helpers }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    await activateToolbar(page, context, extensionId);
-    await waitForToolbar(page);
+    await helpers.activateToolbar();
+    await helpers.waitForToolbar();
     await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
   });
 });
 
 test.describe('Feedback Toolbar flows', () => {
-  test.beforeEach(async ({ page, context, extensionId }) => {
+  test.beforeEach(async ({ page, helpers }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    await activateToolbar(page, context, extensionId);
-    await waitForToolbar(page);
-    // Note: Each test runs in a fresh browser context, so storage is already clean
+    await helpers.activateToolbar();
+    await helpers.waitForToolbar();
   });
 
-  test('happy path: create annotation and open export modal', async ({ page }) => {
+  test('happy path: create annotation and open export modal', async ({ page, helpers }) => {
     const comment = 'Tighten spacing above the headline.';
-    await createAnnotation(page, comment, 'Bug');
+    await helpers.createAnnotation(comment, 'Bug');
 
     const exportButton = page.getByRole('button', { name: 'Export feedback', exact: true });
     await expect(exportButton).toBeEnabled();
@@ -104,9 +36,9 @@ test.describe('Feedback Toolbar flows', () => {
     await page.getByRole('dialog', { name: 'Export feedback' }).getByLabel('Close export dialog').click();
   });
 
-  test('happy path: delete annotation from marker', async ({ page }) => {
+  test('happy path: delete annotation from marker', async ({ page, helpers }) => {
     const comment = 'Update the hero copy.';
-    await createAnnotation(page, comment, 'Suggestion');
+    await helpers.createAnnotation(comment, 'Suggestion');
 
     await page.locator('[data-annotation-marker]').first().click();
     const popup = page.locator('[data-annotation-popup]');

@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   Theme and base styles
+   ============================================================================= */
+
+@theme {
+  /* Colors */
+  --color-df-blue: #3c82f7;
+  --color-df-red: #ff3b30;
+  --color-df-green: #34c759;
+  --color-df-dark: #1b1b1b;
+  --color-df-dark-hover: #242424;
+
+  /* Font family */
+  --font-family-sans: "Source Sans 3", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Shadows */
+  --shadow-toolbar: 0 6px 18px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-toolbar-light: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-tooltip: 0 6px 16px rgba(0, 0, 0, 0.3);
+  --shadow-tooltip-light: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-marker: 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-panel: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-panel-light: 0 4px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-popup: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-popup-light: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* Z-index scale */
+  --z-overlay: 99997;
+  --z-markers: 99998;
+  --z-toolbar: 100000;
+  --z-panel: 100001;
+  --z-tooltip: 100002;
+}
+
+/* =============================================================================
+   Base layer
+   ============================================================================= */
+
+@layer base {
+  :host {
+    --df-font: "Source Sans 3", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  :host,
+  :host * {
+    font-family: var(--df-font);
+    box-sizing: border-box;
+  }
+}
+
+/* =============================================================================
+   Reduced motion support
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =============================================================================
+   Component styles - these will be replaced by Tailwind classes in components
+   ============================================================================= */
+
+@layer components {
+  /* Category selector */
+  .category-selector {
+    @apply flex gap-1.5 mb-2;
+  }
+
+  .category-button {
+    @apply flex-1 flex items-center justify-center gap-1 py-1.5 px-2;
+    @apply bg-white/5 border border-white/10 rounded-lg;
+    @apply text-white/60 text-[0.6875rem] font-medium cursor-pointer;
+    @apply transition-colors duration-150 ease-out;
+  }
+
+  .category-button:focus-visible {
+    @apply outline-2 outline-offset-2 outline-df-blue/50;
+  }
+
+  .category-button:hover {
+    @apply bg-white/8 text-white/80;
+  }
+
+  .category-button.selected {
+    background: color-mix(in srgb, var(--category-color) 20%, transparent);
+    border-color: var(--category-color);
+    color: var(--category-color);
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 py-0.5 px-2 rounded-full;
+    @apply text-white font-medium whitespace-nowrap text-[0.625rem];
+  }
+}

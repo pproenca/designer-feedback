@@ -7,3 +7,7 @@ dist/*
 .AppleDouble
 .LSOverride
 ._*
+
+# WXT build outputs
+.wxt/
+.output/

@@ -1,0 +1,266 @@
+// =============================================================================
+// Extension Storage Utilities (browser.storage.local)
+// =============================================================================
+
+import type { Annotation } from '@/types';
+
+const STORAGE_PREFIX = 'designer-feedback:annotations:';
+const DEFAULT_RETENTION_DAYS = 30;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+// Storage quota constants (browser.storage.local has 10MB limit)
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB
+const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
+
+let lastCleanupAt = 0;
+
+function getBucketKey(urlKey: string): string {
+  return `${STORAGE_PREFIX}${urlKey}`;
+}
+
+function stripUrl(annotation: Annotation & { url?: string }): Annotation {
+  // Avoid persisting page-origin identifiers in storage payloads.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { url, ...rest } = annotation;
+  return rest as Annotation;
+}
+
+async function getLocal<T>(keys: string | string[] | Record<string, T>): Promise<Record<string, T>> {
+  const result = await browser.storage.local.get(keys);
+  return result as Record<string, T>;
+}
+
+async function setLocal(values: Record<string, unknown>): Promise<void> {
+  await browser.storage.local.set(values);
+}
+
+async function removeLocal(keys: string | string[]): Promise<void> {
+  await browser.storage.local.remove(keys);
+}
+
+async function getAllLocal(): Promise<Record<string, unknown>> {
+  return await browser.storage.local.get(null);
+}
+
+function normalizeStoredAnnotations(value: unknown): Annotation[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(Boolean) as Annotation[];
+}
+
+/**
+ * Get current storage usage in bytes
+ */
+async function getBytesInUse(): Promise<number> {
+  try {
+    const bytesInUse = await browser.storage.local.getBytesInUse(null);
+    return bytesInUse;
+  } catch (error) {
+    console.warn('Failed to get storage usage:', error);
+    return 0;
+  }
+}
+
+/**
+ * Check storage quota and return status
+ * @returns Object with ok status and bytes used
+ */
+export async function checkStorageQuota(): Promise<{
+  ok: boolean;
+  bytesUsed: number;
+  bytesTotal: number;
+  percentUsed: number;
+}> {
+  const bytesUsed = await getBytesInUse();
+  const percentUsed = bytesUsed / STORAGE_QUOTA_BYTES;
+
+  if (percentUsed >= STORAGE_WARNING_THRESHOLD && percentUsed < 1) {
+    console.warn(
+      `Storage quota warning: ${Math.round(percentUsed * 100)}% used ` +
+        `(${Math.round(bytesUsed / 1024)}KB of ${Math.round(STORAGE_QUOTA_BYTES / 1024)}KB)`
+    );
+  }
+
+  // Consider quota exceeded at 100% or above
+  const ok = percentUsed < 1;
+
+  if (!ok) {
+    console.warn(
+      `Storage quota exceeded: ${Math.round(percentUsed * 100)}% used ` +
+        `(${Math.round(bytesUsed / 1024)}KB of ${Math.round(STORAGE_QUOTA_BYTES / 1024)}KB)`
+    );
+  }
+
+  return {
+    ok,
+    bytesUsed,
+    bytesTotal: STORAGE_QUOTA_BYTES,
+    percentUsed,
+  };
+}
+
+/**
+ * Get the storage key for a URL
+ */
+export function getStorageKey(): string {
+  const origin = window.location.origin === 'null' ? '' : window.location.origin;
+  return `${origin}${window.location.pathname}${window.location.search}`;
+}
+
+function getLegacyStorageKey(): string {
+  return window.location.pathname + window.location.search;
+}
+
+function getStorageKeys(): string[] {
+  const currentKey = getStorageKey();
+  const legacyKey = getLegacyStorageKey();
+  return currentKey === legacyKey ? [currentKey] : [currentKey, legacyKey];
+}
+
+async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
+  const all = await getAllLocal();
+  const updates: Record<string, Annotation[]> = {};
+  const removals: string[] = [];
+
+  Object.entries(all).forEach(([key, value]) => {
+    if (!key.startsWith(STORAGE_PREFIX)) return;
+    const items = normalizeStoredAnnotations(value);
+    if (items.length === 0) {
+      removals.push(key);
+      return;
+    }
+    const filtered = items.filter(
+      (annotation) => typeof annotation.timestamp === 'number' && annotation.timestamp > cutoff
+    );
+    if (filtered.length === 0) {
+      removals.push(key);
+      return;
+    }
+    if (filtered.length !== items.length) {
+      updates[key] = filtered.map(stripUrl);
+    }
+  });
+
+  if (Object.keys(updates).length > 0) {
+    await setLocal(updates);
+  }
+  if (removals.length > 0) {
+    await removeLocal(removals);
+  }
+}
+
+async function loadAnnotationsForKey(urlKey: string): Promise<Annotation[]> {
+  const bucketKey = getBucketKey(urlKey);
+  const result = await getLocal<Annotation[]>({ [bucketKey]: [] });
+  return normalizeStoredAnnotations(result[bucketKey]);
+}
+
+async function saveAnnotationsForKey(urlKey: string, annotations: Annotation[]): Promise<void> {
+  const bucketKey = getBucketKey(urlKey);
+  await setLocal({ [bucketKey]: annotations.map(stripUrl) });
+}
+
+async function clearAnnotationsForKey(urlKey: string): Promise<void> {
+  const bucketKey = getBucketKey(urlKey);
+  await removeLocal(bucketKey);
+}
+
+/**
+ * Save an annotation to extension storage
+ */
+export async function saveAnnotation(annotation: Annotation & { url: string }): Promise<void> {
+  const urlKey = annotation.url;
+  const existing = await loadAnnotationsForKey(urlKey);
+  const next = existing.filter((item) => item.id !== annotation.id);
+  next.push(stripUrl(annotation));
+  await saveAnnotationsForKey(urlKey, next);
+}
+
+/**
+ * Load all annotations for the current URL
+ */
+export async function loadAnnotations(): Promise<Annotation[]> {
+  const cutoff = Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  if (now - lastCleanupAt > CLEANUP_INTERVAL_MS) {
+    try {
+      await cleanupExpiredAnnotations(cutoff);
+    } catch (error) {
+      console.warn('Failed to clean expired annotations:', error);
+    }
+    lastCleanupAt = now;
+  }
+
+  const keys = getStorageKeys();
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
+  const merged = new Map<string, Annotation>();
+
+  results.flat().forEach((annotation) => {
+    if (annotation.timestamp <= cutoff) return;
+    const normalized =
+      annotation.x >= 0 && annotation.x <= 1
+        ? {
+            ...annotation,
+            x: annotation.isFixed
+              ? annotation.x * window.innerWidth
+              : annotation.x * window.innerWidth + window.scrollX,
+          }
+        : annotation;
+    merged.set(annotation.id, normalized);
+  });
+
+  return Array.from(merged.values());
+}
+
+/**
+ * Delete a single annotation
+ */
+export async function deleteAnnotation(id: string): Promise<void> {
+  const keys = getStorageKeys();
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
+  const updates: Promise<void>[] = [];
+
+  results.forEach((annotations, index) => {
+    const filtered = annotations.filter((annotation) => annotation.id !== id);
+    if (filtered.length !== annotations.length) {
+      updates.push(saveAnnotationsForKey(keys[index], filtered));
+    }
+  });
+
+  await Promise.all(updates);
+}
+
+/**
+ * Clear all annotations for the current URL
+ */
+export async function clearAnnotations(): Promise<void> {
+  const keys = getStorageKeys();
+  await Promise.all(keys.map((key) => clearAnnotationsForKey(key)));
+}
+
+/**
+ * Get annotation count for a specific URL
+ */
+export async function getAnnotationCount(url: string): Promise<number> {
+  const cutoff = Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const keys = url === getStorageKey() ? getStorageKeys() : [url];
+  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
+  const seen = new Set<string>();
+  let count = 0;
+
+  results.flat().forEach((annotation) => {
+    if (annotation.timestamp <= cutoff) return;
+    if (seen.has(annotation.id)) return;
+    seen.add(annotation.id);
+    count += 1;
+  });
+
+  return count;
+}
+
+/**
+ * Update badge count via background script
+ */
+export function updateBadgeCount(count: number): void {
+  browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count });
+}

@@ -29,13 +29,32 @@
     const manifest = chrome.runtime.getManifest();
     const files = manifest.content_scripts?.flatMap((script) => script.js ?? []) ?? [];
     const uniqueFiles = Array.from(new Set(files));
-    const scriptFiles = uniqueFiles.length > 0 ? uniqueFiles : ['assets/content.js'];
+    const scriptFiles = uniqueFiles.length > 0 ? uniqueFiles : ['content-scripts/content.js'];
 
-    const injectionResult = await chrome.scripting.executeScript({
+    // First check what's in the content script file
+    window.__dfActivateDebug.scriptFiles = scriptFiles;
+
+    try {
+      const injectionResult = await chrome.scripting.executeScript({
+        target: { tabId: targetTab.id },
+        files: scriptFiles,
+      });
+      window.__dfActivateDebug.injectionResult = injectionResult;
+    } catch (injectionError) {
+      window.__dfActivateDebug.injectionError = String(injectionError);
+      window.__dfActivateStatus = `error:injection-failed:${String(injectionError)}`;
+      return;
+    }
+
+    // Check if the flag was set
+    const [flagCheckResult] = await chrome.scripting.executeScript({
       target: { tabId: targetTab.id },
-      files: scriptFiles,
+      func: () => ({
+        flag: window.__designerFeedbackInjected,
+        url: window.location.href,
+      }),
     });
-    window.__dfActivateDebug.injectionResult = injectionResult;
+    window.__dfActivateDebug.flagCheck = flagCheckResult?.result;
 
     const sendShowToolbar = () =>
       new Promise((resolve) => {
