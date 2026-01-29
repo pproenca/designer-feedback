@@ -10,7 +10,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation } from '@/types';
 
 // =============================================================================
@@ -30,43 +30,44 @@ function classNames(...classes: ClassNameValue[]): string {
 // Framer Motion Variants
 // =============================================================================
 
-const popupVariants: Variants = {
+const getPopupVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    scale: 0.95,
-    y: 4,
+    ...(reduceMotion ? {} : { scale: 0.95, y: 4 }),
   },
   visible: {
     opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: {
-      type: 'spring',
-      stiffness: 500,
-      damping: 25,
-      mass: 0.8,
-    },
+    ...(reduceMotion ? {} : { scale: 1, y: 0 }),
+    transition: reduceMotion
+      ? { duration: 0.15, ease: 'easeOut' }
+      : {
+          type: 'spring',
+          stiffness: 500,
+          damping: 25,
+          mass: 0.8,
+        },
   },
   exit: {
     opacity: 0,
-    scale: 0.98,
-    y: -4,
+    ...(reduceMotion ? {} : { scale: 0.98, y: -4 }),
     transition: {
-      duration: 0.12,
+      duration: reduceMotion ? 0.1 : 0.12,
       ease: 'easeIn',
     },
   },
-};
+});
 
-const shakeVariants: Variants = {
-  shake: {
-    x: [0, -3, 3, -2, 2, 0],
-    transition: {
-      duration: 0.25,
-      ease: 'easeOut',
-    },
-  },
-};
+const getShakeVariants = (reduceMotion: boolean): Variants => ({
+  shake: reduceMotion
+    ? {
+        opacity: [1, 0.7, 1],
+        transition: { duration: 0.2, ease: 'easeOut' },
+      }
+    : {
+        x: [0, -3, 3, -2, 2, 0],
+        transition: { duration: 0.25, ease: 'easeOut' },
+      },
+});
 
 // =============================================================================
 // Types
@@ -123,10 +124,20 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     const [isShakeActive, setIsShakeActive] = useState(false);
     const [isTextareaFocused, setIsTextareaFocused] = useState(false);
     const [positionOffset, setPositionOffset] = useState({ x: 0, y: 0 });
+    const reduceMotion = useReducedMotion() ?? false;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
     const autoFocusTimerRef = useRef<number | null>(null);
     const shakeResetTimerRef = useRef<number | null>(null);
+    const popupVariants = useMemo(
+      () => getPopupVariants(reduceMotion),
+      [reduceMotion]
+    );
+    const shakeVariants = useMemo(
+      () => getShakeVariants(reduceMotion),
+      [reduceMotion]
+    );
+    const shakeDurationMs = reduceMotion ? 200 : 250;
 
     // Focus textarea on mount
     useEffect(() => {
@@ -160,8 +171,8 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
         setIsShakeActive(false);
         textareaRef.current?.focus();
         shakeResetTimerRef.current = null;
-      }, 250);
-    }, []);
+      }, shakeDurationMs);
+    }, [shakeDurationMs]);
 
     // Expose shake to parent via ref
     useImperativeHandle(
@@ -465,7 +476,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
                 <button
                   className={classNames(
                     'px-3.5 py-1.5 text-xs font-medium rounded-full border-none cursor-pointer text-white',
-                    'transition-all duration-150 ease-out',
+                    'transition-[background-color,opacity,filter] duration-150 ease-out',
                     'hover:enabled:brightness-90',
                     'disabled:cursor-not-allowed',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50'
@@ -488,4 +499,3 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
     );
   }
 );
-

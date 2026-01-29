@@ -53,6 +53,14 @@
     --df-font: "Source Sans 3", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
+  .df-root {
+    --df-tooltip-delay: 850ms;
+  }
+
+  .df-root[data-tooltips-ready='true'] {
+    --df-tooltip-delay: 0ms;
+  }
+
   :host,
   :host * {
     font-family: var(--df-font);
@@ -90,7 +98,7 @@
     @apply transition-[background-color,color,transform,opacity] duration-150;
     @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50;
     @apply disabled:opacity-35 disabled:cursor-not-allowed;
-    @apply active:enabled:scale-92;
+    @apply active:enabled:scale-[0.97];
     /* Light mode (default) */
     @apply bg-transparent text-black/50;
     @apply hover:enabled:bg-black/6 hover:enabled:text-black/85;
@@ -128,7 +136,8 @@
 
   .group:hover > .tooltip,
   .group:hover .tooltip {
-    @apply opacity-100 visible scale-100 delay-850;
+    @apply opacity-100 visible scale-100;
+    transition-delay: var(--df-tooltip-delay, 0ms);
   }
 
   /* Hide tooltip when button inside group is disabled */
@@ -153,7 +162,7 @@
   /* Action button base - for modal/popup action buttons */
   .btn-action {
     @apply py-2 px-4 rounded-lg text-sm font-medium cursor-pointer border-none;
-    @apply transition-all duration-150 ease-out;
+    @apply transition-[background-color,color,transform,box-shadow,opacity] duration-150 ease-out;
     @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
   }

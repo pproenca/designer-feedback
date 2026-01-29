@@ -39,6 +39,7 @@ vi.mock('framer-motion', () => ({
     div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
   },
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useReducedMotion: () => false,
 }));
 
 const mockAnnotations: Annotation[] = [

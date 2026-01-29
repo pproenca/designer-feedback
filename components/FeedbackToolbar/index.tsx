@@ -11,7 +11,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 import { AnnotationPopup } from '../AnnotationPopup';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
@@ -54,93 +54,88 @@ const ExportModal = lazy(() =>
 const HOVER_THROTTLE_MS = 50;
 const BADGE_DEBOUNCE_MS = 150;
 
-// Animation variants
-const toolbarVariants = {
-  hidden: { opacity: 0, y: 6, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 400, damping: 25 },
+const getMotionVariants = (reduceMotion: boolean) => ({
+  toolbar: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { y: 6, scale: 0.96 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { y: 0, scale: 1 }),
+      transition: reduceMotion
+        ? { duration: 0.15, ease: 'easeOut' }
+        : { type: 'spring', stiffness: 400, damping: 25 },
+    },
   },
-};
-
-const badgeVariants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 500, damping: 20, delay: 0.4 },
+  badge: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.9 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1 }),
+      transition: reduceMotion
+        ? { duration: 0.12, ease: 'easeOut' }
+        : { type: 'spring', stiffness: 500, damping: 20, delay: 0.4 },
+    },
   },
-};
-
-const markerVariants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 400, damping: 20 },
+  marker: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.9 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1 }),
+      transition: reduceMotion
+        ? { duration: 0.12, ease: 'easeOut' }
+        : { type: 'spring', stiffness: 400, damping: 20 },
+    },
   },
-};
-
-const categoryPanelVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: -8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.15, ease: 'easeOut' },
+  categoryPanel: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: -8 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
+      transition: { duration: 0.15, ease: 'easeOut' },
+    },
+    exit: {
+      opacity: 0,
+      ...(reduceMotion ? {} : { scale: 0.95, y: -8 }),
+      transition: { duration: 0.1, ease: 'easeIn' },
+    },
   },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    y: -8,
-    transition: { duration: 0.1 },
+  tooltip: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 2 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
+      transition: { duration: 0.1, ease: 'easeOut' },
+    },
   },
-};
-
-const tooltipVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 2 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.1, ease: 'easeOut' },
+  hoverHighlight: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.98 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1 }),
+      transition: { duration: 0.12, ease: 'easeOut' },
+    },
   },
-};
-
-const hoverHighlightVariants = {
-  hidden: { opacity: 0, scale: 0.98 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.12, ease: 'easeOut' },
+  hoverTooltip: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 4 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
+      transition: { duration: 0.1, ease: 'easeOut' },
+    },
   },
-};
-
-const hoverTooltipVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 4 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { duration: 0.1, ease: 'easeOut' },
+  iconSwap: {
+    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.8 }) },
+    visible: {
+      opacity: 1,
+      ...(reduceMotion ? {} : { scale: 1 }),
+      transition: { duration: 0.12, ease: 'easeOut' },
+    },
+    exit: {
+      opacity: 0,
+      ...(reduceMotion ? {} : { scale: 0.8 }),
+      transition: { duration: 0.08, ease: 'easeIn' },
+    },
   },
-};
-
-const iconSwapVariants = {
-  hidden: { opacity: 0, scale: 0.8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.12, ease: 'easeOut' },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.8,
-    transition: { duration: 0.08, ease: 'easeIn' },
-  },
-};
+});
 
 // =============================================================================
 // Types
@@ -267,6 +262,13 @@ export function FeedbackToolbar({
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
   const [toolbarState, dispatch] = useReducer(toolbarReducer, initialToolbarState);
+  const [tooltipsReady, setTooltipsReady] = useState(false);
+  const reduceMotion = useReducedMotion() ?? false;
+  const motionVariants = useMemo(
+    () => getMotionVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const tooltipDelayTimerRef = useRef<number | null>(null);
 
   const {
     isExpanded,
@@ -283,6 +285,9 @@ export function FeedbackToolbar({
 
   const isSelectingElement = addMode === 'selecting';
   const isCategoryPanelOpen = addMode === 'category';
+  const expandedControlsTransition = reduceMotion
+    ? 'transition-[opacity,transform,visibility]'
+    : 'transition-[filter,opacity,transform,visibility]';
 
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
@@ -290,6 +295,23 @@ export function FeedbackToolbar({
   );
 
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
+
+  const handleTooltipWarmup = useCallback(() => {
+    if (tooltipsReady || tooltipDelayTimerRef.current !== null) return;
+    tooltipDelayTimerRef.current = window.setTimeout(() => {
+      setTooltipsReady(true);
+      tooltipDelayTimerRef.current = null;
+    }, 850);
+  }, [tooltipsReady]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipDelayTimerRef.current !== null) {
+        clearTimeout(tooltipDelayTimerRef.current);
+        tooltipDelayTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
@@ -655,7 +677,7 @@ export function FeedbackToolbar({
       <motion.div
         initial="hidden"
         animate="visible"
-        variants={tooltipVariants}
+        variants={motionVariants.tooltip}
         className={classNames(
           'absolute top-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-tooltip',
           'px-3 py-2 rounded-xl min-w-[120px] max-w-[200px] pointer-events-none cursor-default',
@@ -704,7 +726,7 @@ export function FeedbackToolbar({
                 key={annotation.id}
                 initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
-                variants={markerVariants}
+                variants={motionVariants.marker}
                 className={classNames(
                   'absolute w-[22px] h-[22px] rounded-full flex items-center justify-center',
                   'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
@@ -755,7 +777,7 @@ export function FeedbackToolbar({
                 key={annotation.id}
                 initial={!isEntranceComplete ? 'hidden' : false}
                 animate="visible"
-                variants={markerVariants}
+                variants={motionVariants.marker}
                 className={classNames(
                   'fixed w-[22px] h-[22px] rounded-full flex items-center justify-center',
                   'text-[0.6875rem] font-semibold text-white cursor-pointer select-none',
@@ -801,7 +823,7 @@ export function FeedbackToolbar({
               initial="hidden"
               animate="visible"
               exit="hidden"
-              variants={markerVariants}
+              variants={motionVariants.marker}
               className={classNames(
                 'w-[22px] h-[22px] rounded-full flex items-center justify-center',
                 'text-[0.6875rem] font-semibold text-white select-none',
@@ -832,7 +854,11 @@ export function FeedbackToolbar({
   const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={classNames('font-sans', darkModeClassName)}>
+    <div
+      className={classNames('font-sans df-root', darkModeClassName)}
+      data-tooltips-ready={tooltipsReady ? 'true' : 'false'}
+      onMouseEnter={handleTooltipWarmup}
+    >
       {/* Hover highlight overlay */}
       <AnimatePresence>
         {isSelectingElement && hoverInfo?.rect ? (
@@ -841,7 +867,7 @@ export function FeedbackToolbar({
               initial="hidden"
               animate="visible"
               exit="hidden"
-              variants={hoverHighlightVariants}
+              variants={motionVariants.hoverHighlight}
               className="fixed border-2 border-df-blue/50 rounded bg-df-blue/4 pointer-events-none box-border"
               style={{
                 left: hoverInfo.rect.left,
@@ -854,7 +880,7 @@ export function FeedbackToolbar({
               initial="hidden"
               animate="visible"
               exit="hidden"
-              variants={hoverTooltipVariants}
+              variants={motionVariants.hoverTooltip}
               className="fixed text-[0.6875rem] font-medium text-white bg-black/85 py-1.5 px-2.5 rounded-md pointer-events-none whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
               style={{
                 left: hoverInfo.rect.left,
@@ -949,10 +975,10 @@ export function FeedbackToolbar({
         <motion.div
           initial={!isEntranceComplete ? 'hidden' : false}
           animate="visible"
-          variants={toolbarVariants}
+          variants={motionVariants.toolbar}
           className={classNames(
             'select-none flex items-center justify-center pointer-events-auto cursor-default',
-            'transition-[width] duration-400 ease-[cubic-bezier(0.19,1,0.22,1)]',
+            'transition-[width] duration-[240ms] ease-[cubic-bezier(0.19,1,0.22,1)]',
             // Light mode (default)
             'bg-white text-black/85 shadow-toolbar-light',
             // Dark mode
@@ -963,7 +989,7 @@ export function FeedbackToolbar({
               : classNames(
                   'w-11 h-11 rounded-[22px] p-0 cursor-pointer',
                   'hover:bg-[#f5f5f5] dark:hover:bg-df-dark-hover',
-                  'active:scale-95'
+                  'active:scale-[0.97]'
                 )
           )}
           onClick={() =>
@@ -998,7 +1024,7 @@ export function FeedbackToolbar({
                   initial={!isEntranceComplete ? 'hidden' : false}
                   animate="visible"
                   exit="hidden"
-                  variants={badgeVariants}
+                  variants={motionVariants.badge}
                   className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[5px] rounded-[9px] bg-df-blue text-white text-[0.625rem] font-semibold flex items-center justify-center shadow-sm"
                 >
                   {annotations.length}
@@ -1010,10 +1036,16 @@ export function FeedbackToolbar({
           {/* Expanded state: show controls */}
           <div
             className={classNames(
-              'flex items-center gap-1.5 transition-[filter,opacity,transform,visibility] duration-350',
+              `flex items-center gap-1.5 ${expandedControlsTransition} duration-[220ms]`,
               isExpanded
-                ? 'opacity-100 blur-0 scale-100 visible pointer-events-auto'
-                : 'opacity-0 blur-[6px] scale-60 invisible pointer-events-none'
+                ? classNames(
+                    'opacity-100 scale-100 visible pointer-events-auto',
+                    !reduceMotion && 'blur-0'
+                  )
+                : classNames(
+                    'opacity-0 scale-60 invisible pointer-events-none',
+                    !reduceMotion && 'blur-[6px]'
+                  )
             )}
           >
             {/* Add annotation button */}
@@ -1037,7 +1069,7 @@ export function FeedbackToolbar({
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      variants={iconSwapVariants}
+                      variants={motionVariants.iconSwap}
                       className="flex items-center justify-center"
                     >
                       <IconClose size={18} />
@@ -1048,7 +1080,7 @@ export function FeedbackToolbar({
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      variants={iconSwapVariants}
+                      variants={motionVariants.iconSwap}
                       className="flex items-center justify-center"
                     >
                       <IconList size={18} />
@@ -1067,7 +1099,7 @@ export function FeedbackToolbar({
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    variants={categoryPanelVariants}
+                    variants={motionVariants.categoryPanel}
                     className="category-panel"
                   >
                     <button
@@ -1171,7 +1203,7 @@ export function FeedbackToolbar({
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      variants={iconSwapVariants}
+                      variants={motionVariants.iconSwap}
                       className="flex items-center justify-center"
                     >
                       <IconMoon size={18} />
@@ -1182,7 +1214,7 @@ export function FeedbackToolbar({
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      variants={iconSwapVariants}
+                      variants={motionVariants.iconSwap}
                       className="flex items-center justify-center"
                     >
                       <IconSun size={18} />
@@ -1217,4 +1249,3 @@ export function FeedbackToolbar({
     shadowRoot
   );
 }
-

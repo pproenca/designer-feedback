@@ -2,10 +2,11 @@ import {
   useReducer,
   useRef,
   useEffect,
+  useMemo,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
@@ -24,56 +25,54 @@ function classNames(...classes: (string | boolean | undefined | null)[]): string
 // Framer Motion Variants
 // =============================================================================
 
-const overlayVariants: Variants = {
+const getOverlayVariants = (reduceMotion: boolean): Variants => ({
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.2, ease: 'easeOut' },
+    transition: { duration: reduceMotion ? 0.12 : 0.2, ease: 'easeOut' },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.15, ease: 'easeIn' },
+    transition: { duration: reduceMotion ? 0.1 : 0.15, ease: 'easeIn' },
   },
-};
+});
 
-const modalVariants: Variants = {
+const getModalVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    y: 12,
-    scale: 0.96,
-    filter: 'blur(8px)',
+    ...(reduceMotion ? {} : { y: 12, scale: 0.96, filter: 'blur(8px)' }),
   },
   visible: {
     opacity: 1,
-    y: 0,
-    scale: 1,
-    filter: 'blur(0px)',
+    ...(reduceMotion ? {} : { y: 0, scale: 1, filter: 'blur(0px)' }),
     transition: {
-      duration: 0.25,
+      duration: reduceMotion ? 0.16 : 0.25,
       ease: [0.19, 1, 0.22, 1],
     },
   },
   exit: {
     opacity: 0,
-    y: -8,
-    scale: 0.98,
-    transition: { duration: 0.12, ease: 'easeIn' },
+    ...(reduceMotion ? {} : { y: -8, scale: 0.98 }),
+    transition: { duration: reduceMotion ? 0.1 : 0.12, ease: 'easeIn' },
   },
-};
+});
 
-const statusMessageVariants: Variants = {
-  hidden: { opacity: 0, y: 4 },
+const getStatusMessageVariants = (reduceMotion: boolean): Variants => ({
+  hidden: {
+    opacity: 0,
+    ...(reduceMotion ? {} : { y: 4 }),
+  },
   visible: {
     opacity: 1,
-    y: 0,
-    transition: { duration: 0.15, ease: 'easeOut' },
+    ...(reduceMotion ? {} : { y: 0 }),
+    transition: { duration: reduceMotion ? 0.12 : 0.15, ease: 'easeOut' },
   },
   exit: {
     opacity: 0,
-    y: -4,
-    transition: { duration: 0.1, ease: 'easeIn' },
+    ...(reduceMotion ? {} : { y: -4 }),
+    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: 'easeIn' },
   },
-};
+});
 
 // =============================================================================
 // Types
@@ -151,6 +150,19 @@ const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
 
 export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
   const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
+  const reduceMotion = useReducedMotion() ?? false;
+  const overlayVariants = useMemo(
+    () => getOverlayVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const modalVariants = useMemo(
+    () => getModalVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const statusMessageVariants = useMemo(
+    () => getStatusMessageVariants(reduceMotion),
+    [reduceMotion]
+  );
   const {
     isExporting,
     exportOutcome,
@@ -469,7 +481,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             <button
               className={classNames(
                 'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
-                'transition-all duration-150 ease-out',
+                'transition-[background-color,color,transform] duration-150 ease-out',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
                 'text-black/40 hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
                 'dark:text-white/55 dark:hover:bg-white/8 dark:hover:text-white'
@@ -532,7 +544,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                       className={classNames(
                         'flex items-start gap-3 py-[0.8rem] px-[0.9rem] bg-transparent border rounded-[10px]',
                         'cursor-pointer text-left relative',
-                        'transition-all duration-150 ease-out',
+                        'transition-[background-color,color,border-color,transform] duration-150 ease-out',
                         'active:scale-[0.99]',
                         'disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -622,7 +634,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
                   <button
                     className={classNames(
                       'py-[0.45rem] px-3 rounded-full border text-[0.72rem] font-semibold cursor-pointer',
-                      'transition-all duration-150 ease-out',
+                      'transition-[background-color,color,border-color,transform] duration-150 ease-out',
                       'hover:enabled:-translate-y-px active:enabled:scale-[0.98]',
                       'disabled:opacity-60 disabled:cursor-not-allowed',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
@@ -734,7 +746,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
             <button
               className={classNames(
                 'py-2 px-4 text-[0.8125rem] font-medium rounded-full border-none cursor-pointer',
-                'transition-all duration-150 ease-out',
+                'transition-[background-color,color,transform] duration-150 ease-out',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50',
                 'active:-translate-y-px active:scale-[0.98]',
                 'bg-transparent text-black/50 hover:bg-black/5 hover:text-[#1a1a1a] hover:-translate-y-px',
@@ -749,7 +761,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
               className={classNames(
                 'flex items-center gap-1.5 py-2 px-4 text-[0.8125rem] font-medium rounded-lg border-none cursor-pointer text-white',
                 'bg-df-blue',
-                'transition-all duration-150 ease-out',
+                'transition-[background-color,color,transform,box-shadow] duration-150 ease-out',
                 'hover:enabled:-translate-y-px hover:enabled:shadow-[0_4px_12px_rgba(60,130,247,0.25)]',
                 'active:enabled:scale-[0.98]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -777,4 +789,3 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     </AnimatePresence>
   );
 }
-
