@@ -6,6 +6,11 @@ import { defineBackground } from '#imports';
 import type { Settings, MessageType } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import { hashString } from '@/utils/hash';
+import {
+  OFFSCREEN_DOCUMENT_PATH,
+  MESSAGE_TARGET,
+  OFFSCREEN_MESSAGE_TYPE,
+} from '@/utils/offscreen-constants';
 
 export default defineBackground(() => {
   // =============================================================================
@@ -280,34 +285,113 @@ export default defineBackground(() => {
    * Capture screenshot of the visible tab
    */
   async function captureScreenshot(windowId: number): Promise<{ data: string; error?: string }> {
+    console.log('[Background] captureScreenshot called with windowId:', windowId);
     try {
       const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
-      return { data: dataUrl ?? '' };
+      console.log('[Background] captureVisibleTab result:', {
+        hasData: !!dataUrl,
+        length: dataUrl?.length ?? 0,
+      });
+      if (!dataUrl) {
+        return { data: '', error: 'captureVisibleTab returned empty' };
+      }
+      return { data: dataUrl };
     } catch (error) {
-      console.error('Screenshot capture failed:', error);
+      console.error('[Background] captureVisibleTab failed:', error);
       return { data: '', error: String(error) };
     }
   }
 
+  // =============================================================================
+  // Offscreen Document Management
+  // =============================================================================
+
   /**
-   * Download a file from a data URL
+   * Check if an offscreen document already exists
+   * Uses getContexts API with fallback for older Chrome versions
+   */
+  async function hasOffscreenDocument(): Promise<boolean> {
+    try {
+      // Use browser.runtime.getContexts to check for existing offscreen document
+      const existingContexts = await browser.runtime.getContexts({
+        contextTypes: [browser.runtime.ContextType.OFFSCREEN_DOCUMENT],
+        documentUrls: [browser.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)],
+      });
+      return existingContexts.length > 0;
+    } catch {
+      // Fallback for older Chrome versions that don't support getContexts
+      // This can happen in Chrome < 116
+      return false;
+    }
+  }
+
+  /**
+   * Ensure offscreen document exists for blob URL creation
+   */
+  async function setupOffscreenDocument(): Promise<void> {
+    console.log('[Background] setupOffscreenDocument called');
+
+    // Check if offscreen document already exists
+    const exists = await hasOffscreenDocument();
+    console.log('[Background] Offscreen document exists:', exists);
+
+    if (exists) {
+      return;
+    }
+
+    // Create offscreen document for blob URL creation
+    console.log('[Background] Creating offscreen document...');
+    await browser.offscreen.createDocument({
+      url: OFFSCREEN_DOCUMENT_PATH,
+      reasons: [browser.offscreen.Reason.BLOBS],
+      justification: 'Convert data URL to blob URL for downloading screenshots',
+    });
+    // Small delay to ensure script is loaded
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    console.log('[Background] Offscreen document created and ready');
+  }
+
+  /**
+   * Download a file from a data URL using offscreen document for blob conversion
    */
   async function downloadFile(
     dataUrl: string,
     filename: string
   ): Promise<{ ok: boolean; downloadId?: number; error?: string }> {
+    console.log('[Background] downloadFile called', { filename, dataUrlLength: dataUrl.length });
     try {
+      // Create offscreen document for blob URL creation
+      await setupOffscreenDocument();
+
+      // Send data URL to offscreen document for conversion to blob URL
+      console.log('[Background] Sending OFFSCREEN_DOWNLOAD message...');
+      const response = (await browser.runtime.sendMessage({
+        type: OFFSCREEN_MESSAGE_TYPE.DOWNLOAD,
+        target: MESSAGE_TARGET.OFFSCREEN,
+        dataUrl,
+      })) as { ok: boolean; blobUrl?: string; error?: string } | undefined;
+      console.log('[Background] OFFSCREEN_DOWNLOAD response:', JSON.stringify(response));
+
+      if (!response?.ok || !response?.blobUrl) {
+        return { ok: false, error: response?.error ?? 'Blob conversion failed' };
+      }
+
+      // Download using blob URL (from offscreen document context)
+      console.log('[Background] Starting download with blob URL...');
       const downloadId = await browser.downloads.download({
-        url: dataUrl,
+        url: response.blobUrl,
         filename,
         saveAs: false,
       });
+      console.log('[Background] Download started, id:', downloadId);
+
       if (downloadId === undefined) {
         return { ok: false, error: 'Download failed to start' };
       }
+
       return { ok: true, downloadId };
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('[Background] Download failed:', error);
       return { ok: false, error: String(error) };
     }
   }
@@ -362,25 +446,35 @@ export default defineBackground(() => {
   // =============================================================================
 
   browser.runtime.onMessage.addListener((message: unknown, sender: { id?: string; tab?: { windowId?: number } }) => {
+    const msg = message as MessageType;
+    console.log('[Background] Received message:', msg.type, 'from sender:', sender.id);
+
     // Validate sender is from this extension
     if (!isExtensionSender(sender)) {
+      console.log('[Background] Rejecting message from non-extension sender');
       return;
     }
-
-    const msg = message as MessageType;
 
     // Handle screenshot capture
     if (msg.type === 'CAPTURE_SCREENSHOT') {
       const windowId = sender.tab?.windowId ?? browser.windows.WINDOW_ID_CURRENT;
-      return captureScreenshot(windowId).then((result) => ({
-        type: 'SCREENSHOT_CAPTURED',
-        ...result,
-      }));
+      console.log('[Background] Handling CAPTURE_SCREENSHOT for windowId:', windowId);
+      return captureScreenshot(windowId).then((result) => {
+        console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
+        return {
+          type: 'SCREENSHOT_CAPTURED',
+          ...result,
+        };
+      });
     }
 
     // Handle file download
     if (msg.type === 'DOWNLOAD_FILE') {
-      return downloadFile(msg.dataUrl, msg.filename);
+      console.log('[Background] Handling DOWNLOAD_FILE');
+      return downloadFile(msg.dataUrl, msg.filename).catch((error) => {
+        console.error('[Background] downloadFile error:', error);
+        return { ok: false, error: String(error) };
+      });
     }
 
     // Handle get settings

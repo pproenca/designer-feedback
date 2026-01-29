@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resetMockStorage } from '@/test/setup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 describe('Toolbar position persistence', () => {
   const STORAGE_KEY = 'designer-feedback:toolbar-position:';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resetMockStorage();
+    fakeBrowser.reset();
     // Mock window.location.origin
     Object.defineProperty(window, 'location', {
       value: { origin: 'https://example.com', pathname: '/', search: '' },

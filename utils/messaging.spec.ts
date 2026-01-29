@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resetMockStorage } from '../test/setup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { sendMessage } from './messaging';
 
 describe('sendMessage', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    resetMockStorage();
+    fakeBrowser.reset();
   });
 
   afterEach(() => {

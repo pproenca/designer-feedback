@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resetMockStorage } from '../test/setup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { downloadDataUrl, exportAsImageWithNotes } from './export';
 
 const mockAnnotations = [
@@ -75,7 +75,7 @@ describe('export utilities', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    resetMockStorage();
+    fakeBrowser.reset();
   });
 
   afterEach(() => {
@@ -87,6 +87,7 @@ describe('export utilities', () => {
 
     await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
 
+    // Data URLs are passed to background, which handles blob conversion via offscreen document
     expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
       type: 'DOWNLOAD_FILE',
       filename: 'test.txt',

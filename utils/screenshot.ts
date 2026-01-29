@@ -27,18 +27,26 @@ export function isRestrictedPage(): boolean {
  * Capture the visible tab screenshot via the background service worker
  */
 export async function captureScreenshot(): Promise<string> {
+  console.log('[Screenshot] Sending CAPTURE_SCREENSHOT message');
   const response = (await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' })) as {
     data?: string;
     error?: string;
   };
+  console.log('[Screenshot] Response:', JSON.stringify({
+    error: response?.error,
+    hasData: !!response?.data,
+    dataLength: response?.data?.length ?? 0,
+    dataPreview: response?.data?.slice(0, 50),
+  }));
 
   if (response?.error) {
     throw new Error(response.error);
   }
-  if (response?.data) {
+  // Check for non-empty data (empty string is falsy but explicit check is clearer)
+  if (response?.data && response.data.length > 0) {
     return response.data;
   }
-  throw new Error('Failed to capture screenshot');
+  throw new Error('Failed to capture screenshot: empty response');
 }
 
 /**

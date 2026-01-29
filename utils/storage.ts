@@ -4,9 +4,12 @@
 
 import type { Annotation } from '@/types';
 import { hashString } from '@/utils/hash';
+import {
+  ANNOTATIONS_PREFIX,
+  STORAGE_KEY_VERSION,
+  getAnnotationsBucketKey,
+} from '@/utils/storage-items';
 
-const STORAGE_PREFIX = 'designer-feedback:annotations:';
-const STORAGE_KEY_VERSION = 'v2';
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -17,7 +20,7 @@ const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
 let lastCleanupAt = 0;
 
 function getBucketKey(urlKey: string): string {
-  return `${STORAGE_PREFIX}${urlKey}`;
+  return getAnnotationsBucketKey(urlKey);
 }
 
 function stripUrl(annotation: Annotation & { url?: string }): Annotation {
@@ -143,7 +146,7 @@ async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
   const removals: string[] = [];
 
   Object.entries(all).forEach(([key, value]) => {
-    if (!key.startsWith(STORAGE_PREFIX)) return;
+    if (!key.startsWith(ANNOTATIONS_PREFIX)) return;
     const items = normalizeStoredAnnotations(value);
     if (items.length === 0) {
       removals.push(key);

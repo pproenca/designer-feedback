@@ -10,6 +10,16 @@ const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
 
 let globalStyleElement: HTMLStyleElement | null = null;
 
+/**
+ * Cleanup handle returned from onMount for structured cleanup in onRemove
+ */
+export interface MountCleanupHandle {
+  /** React root for unmounting */
+  root: ReactDOM.Root;
+  /** App container element for DOM cleanup */
+  appRoot: HTMLDivElement;
+}
+
 function waitForDomReady(): Promise<void> {
   if (document.readyState !== 'loading') {
     return Promise.resolve();
@@ -48,7 +58,7 @@ export async function mountUI(ctx: ContentScriptContext) {
     position: 'inline',
     anchor: 'body',
     mode: isE2E ? 'open' : 'closed',
-    onMount: (container, shadow) => {
+    onMount: (container, shadow): MountCleanupHandle => {
       const appRoot = document.createElement('div');
       appRoot.id = 'app';
       container.appendChild(appRoot);
@@ -63,10 +73,13 @@ export async function mountUI(ctx: ContentScriptContext) {
           </ErrorBoundary>
         </React.StrictMode>
       );
-      return root;
+      return { root, appRoot };
     },
-    onRemove: (root) => {
-      root?.unmount();
+    onRemove: (handle) => {
+      if (handle) {
+        handle.root.unmount();
+        handle.appRoot.remove();
+      }
       globalStyleElement?.remove();
       globalStyleElement = null;
     },

@@ -8,45 +8,46 @@ test.describe('Extension Basic Tests', () => {
     expect(serviceWorkers.some((sw) => sw.url().includes(extensionId))).toBe(true);
   });
 
-  test('toolbar activates on action click', async ({ page, helpers }) => {
+  test('toolbar activates on action click', async ({ page, helpers, toolbarPage }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
     await helpers.activateToolbar();
-    await helpers.waitForToolbar();
-    await expect(page.getByRole('button', { name: 'Add annotation', exact: true })).toBeVisible();
+    await toolbarPage.waitForToolbar();
+    await expect(toolbarPage.getAddButton()).toBeVisible();
   });
 });
 
 test.describe('Feedback Toolbar flows', () => {
-  test.beforeEach(async ({ page, helpers }) => {
+  test.beforeEach(async ({ page, helpers, toolbarPage }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
     await helpers.activateToolbar();
-    await helpers.waitForToolbar();
+    await toolbarPage.waitForToolbar();
   });
 
-  test('happy path: create annotation and open export modal', async ({ page, helpers }) => {
+  test('happy path: create annotation and open export modal', async ({ page, toolbarPage, exportModal }) => {
     const comment = 'Tighten spacing above the headline.';
-    await helpers.createAnnotation(comment, 'Bug');
+    const heading = page.getByRole('heading', { name: 'Example Domain' });
+    await toolbarPage.createAnnotation(comment, 'Bug', heading);
 
-    const exportButton = page.getByRole('button', { name: 'Export feedback', exact: true });
-    await expect(exportButton).toBeEnabled();
-    await exportButton.click();
+    await expect(toolbarPage.getExportButton()).toBeEnabled();
+    await toolbarPage.openExportModal();
 
-    const exportDialog = page.getByRole('dialog', { name: 'Export feedback' });
-    await expect(page.getByRole('heading', { name: 'Export Feedback' })).toBeVisible();
-    await expect(exportDialog.getByText(comment)).toBeVisible();
-    await exportDialog.getByLabel('Close export dialog').click();
+    await exportModal.waitForOpen();
+    await expect(exportModal.getHeading()).toBeVisible();
+    await expect(exportModal.getAnnotationText(comment)).toBeVisible();
+    await exportModal.close();
   });
 
-  test('happy path: delete annotation from marker', async ({ page, helpers }) => {
+  test('happy path: delete annotation from marker', async ({ page, toolbarPage }) => {
     const comment = 'Update the hero copy.';
-    await helpers.createAnnotation(comment, 'Suggestion');
+    const heading = page.getByRole('heading', { name: 'Example Domain' });
+    await toolbarPage.createAnnotation(comment, 'Suggestion', heading);
 
-    await page.locator('[data-annotation-marker]').first().click();
-    const popup = page.locator('[data-annotation-popup]');
+    await toolbarPage.getAnnotationMarkers().first().click();
+    const popup = toolbarPage.getAnnotationPopup();
     await expect(popup.getByText(comment)).toBeVisible();
     await popup.getByRole('button', { name: 'Delete' }).click();
 
-    await expect(page.locator('[data-annotation-marker]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Export feedback', exact: true })).toBeDisabled();
+    await expect(toolbarPage.getAnnotationMarkers()).toHaveCount(0);
+    await expect(toolbarPage.getExportButton()).toBeDisabled();
   });
 });

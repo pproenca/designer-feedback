@@ -60,42 +60,48 @@ export default defineContentScript({
       await uiPromise;
     }
 
-    const messageHandler = async (message: unknown, _sender: unknown) => {
-      void _sender;
+    // Message handler - must return true for async responses, false/undefined for unhandled
+    // Using synchronous function to properly handle messaging protocol
+    type MessageSender = { tab?: { id?: number }; frameId?: number; id?: string };
+    const messageHandler = (
+      message: unknown,
+      _sender: MessageSender,
+      sendResponse: (response?: unknown) => void
+    ): boolean | void => {
       const msg = message as { type?: string };
-      // Handle 1-click activation from service worker
+
+      // Only handle messages meant for content script
+      // Return nothing for unhandled messages so other listeners (offscreen doc) can respond
       if (msg.type === 'SHOW_TOOLBAR') {
-        try {
-          await ensureInjected();
-        } catch (error) {
+        ensureInjected().catch((error) => {
           console.error('Failed to show toolbar:', error);
-        }
-        return;
+        });
+        return; // No response needed, don't keep channel open
       }
 
       if (msg.type === 'GET_ANNOTATION_COUNT') {
         const url = getStorageKey();
-        try {
-          const count = await getAnnotationCount(url);
-          return { count };
-        } catch {
-          return { count: 0 };
-        }
+        getAnnotationCount(url)
+          .then((count) => sendResponse({ count }))
+          .catch(() => sendResponse({ count: 0 }));
+        return true; // Keep channel open for async response
       }
 
       if (msg.type === 'TRIGGER_EXPORT') {
-        try {
-          await ensureInjected();
-          window.setTimeout(() => {
-            emitUiEvent('open-export');
-          }, 0);
-        } catch (error) {
-          console.error('Failed to trigger export:', error);
-        }
-        return;
+        ensureInjected()
+          .then(() => {
+            window.setTimeout(() => {
+              emitUiEvent('open-export');
+            }, 0);
+          })
+          .catch((error) => {
+            console.error('Failed to trigger export:', error);
+          });
+        return; // No response needed
       }
 
-      return;
+      // Don't return anything for messages we don't handle
+      // This allows other listeners (like offscreen document) to respond
     };
 
     browser.runtime.onMessage.addListener(messageHandler);

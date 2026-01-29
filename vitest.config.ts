@@ -7,12 +7,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // Map browser import to fakeBrowser for testing
+      'wxt/browser': 'wxt/testing/fake-browser',
     },
   },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
+    mockReset: true,
+    restoreMocks: true,
     include: [
       '**/*.{test,spec}.{ts,tsx}',
     ],

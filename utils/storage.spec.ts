@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resetMockStorage } from '../test/setup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   getAnnotationCount,
   getStorageKey,
@@ -15,7 +15,7 @@ describe('Storage Quota Validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    resetMockStorage();
+    fakeBrowser.reset();
   });
 
   it('should check bytes in use before saving', async () => {
@@ -38,7 +38,7 @@ describe('Storage helpers and flows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    resetMockStorage();
+    fakeBrowser.reset();
     Object.defineProperty(window, 'innerWidth', { value: 1000, writable: true });
     Object.defineProperty(window, 'scrollX', { value: 10, writable: true });
     Object.defineProperty(window, 'location', {
@@ -131,11 +131,13 @@ describe('Storage helpers and flows', () => {
   });
 
   it('sends badge update message', () => {
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined);
     updateBadgeCount(7);
-    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+    expect(spy).toHaveBeenCalledWith({
       type: 'UPDATE_BADGE',
       count: 7,
     });
+    spy.mockRestore();
   });
 
   it('saves annotation successfully', async () => {

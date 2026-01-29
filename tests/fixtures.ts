@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import './types';
+import { ToolbarPage, ExportModalPage } from './pages';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -166,6 +167,8 @@ export const test = base.extend<{
   context: BrowserContext;
   extensionId: string;
   helpers: TestHelpers;
+  toolbarPage: ToolbarPage;
+  exportModal: ExportModalPage;
 }>({
   context: async ({}, use, testInfo) => {
     const useHeadless = process.env.PWHEADLESS === '1';
@@ -205,6 +208,12 @@ export const test = base.extend<{
       getToolbarBounds: () => getToolbarBounds(page),
       dragToolbar: (x, y) => dragToolbar(page, x, y),
     });
+  },
+  toolbarPage: async ({ page }, use) => {
+    await use(new ToolbarPage(page));
+  },
+  exportModal: async ({ page }, use) => {
+    await use(new ExportModalPage(page));
   },
 });
 
