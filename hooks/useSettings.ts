@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
+import { sendMessage } from '@/utils/messaging';
 import type { Settings } from '@/types';
 
 type StorageChangeEntry = { newValue?: unknown; oldValue?: unknown };
+type SettingsResponse = { type: string; settings: Settings; error?: string };
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -10,11 +12,10 @@ export function useSettings() {
   useEffect(() => {
     let isCancelled = false;
 
-    browser.storage.sync
-      .get(DEFAULT_SETTINGS)
-      .then((result) => {
-        if (!isCancelled) {
-          setSettings(result as Settings);
+    sendMessage<SettingsResponse>({ type: 'GET_SETTINGS' })
+      .then((response) => {
+        if (!isCancelled && response.settings) {
+          setSettings(response.settings);
         }
       })
       .catch((error) => {
@@ -56,9 +57,12 @@ export function useSettings() {
   const updateSettings = useCallback((next: Partial<Settings>) => {
     if (!Object.keys(next).length) return;
 
-    setSettings((prev) => ({ ...prev, ...next }));
-    browser.storage.sync.set(next).catch((error) => {
-      console.error('Failed to save settings:', error);
+    setSettings((prev) => {
+      const newSettings = { ...prev, ...next };
+      sendMessage({ type: 'SAVE_SETTINGS', settings: newSettings }).catch((error) => {
+        console.error('Failed to save settings:', error);
+      });
+      return newSettings;
     });
   }, []);
 
