@@ -51,6 +51,35 @@ See `docs/privacy.html` for the full policy.
 
 ## installation
 
+### battle-tested install outside the web store
+
+The most common pattern used by large open-source extensions is:
+
+1. **Download a prebuilt zip from GitHub Releases.**
+2. **Unzip it and load it unpacked in Chrome.**
+3. **Manually update by downloading the next release.**
+
+This repo supports that flow (plus build-from-source) so you can install without the web store.
+
+### install from release (no store)
+
+1. Run the installer:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash
+   ```
+2. Open Chrome and go to `chrome://extensions`.
+3. Enable Developer mode.
+4. Click "Load unpacked" and select `~/.designer-feedback`.
+
+To install from your own fork or a direct asset URL:
+
+```bash
+REPO=you/designer-feedback curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash -s -- --zip-url https://example.com/designer-feedback.zip
+```
+
+### build from source
+
 1. `npm install`
 2. `npm run build`
 3. Open Chrome and go to `chrome://extensions`.

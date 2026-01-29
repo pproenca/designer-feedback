@@ -15,6 +15,9 @@ on:
 env:
   EXTENSION_ZIP: extension.zip
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Run Tests
@@ -63,27 +66,36 @@ jobs:
 
       - run: npm ci
 
-      - name: Get version from manifest
+      - name: Build and package extension
+        run: npm run pack
+
+      - name: Get version from built manifest
         id: version
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
+          MANIFEST_PATH=".output/chrome-mv3/manifest.json"
+          if [ ! -f "$MANIFEST_PATH" ]; then
+            echo "Error: $MANIFEST_PATH not found. Build output is missing."
+            exit 1
+          fi
+          VERSION=$(jq -r '.version' "$MANIFEST_PATH")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Validate tag matches manifest version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          MANIFEST_VERSION=$(jq -r '.version' manifest.json)
+          MANIFEST_VERSION=$(jq -r '.version' .output/chrome-mv3/manifest.json)
           if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
             echo "Error: Tag ($TAG_VERSION) != manifest ($MANIFEST_VERSION)"
             exit 1
           fi
 
-      - name: Build and package extension
-        run: npm run pack
-
       - name: Normalize package name
         run: |
+          if [ ! -f dist/designer-feedback.zip ]; then
+            echo "Error: dist/designer-feedback.zip not found."
+            exit 1
+          fi
           mv dist/designer-feedback.zip "${{ env.EXTENSION_ZIP }}"
 
       - uses: actions/upload-artifact@v4
@@ -91,6 +103,12 @@ jobs:
           name: extension-${{ steps.version.outputs.version }}
           path: ${{ env.EXTENSION_ZIP }}
           retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.EXTENSION_ZIP }}
 
   publish:
     name: Publish to Chrome Web Store
@@ -101,6 +119,19 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: extension-${{ needs.build.outputs.version }}
+          path: .
+
+      - name: Ensure extension zip is in workspace root
+        run: |
+          if [ -f "${{ env.EXTENSION_ZIP }}" ]; then
+            exit 0
+          fi
+          if [ -f "extension-${{ needs.build.outputs.version }}/${{ env.EXTENSION_ZIP }}" ]; then
+            mv "extension-${{ needs.build.outputs.version }}/${{ env.EXTENSION_ZIP }}" "${{ env.EXTENSION_ZIP }}"
+            exit 0
+          fi
+          echo "Error: ${EXTENSION_ZIP} not found after downloading artifact."
+          exit 1
 
       - uses: mnao305/chrome-extension-upload@v5.0.0
         with:
