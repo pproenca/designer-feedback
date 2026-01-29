@@ -1,3 +1,6 @@
+// CSS must be imported directly in the content script entry point
+// for WXT's cssInjectionMode: 'ui' to work correctly
+import './style.css';
 import { defineContentScript } from '#imports';
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
 import { emitUiEvent } from '@/utils/ui-events';

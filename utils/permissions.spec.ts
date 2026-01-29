@@ -13,7 +13,7 @@ describe('permissions utilities', () => {
 
   describe('hasScreenshotPermission', () => {
     it('returns true when permission is granted', async () => {
-      const spy = vi.spyOn(browser.permissions, 'contains').mockResolvedValue(true);
+      const spy = vi.spyOn(browser.permissions, 'contains').mockResolvedValue(true as unknown as void);
 
       const result = await hasScreenshotPermission();
       expect(result).toBe(true);
@@ -23,7 +23,7 @@ describe('permissions utilities', () => {
     });
 
     it('returns false when permission is not granted', async () => {
-      const spy = vi.spyOn(browser.permissions, 'contains').mockResolvedValue(false);
+      const spy = vi.spyOn(browser.permissions, 'contains').mockResolvedValue(false as unknown as void);
 
       const result = await hasScreenshotPermission();
       expect(result).toBe(false);
@@ -47,7 +47,7 @@ describe('permissions utilities', () => {
 
   describe('requestScreenshotPermission', () => {
     it('returns true when user grants permission', async () => {
-      const spy = vi.spyOn(browser.permissions, 'request').mockResolvedValue(true);
+      const spy = vi.spyOn(browser.permissions, 'request').mockResolvedValue(true as unknown as void);
 
       const result = await requestScreenshotPermission();
       expect(result).toBe(true);
@@ -57,7 +57,7 @@ describe('permissions utilities', () => {
     });
 
     it('returns false when user denies permission', async () => {
-      const spy = vi.spyOn(browser.permissions, 'request').mockResolvedValue(false);
+      const spy = vi.spyOn(browser.permissions, 'request').mockResolvedValue(false as unknown as void);
 
       const result = await requestScreenshotPermission();
       expect(result).toBe(false);

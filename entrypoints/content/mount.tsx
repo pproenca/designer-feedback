@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { LazyMotion, domAnimation } from 'framer-motion';
-import { createShadowRootUi, type ContentScriptContext } from 'wxt/client';
+import { createShadowRootUi, type ContentScriptContext } from '#imports';
 import { App } from './App';
 import { ErrorBoundary } from './ErrorBoundary';
 import './style.css';
@@ -38,15 +38,16 @@ export async function mountUI(ctx: ContentScriptContext) {
   await waitForDomReady();
   ensureGlobalStyles();
 
+  // Use open shadow DOM in E2E tests so Playwright can access elements.
+  // In production, use closed mode to prevent page scripts from accessing extension internals.
+  // Note: isolateEvents is intentionally NOT set - it blocks keyboard events (Escape, Enter).
   const isE2E = import.meta.env.VITE_DF_E2E === '1';
-  const shadowMode = isE2E ? 'open' : 'closed';
 
   const ui = await createShadowRootUi(ctx, {
     name: 'designer-feedback-root',
     position: 'inline',
     anchor: 'body',
-    mode: shadowMode,
-    isolateEvents: true,
+    mode: isE2E ? 'open' : 'closed',
     onMount: (container, shadow) => {
       const appRoot = document.createElement('div');
       appRoot.id = 'app';

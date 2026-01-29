@@ -17,9 +17,19 @@ export default defineConfig({
     action: {
       default_title: 'Click to activate Designer Feedback',
     },
+    // CSS must be accessible from all URLs for runtime content script injection
+    web_accessible_resources: [
+      {
+        resources: ['content-scripts/content.css'],
+        matches: ['http://*/*', 'https://*/*'],
+      },
+    ],
   },
 
-  runner: {
+  webExt: {
     startUrls: ['https://example.com'],
   },
+
+  // Maintain old output directory structure for E2E tests
+  outDirTemplate: '{{browser}}-mv{{manifestVersion}}',
 });

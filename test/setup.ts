@@ -3,16 +3,19 @@
  * Provides browser API mocks for unit testing
  */
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 // Create a mock browser API for testing
 const mockStorage: Record<string, unknown> = {};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMock = Mock<(...args: any[]) => any>;
 
 const mockBrowser = {
   runtime: {
     id: 'mock-extension-id',
     lastError: null as { message?: string } | null,
-    sendMessage: vi.fn().mockResolvedValue(undefined),
+    sendMessage: vi.fn().mockResolvedValue(undefined) as AnyMock,
     getManifest: vi.fn(() => ({})),
     getURL: vi.fn((path: string) => `chrome-extension://mock-id/${path}`),
     onMessage: {
@@ -71,8 +74,8 @@ const mockBrowser = {
     setBadgeBackgroundColor: vi.fn().mockResolvedValue(undefined),
   },
   permissions: {
-    contains: vi.fn().mockResolvedValue(true),
-    request: vi.fn().mockResolvedValue(true),
+    contains: vi.fn().mockResolvedValue(true) as AnyMock,
+    request: vi.fn().mockResolvedValue(true) as AnyMock,
   },
 };
 

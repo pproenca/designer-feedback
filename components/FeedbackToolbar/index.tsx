@@ -61,8 +61,8 @@ const getMotionVariants = (reduceMotion: boolean) => ({
       opacity: 1,
       ...(reduceMotion ? {} : { y: 0, scale: 1 }),
       transition: reduceMotion
-        ? { duration: 0.15, ease: 'easeOut' }
-        : { type: 'spring', stiffness: 400, damping: 25 },
+        ? { duration: 0.15, ease: 'easeOut' as const }
+        : { type: 'spring' as const, stiffness: 400, damping: 25 },
     },
   },
   badge: {
@@ -71,8 +71,8 @@ const getMotionVariants = (reduceMotion: boolean) => ({
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1 }),
       transition: reduceMotion
-        ? { duration: 0.12, ease: 'easeOut' }
-        : { type: 'spring', stiffness: 500, damping: 20, delay: 0.4 },
+        ? { duration: 0.12, ease: 'easeOut' as const }
+        : { type: 'spring' as const, stiffness: 500, damping: 20, delay: 0.4 },
     },
   },
   marker: {
@@ -81,12 +81,12 @@ const getMotionVariants = (reduceMotion: boolean) => ({
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1 }),
       transition: reduceMotion
-        ? { duration: 0.12, ease: 'easeOut' }
-        : { type: 'spring', stiffness: 400, damping: 20 },
+        ? { duration: 0.12, ease: 'easeOut' as const }
+        : { type: 'spring' as const, stiffness: 400, damping: 20 },
     },
     hover: {
       ...(reduceMotion ? {} : { scale: 1.08 }),
-      transition: { duration: 0.1, ease: 'easeOut' },
+      transition: { duration: 0.1, ease: 'easeOut' as const },
     },
   },
   categoryPanel: {
@@ -94,12 +94,12 @@ const getMotionVariants = (reduceMotion: boolean) => ({
     visible: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.15, ease: 'easeOut' },
+      transition: { duration: 0.15, ease: 'easeOut' as const },
     },
     exit: {
       opacity: 0,
       ...(reduceMotion ? {} : { scale: 0.95, y: -8 }),
-      transition: { duration: 0.1, ease: 'easeIn' },
+      transition: { duration: 0.1, ease: 'easeIn' as const },
     },
   },
   markerTooltip: {
@@ -108,7 +108,7 @@ const getMotionVariants = (reduceMotion: boolean) => ({
     hover: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.1, ease: 'easeOut' },
+      transition: { duration: 0.1, ease: 'easeOut' as const },
     },
   },
   hoverHighlight: {
@@ -116,7 +116,7 @@ const getMotionVariants = (reduceMotion: boolean) => ({
     visible: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1 }),
-      transition: { duration: 0.12, ease: 'easeOut' },
+      transition: { duration: 0.12, ease: 'easeOut' as const },
     },
   },
   hoverTooltip: {
@@ -124,7 +124,7 @@ const getMotionVariants = (reduceMotion: boolean) => ({
     visible: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.1, ease: 'easeOut' },
+      transition: { duration: 0.1, ease: 'easeOut' as const },
     },
   },
   iconSwap: {
@@ -132,12 +132,12 @@ const getMotionVariants = (reduceMotion: boolean) => ({
     visible: {
       opacity: 1,
       ...(reduceMotion ? {} : { scale: 1 }),
-      transition: { duration: 0.12, ease: 'easeOut' },
+      transition: { duration: 0.12, ease: 'easeOut' as const },
     },
     exit: {
       opacity: 0,
       ...(reduceMotion ? {} : { scale: 0.8 }),
-      transition: { duration: 0.08, ease: 'easeIn' },
+      transition: { duration: 0.08, ease: 'easeIn' as const },
     },
   },
 });

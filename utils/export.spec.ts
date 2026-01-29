@@ -96,7 +96,7 @@ describe('export utilities', () => {
 
   it('falls back to anchor download when background download fails', async () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: false, error: 'nope' });
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: false, error: 'nope' } as unknown as void);
 
     await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
 
@@ -107,7 +107,7 @@ describe('export utilities', () => {
   });
 
   it('uses background download when available and successful', async () => {
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: true });
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: true } as unknown as void);
 
     await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
 

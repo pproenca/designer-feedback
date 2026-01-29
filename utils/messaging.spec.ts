@@ -16,7 +16,7 @@ describe('sendMessage', () => {
     const expectedResponse = { data: 'test' };
 
     // Use vi.spyOn to mock the sendMessage behavior
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(expectedResponse);
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(expectedResponse as unknown as void);
 
     const result = await sendMessage({ type: 'TEST' });
     expect(result).toEqual(expectedResponse);
@@ -82,7 +82,7 @@ describe('sendMessage', () => {
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const expectedResponse = { data: 'test' };
 
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(expectedResponse);
+    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(expectedResponse as unknown as void);
 
     await sendMessage({ type: 'TEST' });
 

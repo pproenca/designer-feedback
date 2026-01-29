@@ -183,6 +183,7 @@ export const test = base.extend<{
         ...(process.env.CI ? ['--disable-gpu', '--no-sandbox'] : []),
       ].filter(Boolean),
     });
+
     await use(context);
     await context.close();
     await fs.promises.rm(userDataDir, { recursive: true, force: true });

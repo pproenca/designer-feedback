@@ -2,7 +2,7 @@
 // Background Service Worker
 // =============================================================================
 
-import { defineBackground } from 'wxt/sandbox';
+import { defineBackground } from '#imports';
 import type { Settings, MessageType } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import { hashString } from '@/utils/hash';
