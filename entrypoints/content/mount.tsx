@@ -33,14 +33,19 @@ function ensureGlobalStyles(): void {
   globalStyleElement = style;
 }
 
-export async function mountUI(ctx: ContentScriptContext): Promise<void> {
+export async function mountUI(ctx: ContentScriptContext) {
   await waitForDomReady();
   ensureGlobalStyles();
+
+  const isE2E = import.meta.env.VITE_DF_E2E === '1';
+  const shadowMode = isE2E ? 'open' : 'closed';
 
   const ui = await createShadowRootUi(ctx, {
     name: 'designer-feedback-root',
     position: 'inline',
     anchor: 'body',
+    mode: shadowMode,
+    isolateEvents: true,
     onMount: (container, shadow) => {
       const appRoot = document.createElement('div');
       appRoot.id = 'app';
@@ -64,4 +69,5 @@ export async function mountUI(ctx: ContentScriptContext): Promise<void> {
   });
 
   ui.mount();
+  return ui;
 }

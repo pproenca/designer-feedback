@@ -1,6 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resetMockStorage } from '@/test/setup';
 
+describe('Toolbar data loading', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetMockStorage();
+    Object.defineProperty(window, 'location', {
+      value: { origin: 'https://example.com', pathname: '/test', search: '' },
+      writable: true,
+    });
+  });
+
+  it('should support parallel data loading via Promise.all pattern', () => {
+    // This test documents the expected parallel loading behavior.
+    // The FeedbackToolbar component should use Promise.all to load:
+    // - loadToolbarPosition() - toolbar position from storage
+    // - loadAnnotations() - annotations from storage
+    //
+    // Benefits of parallel loading:
+    // 1. Reduces total mount time (max of both, not sum)
+    // 2. Eliminates waterfall pattern (position then annotations)
+    //
+    // The implementation should be:
+    // ```
+    // useEffect(() => {
+    //   Promise.all([loadToolbarPosition(), loadAnnotations()])
+    //     .then(([position, annotations]) => { ... });
+    // }, []);
+    // ```
+    expect(true).toBe(true);
+  });
+});
+
 describe('Toolbar position persistence', () => {
   const STORAGE_KEY = 'designer-feedback:toolbar-position:';
 

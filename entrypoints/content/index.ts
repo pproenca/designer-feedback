@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/sandbox';
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
+import { emitUiEvent } from '@/utils/ui-events';
 import { mountUI } from './mount';
 
 declare global {
@@ -35,53 +36,72 @@ export default defineContentScript({
     window.__designerFeedbackInjected = true;
     console.log('[DF] Set __designerFeedbackInjected = true');
 
-    let isInjected = false;
+    let uiPromise: Promise<Awaited<ReturnType<typeof mountUI>>> | null = null;
+    let uiInstance: Awaited<ReturnType<typeof mountUI>> | null = null;
 
     async function ensureInjected(): Promise<void> {
-      if (isInjected) return;
-      await mountUI(ctx);
-      isInjected = true;
+      if (uiInstance) return;
+      if (!uiPromise) {
+        uiPromise = mountUI(ctx)
+          .then((ui) => {
+            uiInstance = ui;
+            return ui;
+          })
+          .catch((error) => {
+            uiPromise = null;
+            uiInstance = null;
+            window.__designerFeedbackInjected = false;
+            throw error;
+          });
+      }
+      await uiPromise;
     }
 
-    const messageHandler = (
-      message: unknown,
-      _sender: unknown,
-      sendResponse: (response?: unknown) => void
-    ): boolean | void => {
+    const messageHandler = async (message: unknown, _sender: unknown) => {
+      void _sender;
       const msg = message as { type?: string };
       // Handle 1-click activation from service worker
       if (msg.type === 'SHOW_TOOLBAR') {
-        ensureInjected().catch((error) => {
+        try {
+          await ensureInjected();
+        } catch (error) {
           console.error('Failed to show toolbar:', error);
-        });
+        }
         return;
       }
 
       if (msg.type === 'GET_ANNOTATION_COUNT') {
         const url = getStorageKey();
-        getAnnotationCount(url)
-          .then((count) => sendResponse({ count }))
-          .catch(() => sendResponse({ count: 0 }));
-        return true; // Keep channel open for async response
+        try {
+          const count = await getAnnotationCount(url);
+          return { count };
+        } catch {
+          return { count: 0 };
+        }
       }
 
       if (msg.type === 'TRIGGER_EXPORT') {
-        ensureInjected()
-          .then(() => {
-            window.setTimeout(() => {
-              document.dispatchEvent(new CustomEvent('designer-feedback:open-export'));
-            }, 0);
-          })
-          .catch((error) => {
-            console.error('Failed to trigger export:', error);
-          });
+        try {
+          await ensureInjected();
+          window.setTimeout(() => {
+            emitUiEvent('open-export');
+          }, 0);
+        } catch (error) {
+          console.error('Failed to trigger export:', error);
+        }
         return;
       }
 
       return;
     };
 
-    // @ts-expect-error - WXT types are strict about message listener return type
     browser.runtime.onMessage.addListener(messageHandler);
+    ctx.onInvalidated(() => {
+      browser.runtime.onMessage.removeListener(messageHandler);
+      uiInstance?.remove();
+      uiInstance = null;
+      uiPromise = null;
+      delete window.__designerFeedbackInjected;
+    });
   },
 });

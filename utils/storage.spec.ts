@@ -9,6 +9,7 @@ import {
   checkStorageQuota,
   saveAnnotation,
 } from './storage';
+import { hashString } from './hash';
 
 describe('Storage Quota Validation', () => {
   beforeEach(() => {
@@ -46,8 +47,9 @@ describe('Storage helpers and flows', () => {
     });
   });
 
-  it('builds storage keys with origin + path + query', () => {
-    expect(getStorageKey()).toBe('https://example.com/page?q=1');
+  it('builds storage keys with a hashed origin + path + query', () => {
+    const rawKey = 'https://example.com/page?q=1';
+    expect(getStorageKey()).toBe(`v2:${hashString(rawKey)}`);
   });
 
   it('merges legacy storage keys and normalizes coordinates', async () => {
@@ -147,12 +149,12 @@ describe('Storage helpers and flows', () => {
       elementPath: 'div.test',
       timestamp: Date.now(),
       isFixed: false,
-      url: 'https://example.com/page?q=1',
+      url: getStorageKey(),
     };
 
     await saveAnnotation(annotation);
 
-    const key = `${storagePrefix}https://example.com/page?q=1`;
+    const key = `${storagePrefix}${getStorageKey()}`;
     const result = await browser.storage.local.get(key);
     const stored = result[key] as typeof annotation[];
     expect(stored).toHaveLength(1);

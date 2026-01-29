@@ -3,6 +3,11 @@
 // Ported from agentation
 // =============================================================================
 
+// Hoisted regex patterns for performance (avoid re-creation per call)
+const SHORT_CLASS_REGEX = /^[a-z]{1,2}$/;
+const HASH_CLASS_REGEX = /[A-Z0-9]{5,}/;
+const HASH_CLASS_SUFFIX_REGEX = /[A-Z0-9]{5,}.*$/;
+
 /**
  * Gets a readable path for an element (e.g., "article > section > p")
  */
@@ -25,7 +30,7 @@ export function getElementPath(target: HTMLElement, maxDepth = 4): string {
       const meaningfulClass = current.className
         .split(/\s+/)
         .find(
-          (c) => c.length > 2 && !c.match(/^[a-z]{1,2}$/) && !c.match(/[A-Z0-9]{5,}/)
+          (c) => c.length > 2 && !SHORT_CLASS_REGEX.test(c) && !HASH_CLASS_REGEX.test(c)
         );
       if (meaningfulClass) {
         identifier = `.${meaningfulClass.split('_')[0]}`;
@@ -151,8 +156,8 @@ export function identifyElement(target: HTMLElement): { name: string; path: stri
     if (typeof className === 'string' && className) {
       const words = className
         .split(/[\s_-]+/)
-        .map((c) => c.replace(/[A-Z0-9]{5,}.*$/, ''))
-        .filter((c) => c.length > 2 && !/^[a-z]{1,2}$/.test(c))
+        .map((c) => c.replace(HASH_CLASS_SUFFIX_REGEX, ''))
+        .filter((c) => c.length > 2 && !SHORT_CLASS_REGEX.test(c))
         .slice(0, 2);
       if (words.length > 0) return { name: words.join(' '), path };
     }

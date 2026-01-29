@@ -5,13 +5,14 @@
 import { defineBackground } from 'wxt/sandbox';
 import type { Settings, MessageType } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
+import { hashString } from '@/utils/hash';
 
 export default defineBackground(() => {
   // =============================================================================
   // Tab Tracking for Same-Origin Persistence
   // =============================================================================
 
-  const activatedTabs = new Map<number, string>(); // tabId -> origin
+  const activatedTabs = new Map<number, string>(); // tabId -> origin hash
   const ACTIVATED_TABS_KEY = 'designer-feedback:activated-tabs';
 
   function canUseSessionStorage(): boolean {
@@ -29,20 +30,31 @@ export default defineBackground(() => {
     });
   }
 
+  function normalizeOriginHash(value: string): string {
+    if (value.includes('://')) {
+      return hashString(value);
+    }
+    return value;
+  }
+
   async function restoreActivatedTabs(): Promise<void> {
     if (!canUseSessionStorage()) return;
     try {
       const result = await browser.storage.session.get({ [ACTIVATED_TABS_KEY]: {} });
       const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+      let changed = false;
       Object.entries(stored ?? {}).forEach(([tabId, origin]) => {
         const id = Number(tabId);
         if (Number.isFinite(id) && origin) {
-          activatedTabs.set(id, origin);
+          const normalized = normalizeOriginHash(origin);
+          if (normalized !== origin) {
+            changed = true;
+          }
+          activatedTabs.set(id, normalized);
         }
       });
       const tabs = await browser.tabs.query({});
       const validIds = new Set(tabs.map((tab) => tab.id).filter(Boolean) as number[]);
-      let changed = false;
       for (const id of activatedTabs.keys()) {
         if (!validIds.has(id)) {
           activatedTabs.delete(id);
@@ -77,6 +89,74 @@ export default defineBackground(() => {
     } catch {
       return '';
     }
+  }
+
+  function getOriginHash(origin: string): string {
+    return hashString(origin);
+  }
+
+  function getOriginPattern(origin: string): string {
+    return `${origin}/*`;
+  }
+
+  function hasOptionalHostPermissions(): boolean {
+    try {
+      const manifest = browser.runtime.getManifest() as { optional_host_permissions?: string[] };
+      const optional = manifest.optional_host_permissions;
+      return Array.isArray(optional) && optional.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async function ensureHostPermission(origin: string): Promise<boolean> {
+    if (!origin) return false;
+    if (!hasOptionalHostPermissions()) return false;
+    if (!browser.permissions?.contains || !browser.permissions?.request) return false;
+
+    const pattern = getOriginPattern(origin);
+    try {
+      const granted = await browser.permissions.contains({ origins: [pattern] });
+      if (granted) return true;
+    } catch {
+      // continue to request
+    }
+
+    try {
+      const granted = await browser.permissions.request({ origins: [pattern] });
+      return Boolean(granted);
+    } catch {
+      return false;
+    }
+  }
+
+  async function getActivatedOriginHash(tabId: number): Promise<string | null> {
+    const cached = activatedTabs.get(tabId);
+    if (cached) return cached;
+    if (!canUseSessionStorage()) return null;
+    try {
+      const result = await browser.storage.session.get({ [ACTIVATED_TABS_KEY]: {} });
+      const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+      const origin = stored?.[String(tabId)];
+      if (origin) {
+        const normalized = normalizeOriginHash(origin);
+        activatedTabs.set(tabId, normalized);
+        return normalized;
+      }
+    } catch (error) {
+      console.warn('Failed to read activated tab origin:', error);
+    }
+    return null;
+  }
+
+  function setActivatedTab(tabId: number, originHash: string): void {
+    activatedTabs.set(tabId, originHash);
+    persistActivatedTabs();
+  }
+
+  function clearActivatedTab(tabId: number): void {
+    activatedTabs.delete(tabId);
+    persistActivatedTabs();
   }
 
   function getContentScriptFiles(): string[] {
@@ -116,24 +196,26 @@ export default defineBackground(() => {
    * Show toolbar on the given tab.
    * Injects content scripts on-demand when needed.
    */
-  async function showToolbar(tabId: number): Promise<void> {
+  async function showToolbar(tabId: number): Promise<boolean> {
     try {
       // Tell content script to show toolbar
       await sendShowToolbarWithRetry(tabId);
+      return true;
     } catch (error) {
       try {
         const injected = await injectContentScripts(tabId);
         if (injected) {
           await sendShowToolbarWithRetry(tabId);
-          return;
+          return true;
         }
       } catch (retryError) {
         console.error('Failed to show toolbar after injection:', retryError);
-        return;
+        return false;
       }
       // Content script might not be ready yet, or page doesn't support it
       console.error('Failed to show toolbar:', error);
     }
+    return false;
   }
 
   // =============================================================================
@@ -148,11 +230,15 @@ export default defineBackground(() => {
       return;
     }
 
-    // Track this tab for same-origin persistence
-    activatedTabs.set(tab.id, getOrigin(tab.url));
-    persistActivatedTabs();
-
-    await showToolbar(tab.id);
+    const origin = getOrigin(tab.url);
+    const originHash = getOriginHash(origin);
+    const canPersist = await ensureHostPermission(origin);
+    const shown = await showToolbar(tab.id);
+    if (shown && canPersist) {
+      setActivatedTab(tab.id, originHash);
+    } else {
+      clearActivatedTab(tab.id);
+    }
   });
 
   // =============================================================================
@@ -161,25 +247,29 @@ export default defineBackground(() => {
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== 'complete' || !tab.url) return;
+    const url = tab.url;
+    void (async () => {
+      const previousOriginHash = await getActivatedOriginHash(tabId);
+      if (!previousOriginHash) return;
 
-    const previousOrigin = activatedTabs.get(tabId);
-    if (!previousOrigin) return;
-
-    const currentOrigin = getOrigin(tab.url);
-    if (currentOrigin === previousOrigin) {
-      // Same origin - re-inject
-      showToolbar(tabId);
-    } else {
-      // Different origin - clear tracking
-      activatedTabs.delete(tabId);
-      persistActivatedTabs();
-    }
+      const currentOrigin = getOrigin(url);
+      const currentOriginHash = getOriginHash(currentOrigin);
+      if (currentOriginHash === previousOriginHash) {
+        // Same origin - re-inject
+        const shown = await showToolbar(tabId);
+        if (!shown) {
+          clearActivatedTab(tabId);
+        }
+      } else {
+        // Different origin - clear tracking
+        clearActivatedTab(tabId);
+      }
+    })();
   });
 
   // Clean up on tab close
   browser.tabs.onRemoved.addListener((tabId) => {
-    activatedTabs.delete(tabId);
-    persistActivatedTabs();
+    clearActivatedTab(tabId);
   });
 
   // =============================================================================

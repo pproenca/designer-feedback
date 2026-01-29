@@ -1,9 +1,21 @@
-import { useState, useCallback, useEffect, useMemo, useReducer, type CSSProperties } from 'react';
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  lazy,
+  Suspense,
+  startTransition,
+  type CSSProperties,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { AnnotationPopup } from '../AnnotationPopup';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
+import { onUiEvent } from '@/utils/ui-events';
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import {
   IconList,
@@ -17,7 +29,6 @@ import {
   IconAccessibility,
   IconExport,
 } from '../Icons';
-import { ExportModal } from '../ExportModal';
 import {
   identifyElement,
   hasFixedPositioning,
@@ -33,6 +44,11 @@ import {
 import { throttle, debounce } from '@/utils/timing';
 import type { Annotation, FeedbackCategory } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
+
+// Lazy load ExportModal for bundle size optimization
+const ExportModal = lazy(() =>
+  import('../ExportModal').then((m) => ({ default: m.ExportModal }))
+);
 
 // Performance constants
 const HOVER_THROTTLE_MS = 50;
@@ -334,42 +350,25 @@ export function FeedbackToolbar({
     debouncedUpdateBadgeCount(annotations.length);
   }, [annotations.length, debouncedUpdateBadgeCount]);
 
-  // Load saved toolbar position on mount
+  // Load toolbar position and annotations in parallel on mount
   useEffect(() => {
     let isCancelled = false;
 
-    const loadPosition = async () => {
+    const loadInitialData = async () => {
       try {
-        const position = await loadToolbarPosition();
+        const [position, loaded] = await Promise.all([
+          loadToolbarPosition(),
+          loadAnnotations(),
+        ]);
         if (!isCancelled) {
           setSavedToolbarPosition(position);
-        }
-      } catch (error) {
-        console.error('Failed to load toolbar position:', error);
-      }
-    };
-    loadPosition();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  // Load annotations on mount
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadAnnotationsFromStorage = async () => {
-      try {
-        const loaded = await loadAnnotations();
-        if (!isCancelled) {
           setAnnotations(loaded);
         }
       } catch (error) {
-        console.error('Failed to load annotations:', error);
+        console.error('Failed to load initial data:', error);
       }
     };
-    loadAnnotationsFromStorage();
+    loadInitialData();
 
     return () => {
       isCancelled = true;
@@ -385,8 +384,9 @@ export function FeedbackToolbar({
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for export trigger from popup
+  // Listen for external events (runtime messages and UI events)
   useEffect(() => {
+    // Handle export trigger from popup
     const handleExportMessage = (message: unknown) => {
       const msg = message as { type?: string };
       if (msg.type === 'TRIGGER_EXPORT') {
@@ -394,23 +394,19 @@ export function FeedbackToolbar({
       }
     };
     browser.runtime.onMessage.addListener(handleExportMessage);
-    return () => browser.runtime.onMessage.removeListener(handleExportMessage);
-  }, []);
 
-  // Listen for hide/show events from export functions
-  useEffect(() => {
-    const handleHideUI = () => dispatch({ type: 'setHidden', value: true });
-    const handleShowUI = () => dispatch({ type: 'setHidden', value: false });
-    const handleOpenExport = () => dispatch({ type: 'setExportModalOpen', value: true });
-
-    document.addEventListener('designer-feedback:hide-ui', handleHideUI);
-    document.addEventListener('designer-feedback:show-ui', handleShowUI);
-    document.addEventListener('designer-feedback:open-export', handleOpenExport);
+    // Handle hide/show events from export functions
+    const offHide = onUiEvent('hide-ui', () => dispatch({ type: 'setHidden', value: true }));
+    const offShow = onUiEvent('show-ui', () => dispatch({ type: 'setHidden', value: false }));
+    const offOpen = onUiEvent('open-export', () =>
+      dispatch({ type: 'setExportModalOpen', value: true })
+    );
 
     return () => {
-      document.removeEventListener('designer-feedback:hide-ui', handleHideUI);
-      document.removeEventListener('designer-feedback:show-ui', handleShowUI);
-      document.removeEventListener('designer-feedback:open-export', handleOpenExport);
+      browser.runtime.onMessage.removeListener(handleExportMessage);
+      offHide();
+      offShow();
+      offOpen();
     };
   }, []);
 
@@ -499,18 +495,37 @@ export function FeedbackToolbar({
     };
   }, [isSelectingElement]);
 
-  // Cancel add mode on escape
+  // Ref to store escape handler state - avoids re-subscribing on state changes
+  const escapeStateRef = useRef({
+    hasSelectedAnnotation,
+    isSelectingElement,
+    pendingAnnotation,
+    isCategoryPanelOpen,
+  });
+
+  // Keep ref in sync with current state
+  useEffect(() => {
+    escapeStateRef.current = {
+      hasSelectedAnnotation,
+      isSelectingElement,
+      pendingAnnotation,
+      isCategoryPanelOpen,
+    };
+  });
+
+  // Cancel add mode on escape - stable subscription with ref pattern
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        if (isCategoryPanelOpen) {
+        const state = escapeStateRef.current;
+        if (state.isCategoryPanelOpen) {
           dispatch({ type: 'setAddMode', value: 'idle' });
-        } else if (hasSelectedAnnotation) {
+        } else if (state.hasSelectedAnnotation) {
           dispatch({ type: 'setSelectedAnnotationId', value: null });
-        } else if (pendingAnnotation) {
+        } else if (state.pendingAnnotation) {
           dispatch({ type: 'setPendingAnnotation', value: null });
-        } else if (isSelectingElement) {
+        } else if (state.isSelectingElement) {
           dispatch({ type: 'setAddMode', value: 'idle' });
         }
       }
@@ -518,7 +533,7 @@ export function FeedbackToolbar({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [hasSelectedAnnotation, isSelectingElement, pendingAnnotation, isCategoryPanelOpen]);
+  }, []); // Empty deps - stable subscription
 
   // Close active annotation when clicking outside
   useEffect(() => {
@@ -601,12 +616,14 @@ export function FeedbackToolbar({
     [selectedAnnotationId]
   );
 
-  // Handle clear all
+  // Handle clear all - use startTransition for non-urgent UI updates
   const handleClearAllAnnotations = useCallback(async () => {
     try {
       await clearAnnotations();
-      setAnnotations([]);
-      dispatch({ type: 'setSelectedAnnotationId', value: null });
+      startTransition(() => {
+        setAnnotations([]);
+        dispatch({ type: 'setSelectedAnnotationId', value: null });
+      });
     } catch (error) {
       console.error('Failed to clear annotations:', error);
     }
@@ -818,7 +835,7 @@ export function FeedbackToolbar({
     <div className={classNames('font-sans', darkModeClassName)}>
       {/* Hover highlight overlay */}
       <AnimatePresence>
-        {isSelectingElement && hoverInfo?.rect && (
+        {isSelectingElement && hoverInfo?.rect ? (
           <div className="fixed inset-0 z-overlay pointer-events-none [&>*]:pointer-events-auto">
             <motion.div
               initial="hidden"
@@ -847,14 +864,14 @@ export function FeedbackToolbar({
               {hoverInfo.element}
             </motion.div>
           </div>
-        )}
+        ) : null}
       </AnimatePresence>
 
       {/* Annotation markers */}
       {renderAnnotationMarkers()}
 
       {/* Annotation popup - create mode */}
-      {pendingAnnotation && (
+      {pendingAnnotation ? (
         <AnnotationPopup
           mode="create"
           element={pendingAnnotation.element}
@@ -869,10 +886,10 @@ export function FeedbackToolbar({
             position: pendingAnnotation.isFixed ? 'fixed' : 'absolute',
           }}
         />
-      )}
+      ) : null}
 
       {/* Annotation popup - view mode */}
-      {selectedAnnotation && (
+      {selectedAnnotation ? (
         <AnnotationPopup
           mode="view"
           element={selectedAnnotation.element}
@@ -891,16 +908,18 @@ export function FeedbackToolbar({
             position: selectedAnnotation.isFixed ? 'fixed' : 'absolute',
           }}
         />
-      )}
+      ) : null}
 
-      {/* Export Modal */}
+      {/* Export Modal (lazy-loaded) */}
       <AnimatePresence>
         {isExportModalOpen && (
-          <ExportModal
-            annotations={annotations}
-            onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
-            lightMode={lightMode}
-          />
+          <Suspense fallback={null}>
+            <ExportModal
+              annotations={annotations}
+              onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
+              lightMode={lightMode}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
@@ -1101,7 +1120,11 @@ export function FeedbackToolbar({
                 type="button"
                 aria-label="Export feedback"
                 aria-describedby="tooltip-export"
-                onClick={() => dispatch({ type: 'setExportModalOpen', value: true })}
+                onClick={() =>
+                  startTransition(() => dispatch({ type: 'setExportModalOpen', value: true }))
+                }
+                onMouseEnter={() => void import('../ExportModal')}
+                onFocus={() => void import('../ExportModal')}
                 disabled={annotations.length === 0}
               >
                 <IconExport size={18} />

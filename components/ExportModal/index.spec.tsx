@@ -6,6 +6,22 @@ import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { hasScreenshotPermission, requestScreenshotPermission } from '@/utils/permissions';
 import type { Annotation } from '@/types';
 
+// Verify ExportModal is a named export (supports lazy loading with transform)
+describe('ExportModal module structure', () => {
+  it('exports ExportModal as a named export for lazy loading', async () => {
+    const module = await import('./index');
+    expect(module.ExportModal).toBeDefined();
+    expect(typeof module.ExportModal).toBe('function');
+  });
+
+  it('can be dynamically imported', async () => {
+    const loadModule = () => import('./index').then((m) => ({ default: m.ExportModal }));
+    const module = await loadModule();
+    expect(module.default).toBeDefined();
+    expect(typeof module.default).toBe('function');
+  });
+});
+
 // Mock export utilities
 vi.mock('@/utils/export', () => ({
   exportAsImageWithNotes: vi.fn().mockResolvedValue(undefined),

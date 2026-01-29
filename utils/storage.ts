@@ -3,8 +3,10 @@
 // =============================================================================
 
 import type { Annotation } from '@/types';
+import { hashString } from '@/utils/hash';
 
 const STORAGE_PREFIX = 'designer-feedback:annotations:';
+const STORAGE_KEY_VERSION = 'v2';
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -101,19 +103,38 @@ export async function checkStorageQuota(): Promise<{
 /**
  * Get the storage key for a URL
  */
-export function getStorageKey(): string {
+function getRawStorageKey(): string {
   const origin = window.location.origin === 'null' ? '' : window.location.origin;
   return `${origin}${window.location.pathname}${window.location.search}`;
+}
+
+function getHashedStorageKey(): string {
+  const rawKey = getRawStorageKey();
+  return `${STORAGE_KEY_VERSION}:${hashString(rawKey)}`;
+}
+
+export function getStorageKey(): string {
+  return getHashedStorageKey();
 }
 
 function getLegacyStorageKey(): string {
   return window.location.pathname + window.location.search;
 }
 
+function isKnownStorageKey(urlKey: string): boolean {
+  return (
+    urlKey === getHashedStorageKey() ||
+    urlKey === getRawStorageKey() ||
+    urlKey === getLegacyStorageKey()
+  );
+}
+
 function getStorageKeys(): string[] {
-  const currentKey = getStorageKey();
+  const currentKey = getHashedStorageKey();
+  const rawKey = getRawStorageKey();
   const legacyKey = getLegacyStorageKey();
-  return currentKey === legacyKey ? [currentKey] : [currentKey, legacyKey];
+  const keys = [currentKey, rawKey, legacyKey];
+  return Array.from(new Set(keys));
 }
 
 async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
@@ -183,12 +204,11 @@ export async function loadAnnotations(): Promise<Annotation[]> {
   const now = Date.now();
 
   if (now - lastCleanupAt > CLEANUP_INTERVAL_MS) {
-    try {
-      await cleanupExpiredAnnotations(cutoff);
-    } catch (error) {
-      console.warn('Failed to clean expired annotations:', error);
-    }
     lastCleanupAt = now;
+    // Fire-and-forget: don't block annotation loading
+    cleanupExpiredAnnotations(cutoff).catch((error) => {
+      console.warn('Failed to clean expired annotations:', error);
+    });
   }
 
   const keys = getStorageKeys();
@@ -209,7 +229,21 @@ export async function loadAnnotations(): Promise<Annotation[]> {
     merged.set(annotation.id, normalized);
   });
 
-  return Array.from(merged.values());
+  const mergedAnnotations = Array.from(merged.values());
+
+  const [primaryKey, ...legacyKeys] = keys;
+  const legacyHasData = results.slice(1).some((value) => Array.isArray(value) && value.length > 0);
+
+  if (legacyHasData) {
+    try {
+      await saveAnnotationsForKey(primaryKey, mergedAnnotations);
+      await removeLocal(legacyKeys);
+    } catch (error) {
+      console.warn('Failed to migrate legacy annotation keys:', error);
+    }
+  }
+
+  return mergedAnnotations;
 }
 
 /**
@@ -243,7 +277,7 @@ export async function clearAnnotations(): Promise<void> {
  */
 export async function getAnnotationCount(url: string): Promise<number> {
   const cutoff = Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const keys = url === getStorageKey() ? getStorageKeys() : [url];
+  const keys = isKnownStorageKey(url) ? getStorageKeys() : [url];
   const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
   const seen = new Set<string>();
   let count = 0;

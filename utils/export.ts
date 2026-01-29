@@ -6,6 +6,7 @@ import type { Annotation, FeedbackExport } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { sendMessage } from '@/utils/messaging';
 import { captureFullPage } from './screenshot';
+import { emitUiEvent } from './ui-events';
 
 /**
  * Generate JSON export object
@@ -170,14 +171,14 @@ async function copyToClipboard(text: string): Promise<void> {
  * Hide extension UI before screenshot capture
  */
 function hideExtensionUI(): void {
-  document.dispatchEvent(new CustomEvent('designer-feedback:hide-ui'));
+  emitUiEvent('hide-ui');
 }
 
 /**
  * Show extension UI after screenshot capture
  */
 function showExtensionUI(): void {
-  document.dispatchEvent(new CustomEvent('designer-feedback:show-ui'));
+  emitUiEvent('show-ui');
 }
 
 /**
@@ -597,11 +598,21 @@ function truncateText(
   maxWidth: number
 ): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
-  let trimmed = text;
-  while (trimmed.length > 0 && ctx.measureText(`${trimmed}…`).width > maxWidth) {
-    trimmed = trimmed.slice(0, -1);
+
+  // Binary search for optimal truncation point - O(log n) vs O(n) linear
+  let low = 0;
+  let high = text.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2);
+    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxWidth) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
   }
-  return trimmed ? `${trimmed}…` : '';
+
+  return low > 0 ? text.slice(0, low) + '…' : '';
 }
 
 function hexToRgba(hex: string, alpha: number): string {
