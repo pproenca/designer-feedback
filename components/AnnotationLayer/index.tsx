@@ -7,8 +7,8 @@
 
 import { MarkerLayer } from './MarkerLayer';
 import { PendingMarker } from './PendingMarker';
-import { useToolbarStore } from '@/stores/toolbar';
 import { useAnnotationsStore } from '@/stores/annotations';
+import { useToolbarActions, useToolbarState } from '@/components/FeedbackToolbar/ToolbarStateProvider';
 
 // =============================================================================
 // Component
@@ -16,9 +16,8 @@ import { useAnnotationsStore } from '@/stores/annotations';
 
 export function AnnotationLayer() {
   const annotations = useAnnotationsStore((s) => s.annotations);
-  const pendingAnnotation = useToolbarStore((s) => s.pendingAnnotation);
-  const isEntranceComplete = useToolbarStore((s) => s.isEntranceComplete);
-  const annotationSelected = useToolbarStore((s) => s.annotationSelected);
+  const { pendingAnnotation, isEntranceComplete } = useToolbarState();
+  const { annotationSelected } = useToolbarActions();
 
   // Calculate pending marker number (next number after existing annotations)
   const pendingMarkerNumber = annotations.length + 1;

@@ -1,7 +1,7 @@
 /**
  * Toolbar - The main floating toolbar UI component
  *
- * Reads toolbar state directly from stores and renders controls.
+ * Reads toolbar state from local context and renders controls.
  */
 
 import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
@@ -17,8 +17,8 @@ import {
   IconExport,
 } from '../Icons';
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
-import { useToolbarStore } from '@/stores/toolbar';
 import { useAnnotationsStore } from '@/stores/annotations';
+import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // =============================================================================
 // Types
@@ -82,14 +82,14 @@ export function Toolbar({
   lightMode,
   children,
 }: ToolbarProps) {
-  const isExpanded = useToolbarStore((s) => s.isExpanded);
-  const addMode = useToolbarStore((s) => s.addMode);
-  const isEntranceComplete = useToolbarStore((s) => s.isEntranceComplete);
-  const toolbarExpanded = useToolbarStore((s) => s.toolbarExpanded);
-  const toolbarCollapsed = useToolbarStore((s) => s.toolbarCollapsed);
-  const toggleCategoryPanel = useToolbarStore((s) => s.toggleCategoryPanel);
-  const exportModalOpened = useToolbarStore((s) => s.exportModalOpened);
-  const annotationDeselected = useToolbarStore((s) => s.annotationDeselected);
+  const { isExpanded, addMode, isEntranceComplete } = useToolbarState();
+  const {
+    toolbarExpanded,
+    toolbarCollapsed,
+    toggleCategoryPanel,
+    exportModalOpened,
+    annotationDeselected,
+  } = useToolbarActions();
 
   const annotationsCount = useAnnotationsStore((s) => s.annotations.length);
   const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);

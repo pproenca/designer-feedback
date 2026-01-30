@@ -9,7 +9,7 @@
  * - AnnotationPopup for creating/viewing annotations
  * - ExportModal for exporting feedback
  *
- * State management migrated from useReducer to Zustand stores.
+ * State management is colocated via ToolbarStateProvider (reducer + context).
  */
 
 import {
@@ -22,7 +22,6 @@ import {
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
-
 import { AnnotationPopup } from '../AnnotationPopup';
 import { Toolbar } from './Toolbar';
 import { CategoryPanel } from './CategoryPanel';
@@ -44,8 +43,8 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import type { PendingAnnotation } from './context';
 
 // Zustand stores
-import { useToolbarStore } from '@/stores/toolbar';
 import { useAnnotationsStore } from '@/stores/annotations';
+import { ToolbarStateProvider, useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
@@ -66,7 +65,15 @@ interface FeedbackToolbarProps {
 // Component
 // =============================================================================
 
-export function FeedbackToolbar({
+export function FeedbackToolbar(props: FeedbackToolbarProps) {
+  return (
+    <ToolbarStateProvider>
+      <FeedbackToolbarContent {...props} />
+    </ToolbarStateProvider>
+  );
+}
+
+function FeedbackToolbarContent({
   shadowRoot,
   lightMode = false,
   onLightModeChange,
@@ -78,6 +85,9 @@ export function FeedbackToolbar({
     selectedAnnotationId,
     isExportModalOpen,
     isHidden,
+  } = useToolbarState();
+
+  const {
     elementSelected,
     pendingAnnotationCleared,
     annotationDeselected,
@@ -88,28 +98,14 @@ export function FeedbackToolbar({
     uiShown,
     selectionModeCancelled,
     categoryPanelClosed,
-  } = useToolbarStore(
-    useShallow((s) => ({
-      addMode: s.addMode,
-      selectedCategory: s.selectedCategory,
-      pendingAnnotation: s.pendingAnnotation,
-      selectedAnnotationId: s.selectedAnnotationId,
-      isExportModalOpen: s.isExportModalOpen,
-      isHidden: s.isHidden,
-      elementSelected: s.elementSelected,
-      pendingAnnotationCleared: s.pendingAnnotationCleared,
-      annotationDeselected: s.annotationDeselected,
-      exportModalOpened: s.exportModalOpened,
-      exportModalClosed: s.exportModalClosed,
-      entranceCompleted: s.entranceCompleted,
-      uiHidden: s.uiHidden,
-      uiShown: s.uiShown,
-      selectionModeCancelled: s.selectionModeCancelled,
-      categoryPanelClosed: s.categoryPanelClosed,
-    }))
-  );
+  } = useToolbarActions();
 
-  const { annotations, loadAnnotations, annotationCreated, annotationDeleted } = useAnnotationsStore(
+  const {
+    annotations,
+    loadAnnotations,
+    annotationCreated,
+    annotationDeleted,
+  } = useAnnotationsStore(
     useShallow((s) => ({
       annotations: s.annotations,
       loadAnnotations: s.loadAnnotations,

@@ -1,9 +1,10 @@
 import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
+import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { Toolbar } from './Toolbar';
-import { useToolbarStore } from '@/stores/toolbar';
 import { useAnnotationsStore } from '@/stores/annotations';
+import { ToolbarStateProvider, type ToolbarState, useToolbarState } from './ToolbarStateProvider';
 
 // Mock storage utilities used by the annotations store
 vi.mock('@/utils/storage', () => ({
@@ -70,13 +71,34 @@ vi.mock('@/hooks/useDraggable', () => ({
   })),
 }));
 
-async function renderToolbar(props?: { lightMode?: boolean; onThemeToggle?: () => void }) {
-  const { lightMode = false, onThemeToggle = vi.fn() } = props ?? {};
+let observedState: ToolbarState | null = null;
+
+async function renderToolbar(props?: {
+  lightMode?: boolean;
+  onThemeToggle?: () => void;
+  initialState?: Partial<ToolbarState>;
+}) {
+  const { lightMode = false, onThemeToggle = vi.fn(), initialState } = props ?? {};
   const utils = render(
-    <Toolbar
-      lightMode={lightMode}
-      onThemeToggle={onThemeToggle}
-    />
+    <ToolbarStateProvider
+      initialState={{
+        isExpanded: true,
+        addMode: 'idle',
+        selectedCategory: 'suggestion',
+        pendingAnnotation: null,
+        selectedAnnotationId: null,
+        isExportModalOpen: false,
+        isEntranceComplete: true,
+        isHidden: false,
+        ...initialState,
+      }}
+    >
+      <StateObserver onChange={(state) => { observedState = state; }} />
+      <Toolbar
+        lightMode={lightMode}
+        onThemeToggle={onThemeToggle}
+      />
+    </ToolbarStateProvider>
   );
 
   await act(async () => {});
@@ -85,16 +107,7 @@ async function renderToolbar(props?: { lightMode?: boolean; onThemeToggle?: () =
 
 describe('Toolbar', () => {
   beforeEach(() => {
-    useToolbarStore.setState({
-      isExpanded: true,
-      addMode: 'idle',
-      selectedCategory: 'suggestion',
-      pendingAnnotation: null,
-      selectedAnnotationId: null,
-      isExportModalOpen: false,
-      isEntranceComplete: true,
-      isHidden: false,
-    });
+    observedState = null;
     useAnnotationsStore.setState({ annotations: [], isLoading: false });
     vi.clearAllMocks();
   });
@@ -111,10 +124,9 @@ describe('Toolbar', () => {
   });
 
   it('shows annotation count badge when collapsed', async () => {
-    useToolbarStore.setState({ isExpanded: false });
     useAnnotationsStore.setState({ annotations: [{ id: '1' } as never], isLoading: false });
 
-    await renderToolbar();
+    await renderToolbar({ initialState: { isExpanded: false } });
 
     expect(screen.getByText('1')).toBeInTheDocument();
   });
@@ -131,23 +143,25 @@ describe('Toolbar', () => {
 
     await renderToolbar();
 
-    fireEvent.click(screen.getByLabelText('Export feedback'));
-    expect(useToolbarStore.getState().isExportModalOpen).toBe(true);
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Export feedback'));
+    });
+    expect(observedState?.isExportModalOpen).toBe(true);
   });
 
   it('toggles category panel when add button is clicked', async () => {
     await renderToolbar();
 
     const addButton = screen.getByLabelText('Add annotation');
-    fireEvent.click(addButton);
-    expect(useToolbarStore.getState().addMode).toBe('category');
+    await act(async () => {
+      fireEvent.click(addButton);
+    });
+    expect(observedState?.addMode).toBe('category');
   });
 
   it('clears annotations and deselects active annotation', async () => {
     useAnnotationsStore.setState({ annotations: [{ id: '1' } as never], isLoading: false });
-    useToolbarStore.setState({ selectedAnnotationId: '1' });
-
-    await renderToolbar();
+    await renderToolbar({ initialState: { selectedAnnotationId: '1' } });
 
     const clearButton = screen.getByLabelText('Clear all annotations');
     await act(async () => {
@@ -155,7 +169,7 @@ describe('Toolbar', () => {
     });
 
     expect(useAnnotationsStore.getState().annotations).toHaveLength(0);
-    expect(useToolbarStore.getState().selectedAnnotationId).toBeNull();
+    expect(observedState?.selectedAnnotationId).toBeNull();
   });
 
   it('calls onThemeToggle when theme button is clicked', async () => {
@@ -166,3 +180,13 @@ describe('Toolbar', () => {
     expect(onThemeToggle).toHaveBeenCalledTimes(1);
   });
 });
+
+function StateObserver({ onChange }: { onChange: (state: ToolbarState) => void }) {
+  const state = useToolbarState();
+
+  useEffect(() => {
+    onChange(state);
+  }, [state, onChange]);
+
+  return null;
+}

@@ -12,7 +12,7 @@ import {
   IconQuestion,
   IconAccessibility,
 } from '../Icons';
-import { useToolbarStore } from '@/stores/toolbar';
+import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // =============================================================================
 // Animation Variants
@@ -39,8 +39,9 @@ const getVariants = (reduceMotion: boolean) => ({
 // =============================================================================
 
 export function CategoryPanel() {
-  const isOpen = useToolbarStore((s) => s.addMode === 'category');
-  const categorySelected = useToolbarStore((s) => s.categorySelected);
+  const { addMode } = useToolbarState();
+  const { categorySelected } = useToolbarActions();
+  const isOpen = addMode === 'category';
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
