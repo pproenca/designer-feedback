@@ -80,8 +80,9 @@ function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
         'dark:bg-df-dark-ink dark:shadow-popup'
       )}
     >
-      <span className={clsx('block text-xs font-semibold mb-1', config.tw.text)}>
-        {config.emoji} {config.label}
+      <span className={clsx('inline-flex items-center gap-1 text-xs font-semibold mb-1', config.tw.text)}>
+        <config.Icon size={14} aria-hidden="true" />
+        {config.label}
       </span>
       <span
         className={clsx(

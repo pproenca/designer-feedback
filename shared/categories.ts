@@ -1,10 +1,11 @@
+import { Accessibility, Bug, CircleHelp, Lightbulb, type LucideIcon } from 'lucide-react';
 import type { FeedbackCategory } from '@/types';
 
 export type CategoryConfig = {
   id: FeedbackCategory;
   label: string;
   color: string;
-  emoji: string;
+  Icon: LucideIcon;
   tw: {
     bg: string;
     text: string;
@@ -16,7 +17,7 @@ export const CATEGORIES: CategoryConfig[] = [
     id: 'bug',
     label: 'Bug',
     color: '#FF3B30',
-    emoji: '🐛',
+    Icon: Bug,
     tw: {
       bg: 'bg-df-red',
       text: 'text-df-red',
@@ -26,7 +27,7 @@ export const CATEGORIES: CategoryConfig[] = [
     id: 'suggestion',
     label: 'Suggestion',
     color: '#3C82F7',
-    emoji: '💡',
+    Icon: Lightbulb,
     tw: {
       bg: 'bg-df-blue',
       text: 'text-df-blue',
@@ -36,7 +37,7 @@ export const CATEGORIES: CategoryConfig[] = [
     id: 'question',
     label: 'Question',
     color: '#FFD60A',
-    emoji: '❓',
+    Icon: CircleHelp,
     tw: {
       bg: 'bg-df-yellow',
       text: 'text-df-yellow',
@@ -46,7 +47,7 @@ export const CATEGORIES: CategoryConfig[] = [
     id: 'accessibility',
     label: 'Accessibility',
     color: '#AF52DE',
-    emoji: '♿',
+    Icon: Accessibility,
     tw: {
       bg: 'bg-df-purple',
       text: 'text-df-purple',

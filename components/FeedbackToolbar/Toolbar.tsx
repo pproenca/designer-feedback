@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useRef, startTransition, type ReactNo
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
 import { clsx } from 'clsx';
-import { X, Trash2, Sun, Moon, Download, MessageSquarePlus } from 'lucide-react';
+import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react';
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
@@ -231,7 +231,7 @@ export function Toolbar({
               : 'opacity-100 visible pointer-events-auto'
           )}
         >
-          <MessageSquarePlus size={20} />
+          <MessageCircleMore size={20} />
           <AnimatePresence>
             {annotationsCount > 0 && (
               <m.span
@@ -297,7 +297,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <MessageSquarePlus size={18} />
+                    <MessageCircleMore size={18} />
                   </m.span>
                 )}
               </AnimatePresence>

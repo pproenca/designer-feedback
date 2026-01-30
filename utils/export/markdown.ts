@@ -26,7 +26,7 @@ export function generateNotesMarkdown(annotations: Annotation[]): string {
   // Annotations
   annotations.forEach((annotation, index) => {
     const config = getCategoryConfig(annotation.category);
-    lines.push(`### ${index + 1}. ${config.emoji} ${config.label} - ${annotation.element}`);
+    lines.push(`### ${index + 1}. ${config.label} - ${annotation.element}`);
     lines.push('');
     lines.push(annotation.comment);
     lines.push('');

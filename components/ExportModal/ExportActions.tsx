@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
-import { Download } from 'lucide-react';
+import { Check, Download } from 'lucide-react';
 import { StatusMessage, type StatusType } from '../StatusMessage';
 
 interface ExportActionsProps {
@@ -26,9 +27,14 @@ export function ExportActions({
   onCancel,
   onExport,
 }: ExportActionsProps) {
-  const getButtonText = () => {
+  const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
-      return exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!';
+      return (
+        <>
+          <Check size={16} aria-hidden="true" />
+          {exportOutcome === 'copied' ? 'Copied!' : 'Downloaded!'}
+        </>
+      );
     }
     if (isExporting) {
       return isClipboardFormat ? 'Copying…' : 'Exporting…';
@@ -86,7 +92,7 @@ export function ExportActions({
           disabled={isExporting}
         >
           {!exportOutcome && !isExporting && <Download size={16} aria-hidden="true" />}
-          {getButtonText()}
+          {getButtonContent()}
         </button>
       </div>
     </>
