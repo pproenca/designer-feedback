@@ -1,11 +1,10 @@
 /**
  * Toolbar - The main floating toolbar UI component
  *
- * This is a pure presentation component that renders the toolbar controls.
- * All state management is handled by the parent composition root.
+ * Reads toolbar state directly from stores and renders controls.
  */
 
-import type { ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
 import { clsx } from 'clsx';
@@ -17,42 +16,19 @@ import {
   IconMoon,
   IconExport,
 } from '../Icons';
+import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
+import { useToolbarStore } from '@/stores/toolbar';
+import { useAnnotationsStore } from '@/stores/annotations';
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export interface ToolbarProps {
-  /** Whether the toolbar is expanded */
-  isExpanded: boolean;
-  /** Whether entrance animation is complete */
-  isEntranceComplete: boolean;
-  /** Number of annotations */
-  annotationsCount: number;
-  /** Callback when expanded state changes */
-  onExpandedChange: (expanded: boolean) => void;
-  /** Callback when add button is clicked */
-  onAddClick: () => void;
-  /** Callback when export button is clicked */
-  onExportClick: () => void;
-  /** Callback when clear button is clicked */
-  onClearClick: () => void;
   /** Callback when theme button is clicked */
   onThemeToggle: () => void;
-  /** Whether element selection mode is active */
-  isSelectingElement: boolean;
-  /** Whether category panel is open */
-  isCategoryPanelOpen: boolean;
   /** Whether light mode is enabled */
   lightMode: boolean;
-  /** Whether tooltips are ready to show */
-  tooltipsReady: boolean;
-  /** Callback to warm up tooltips */
-  onTooltipWarmup: () => void;
-  /** Initial toolbar position */
-  initialPosition?: Position | null;
-  /** Callback when toolbar position changes */
-  onPositionChange?: (position: Position) => void;
   /** Children to render in add button area (CategoryPanel) */
   children?: ReactNode;
 }
@@ -102,23 +78,88 @@ const getVariants = (reduceMotion: boolean) => ({
 // =============================================================================
 
 export function Toolbar({
-  isExpanded,
-  isEntranceComplete,
-  annotationsCount,
-  onExpandedChange,
-  onAddClick,
-  onExportClick,
-  onClearClick,
   onThemeToggle,
-  isSelectingElement,
-  isCategoryPanelOpen,
   lightMode,
-  tooltipsReady,
-  onTooltipWarmup,
-  initialPosition,
-  onPositionChange,
   children,
 }: ToolbarProps) {
+  const isExpanded = useToolbarStore((s) => s.isExpanded);
+  const addMode = useToolbarStore((s) => s.addMode);
+  const isEntranceComplete = useToolbarStore((s) => s.isEntranceComplete);
+  const toolbarExpanded = useToolbarStore((s) => s.toolbarExpanded);
+  const toolbarCollapsed = useToolbarStore((s) => s.toolbarCollapsed);
+  const toggleCategoryPanel = useToolbarStore((s) => s.toggleCategoryPanel);
+  const exportModalOpened = useToolbarStore((s) => s.exportModalOpened);
+  const annotationDeselected = useToolbarStore((s) => s.annotationDeselected);
+
+  const annotationsCount = useAnnotationsStore((s) => s.annotations.length);
+  const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);
+
+  const isSelectingElement = addMode === 'selecting';
+  const isCategoryPanelOpen = addMode === 'category';
+
+  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
+  const [tooltipsReady, setTooltipsReady] = useState(false);
+  const tooltipDelayTimerRef = useRef<number | null>(null);
+
+  const handleTooltipWarmup = useCallback(() => {
+    if (tooltipsReady || tooltipDelayTimerRef.current !== null) return;
+    tooltipDelayTimerRef.current = window.setTimeout(() => {
+      setTooltipsReady(true);
+      tooltipDelayTimerRef.current = null;
+    }, 850);
+  }, [tooltipsReady]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipDelayTimerRef.current !== null) {
+        clearTimeout(tooltipDelayTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadInitialPosition = async () => {
+      try {
+        const position = await loadToolbarPosition();
+        if (!isCancelled) {
+          setSavedToolbarPosition(position);
+        }
+      } catch (error) {
+        console.error('Failed to load toolbar position:', error);
+      }
+    };
+
+    loadInitialPosition();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const handleToolbarPositionChange = useCallback((position: Position) => {
+    saveToolbarPosition(position).catch(console.error);
+  }, []);
+
+  const handleExpandedChange = useCallback(
+    (expanded: boolean) => {
+      if (expanded) {
+        toolbarExpanded();
+      } else {
+        toolbarCollapsed();
+      }
+    },
+    [toolbarExpanded, toolbarCollapsed]
+  );
+
+  const handleExportClick = useCallback(() => {
+    startTransition(() => exportModalOpened());
+  }, [exportModalOpened]);
+
+  const handleClearClick = useCallback(async () => {
+    await annotationsCleared();
+    startTransition(() => annotationDeselected());
+  }, [annotationsCleared, annotationDeselected]);
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -130,8 +171,8 @@ export function Toolbar({
   } = useDraggable({
     elementWidth: 44,
     elementHeight: 44,
-    initialPosition,
-    onPositionChange,
+    initialPosition: savedToolbarPosition,
+    onPositionChange: handleToolbarPositionChange,
   });
 
   return (
@@ -142,7 +183,7 @@ export function Toolbar({
       )}
       data-toolbar
       data-tooltips-ready={tooltipsReady ? 'true' : 'false'}
-      onMouseEnter={onTooltipWarmup}
+      onMouseEnter={handleTooltipWarmup}
       style={
         toolbarPosition
           ? expandDirection === 'left'
@@ -176,11 +217,11 @@ export function Toolbar({
                 'active:scale-95'
               )
         )}
-        onClick={() => !isExpanded && onExpandedChange(true)}
+        onClick={() => !isExpanded && handleExpandedChange(true)}
         onKeyDown={(event) => {
           if (!isExpanded && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
-            onExpandedChange(true);
+            handleExpandedChange(true);
           }
         }}
         onMouseDown={handleToolbarDragMouseDown}
@@ -240,7 +281,7 @@ export function Toolbar({
               aria-pressed={isSelectingElement || isCategoryPanelOpen}
               aria-expanded={isCategoryPanelOpen}
               aria-describedby="tooltip-add-annotation"
-              onClick={onAddClick}
+              onClick={toggleCategoryPanel}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {isSelectingElement ? (
@@ -285,7 +326,7 @@ export function Toolbar({
               type="button"
               aria-label="Export feedback"
               aria-describedby="tooltip-export"
-              onClick={onExportClick}
+              onClick={handleExportClick}
               disabled={annotationsCount === 0}
             >
               <IconExport size={18} />
@@ -304,7 +345,7 @@ export function Toolbar({
               type="button"
               aria-label="Clear all annotations"
               aria-describedby="tooltip-clear"
-              onClick={onClearClick}
+              onClick={handleClearClick}
               disabled={annotationsCount === 0}
             >
               <IconTrash size={18} />
@@ -363,7 +404,7 @@ export function Toolbar({
               type="button"
               aria-label="Minimize toolbar"
               aria-describedby="tooltip-minimize"
-              onClick={() => onExpandedChange(false)}
+              onClick={() => handleExpandedChange(false)}
             >
               <IconClose size={18} />
             </button>

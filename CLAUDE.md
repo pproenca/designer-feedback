@@ -10,13 +10,20 @@ Designer Feedback is a Chrome extension (Manifest V3) for annotating webpages wi
 
 ```bash
 npm run dev          # Start WXT dev server with HMR
-npm run build        # TypeCheck + production build
+npm run build        # Production build
 npm run typecheck    # TypeScript checking only
 npm run lint         # ESLint (zero warnings enforced)
 npm run lint:fix     # Auto-fix ESLint violations
 npm run test         # Run Vitest unit tests
-npm run test:e2e     # Run Playwright E2E tests
+npm run test:e2e     # Build with E2E flag + run Playwright tests
 npm run zip          # Create ZIP for Chrome Web Store
+```
+
+**Running single tests:**
+```bash
+npx vitest run path/to/file.spec.ts           # Single unit test file
+npx vitest run -t "test name pattern"         # By test name
+npx playwright test tests/extension.spec.ts   # Single E2E test (requires build first)
 ```
 
 ## Architecture
@@ -24,52 +31,57 @@ npm run zip          # Create ZIP for Chrome Web Store
 ```
 designer-feedback/
 ├── entrypoints/
-│   ├── background.ts      # Service worker - badge updates, message handling
+│   ├── background.ts      # Service worker - icon click, tab tracking, message routing
+│   ├── offscreen/         # Offscreen document for downloads
 │   └── content/           # Content script - toolbar, markers, element selection
-│       ├── index.ts       # Content script entry point
+│       ├── index.ts       # Entry point, message handlers, injection guard
 │       ├── App.tsx        # React app root
-│       └── mount.tsx      # Shadow DOM mounting
+│       └── mount.tsx      # Shadow DOM mounting with WXT createShadowRootUi
 ├── components/            # React components (AnnotationPopup, ExportModal, FeedbackToolbar)
-├── utils/                 # Utilities (storage, export, messaging, permissions, screenshot)
+├── stores/                # Zustand stores (annotations, toolbar state)
+├── utils/                 # Utilities (storage, export, messaging, screenshot)
+│   ├── schemas.ts         # Zod schemas for message validation
+│   └── background-helpers.ts  # Service worker utilities
 ├── shared/                # Shared constants (settings, categories)
 ├── types/                 # TypeScript definitions
 ├── hooks/                 # React hooks
-├── test/                  # Test setup and utilities
+├── test/                  # Vitest setup (fakeBrowser globals)
 └── tests/                 # Playwright E2E tests
 ```
 
-**Key architectural boundaries:**
-- **Content script** injects into pages, manages annotations and UI overlay (Shadow DOM)
-- **Service worker** handles background tasks (badge, cross-context messaging)
-- Communication between contexts uses typed messages via `utils/messaging.ts`
+**Key architectural patterns:**
+- **1-click activation**: Icon click → `scripting.executeScript()` injects content script → toolbar shows
+- **Shadow DOM isolation**: UI renders in closed shadow root (open in E2E for Playwright access)
+- **Same-origin persistence**: Tab tracking via `browser.storage.session` re-injects on navigation
+- **Message validation**: Zod schemas in `utils/schemas.ts` validate all cross-context messages
+- **State management**: Zustand stores with event-style action naming (e.g., `annotationCreated`)
 
 ## Tech Stack
 
 - **Build**: WXT (Web Extension Tools) with auto-manifest generation
-- **UI**: React 19 + TypeScript + Tailwind CSS v4 + Framer Motion
-- **Testing**: Vitest (unit), Playwright (E2E, Chromium only)
-- **Export**: html2canvas for screenshots, JSZip for packaging
-- **Browser API**: WXT's `browser.*` API (Promise-based WebExtension polyfill)
+- **UI**: React 19 + TypeScript + Tailwind CSS v4 + Base UI + Framer Motion
+- **State**: Zustand with subscription-based side effects (badge updates)
+- **Testing**: Vitest (unit) with WXT fakeBrowser, Playwright (E2E, Chromium only)
+- **Validation**: Zod for message schemas
 
 ## Code Conventions
 
-- **Commits**: Conventional commits enforced (`feat:`, `fix:`, `chore:`, etc.)
+- **Commits**: Conventional commits enforced via lefthook + commitlint
 - **Types**: Strict TypeScript, no unused variables/params
 - **CSS**: Tailwind utility classes, animations via Framer Motion
 - **Path alias**: `@/*` maps to project root
-- **Storage**: browser.storage.local for annotations (URL-keyed), browser.storage.sync for settings
+- **Storage**: IndexedDB for annotations (URL-keyed), browser.storage.sync for settings
 
 ## Testing
 
-- Unit tests: `*.spec.ts` or `*.test.tsx` alongside source files
-- E2E tests: `tests/*.spec.ts` using Playwright
-- E2E runs with 1 worker (sequential), 2 retries in CI
-- Test setup in `test/setup.ts`
-- Build output for E2E: `.output/chrome-mv3/`
+- Unit tests: `*.spec.ts` alongside source files, uses `wxt/testing/fake-browser`
+- E2E tests: `tests/*.spec.ts`, sequential workers, 2 retries in CI
+- E2E build flag: `VITE_DF_E2E=1` switches shadow DOM to open mode
+- Test setup configures global `browser` and `chrome` objects from fakeBrowser
 
-## Key Types (types/index.ts)
+## Key Types
 
-- `Annotation` - Marker with coordinates, comment, category, element metadata
+- `Annotation` - Marker with coordinates, comment, category, element metadata, optional `isFixed` for viewport-relative positioning
 - `FeedbackCategory` - 'bug' | 'suggestion' | 'question' | 'accessibility'
-- `Settings` - Extension config (enabled, lightMode, siteListMode, siteList)
-- `MessageType` - Typed enum for cross-context messaging
+- `Message` - Discriminated union of all message types (validated via Zod)
+- `Settings` - Extension config (enabled, lightMode)

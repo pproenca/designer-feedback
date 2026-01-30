@@ -2,7 +2,9 @@
 // Screenshot Utilities
 // =============================================================================
 
-import { loadImage } from '@/utils/image';
+import { createPlaceholderScreenshot } from './screenshot/placeholder';
+import { hideStickyElements, restoreHiddenElements } from './screenshot/sticky';
+import { stitchScreenshots } from './screenshot/stitch';
 
 export type FullPageCaptureResult = {
   dataUrl: string;
@@ -162,7 +164,7 @@ async function captureFullPageFromExtension(): Promise<string> {
 
       const isFirst = i === 0;
       const isLast = i === numCaptures - 1;
-      let hidden: HiddenElementSnapshot[] = [];
+      let hidden: ReturnType<typeof hideStickyElements> = [];
       try {
         if (!isFirst) {
           hidden = hidden.concat(hideStickyElements('top'));
@@ -184,203 +186,4 @@ async function captureFullPageFromExtension(): Promise<string> {
 
   // Stitch screenshots on canvas
   return stitchScreenshots(screenshots, viewportWidth, viewportHeight, docHeight, dpr, scrollPositions);
-}
-
-const MAX_CANVAS_DIMENSION = 16384;
-const MAX_CANVAS_AREA = 268_000_000;
-
-type HiddenElementSnapshot = {
-  element: HTMLElement;
-  visibility: string;
-  opacity: string;
-  pointerEvents: string;
-};
-
-type StickyEdge = 'top' | 'bottom';
-
-const EDGE_SAMPLE_POINTS = [0.1, 0.5, 0.9];
-const EDGE_OFFSET_PX = 2;
-const MIN_EDGE_HEIGHT_PX = 8;
-const MAX_STICKY_HEIGHT_RATIO = 0.4;
-const MIN_STICKY_WIDTH_RATIO = 0.6;
-
-function hideStickyElements(edge: StickyEdge): HiddenElementSnapshot[] {
-  const elements = collectStickyElements(edge);
-  const hidden: HiddenElementSnapshot[] = [];
-
-  elements.forEach((element) => {
-    hidden.push({
-      element,
-      visibility: element.style.visibility,
-      opacity: element.style.opacity,
-      pointerEvents: element.style.pointerEvents,
-    });
-
-    element.style.visibility = 'hidden';
-    element.style.opacity = '0';
-    element.style.pointerEvents = 'none';
-  });
-
-  return hidden;
-}
-
-function restoreHiddenElements(hidden: HiddenElementSnapshot[]): void {
-  hidden.forEach(({ element, visibility, opacity, pointerEvents }) => {
-    element.style.visibility = visibility;
-    element.style.opacity = opacity;
-    element.style.pointerEvents = pointerEvents;
-  });
-}
-
-function collectStickyElements(edge: StickyEdge): Set<HTMLElement> {
-  const root = document.getElementById('designer-feedback-root');
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const y = edge === 'top' ? EDGE_OFFSET_PX : Math.max(EDGE_OFFSET_PX, viewportHeight - EDGE_OFFSET_PX);
-  const elements = new Set<HTMLElement>();
-
-  EDGE_SAMPLE_POINTS.forEach((ratio) => {
-    const x = Math.min(viewportWidth - EDGE_OFFSET_PX, Math.max(EDGE_OFFSET_PX, Math.round(viewportWidth * ratio)));
-    const stack = document.elementsFromPoint(x, y) as HTMLElement[];
-    stack.forEach((candidate) => {
-      const sticky = findStickyAncestor(candidate, edge, viewportWidth, viewportHeight, root);
-      if (sticky) {
-        elements.add(sticky);
-      }
-    });
-  });
-
-  return elements;
-}
-
-function findStickyAncestor(
-  start: HTMLElement,
-  edge: StickyEdge,
-  viewportWidth: number,
-  viewportHeight: number,
-  root: HTMLElement | null
-): HTMLElement | null {
-  let node: HTMLElement | null = start;
-
-  while (node && node !== document.body && node !== document.documentElement) {
-    if (root && root.contains(node)) return null;
-
-    const style = window.getComputedStyle(node);
-    if (style.position === 'fixed' || style.position === 'sticky') {
-      const rect = node.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > MIN_EDGE_HEIGHT_PX) {
-        const wideEnough = rect.width >= viewportWidth * MIN_STICKY_WIDTH_RATIO;
-        const shortEnough = rect.height <= viewportHeight * MAX_STICKY_HEIGHT_RATIO;
-        if (wideEnough && shortEnough) {
-          const nearTop = rect.top <= EDGE_OFFSET_PX;
-          const nearBottom = rect.bottom >= viewportHeight - EDGE_OFFSET_PX;
-          if ((edge === 'top' && nearTop) || (edge === 'bottom' && nearBottom)) {
-            return node;
-          }
-        }
-      }
-    }
-
-    node = node.parentElement;
-  }
-
-  return null;
-}
-
-/**
- * Stitch multiple viewport screenshots into a single full-page image
- */
-async function stitchScreenshots(
-  screenshots: string[],
-  viewportWidth: number,
-  viewportHeight: number,
-  totalHeight: number,
-  dpr: number,
-  scrollPositions: number[]
-): Promise<string> {
-  const rawWidth = Math.max(1, viewportWidth * dpr);
-  const rawHeight = Math.max(1, totalHeight * dpr);
-  const areaScale = Math.sqrt(MAX_CANVAS_AREA / (rawWidth * rawHeight));
-  const dimensionScale = Math.min(MAX_CANVAS_DIMENSION / rawWidth, MAX_CANVAS_DIMENSION / rawHeight);
-  const scale = Math.min(1, areaScale, dimensionScale);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(rawWidth * scale));
-  canvas.height = Math.max(1, Math.round(rawHeight * scale));
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Failed to get canvas context for stitching');
-  }
-
-  for (let i = 0; i < screenshots.length; i++) {
-    const img = await loadImage(screenshots[i]);
-    const scrollY = scrollPositions[i] ?? i * viewportHeight;
-    const drawHeight = Math.min(viewportHeight, totalHeight - scrollY);
-    const sourceHeight = Math.max(0, drawHeight * dpr);
-    const destY = Math.round(scrollY * dpr * scale);
-    const destHeight = Math.round(sourceHeight * scale);
-    const destWidth = Math.round(img.width * scale);
-
-    if (sourceHeight <= 0) continue;
-
-    ctx.drawImage(img, 0, 0, img.width, sourceHeight, 0, destY, destWidth, destHeight);
-  }
-
-  return canvas.toDataURL('image/png');
-}
-
-function getDocumentSize(): { width: number; height: number } {
-  const body = document.body;
-  const html = document.documentElement;
-
-  const width = Math.max(
-    body?.scrollWidth ?? 0,
-    body?.offsetWidth ?? 0,
-    body?.clientWidth ?? 0,
-    html?.scrollWidth ?? 0,
-    html?.offsetWidth ?? 0,
-    html?.clientWidth ?? 0,
-    window.innerWidth
-  );
-
-  const height = Math.max(
-    body?.scrollHeight ?? 0,
-    body?.offsetHeight ?? 0,
-    body?.clientHeight ?? 0,
-    html?.scrollHeight ?? 0,
-    html?.offsetHeight ?? 0,
-    html?.clientHeight ?? 0,
-    window.innerHeight
-  );
-
-  return { width, height };
-}
-
-function createPlaceholderScreenshot(
-  message = 'Screenshot unavailable',
-  subtitle = 'Export includes annotations and layout metadata.'
-): string {
-  const { width, height } = getDocumentSize();
-  const scale = window.devicePixelRatio || 1;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Failed to get canvas context for placeholder screenshot');
-  }
-
-  ctx.fillStyle = '#f4f4f5';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#111827';
-  ctx.font = `${Math.max(12, Math.round(14 * scale))}px "Segoe UI", sans-serif`;
-  ctx.fillText(message, Math.round(24 * scale), Math.round(48 * scale));
-  ctx.fillStyle = '#6b7280';
-  ctx.font = `${Math.max(10, Math.round(12 * scale))}px "Segoe UI", sans-serif`;
-  ctx.fillText(subtitle, Math.round(24 * scale), Math.round(70 * scale));
-
-  return canvas.toDataURL('image/png');
 }

@@ -13,14 +13,11 @@
  */
 
 import {
-  useState,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   lazy,
   Suspense,
-  startTransition,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -31,7 +28,6 @@ import { CategoryPanel } from './CategoryPanel';
 import { SelectionOverlay } from '../SelectionOverlay';
 import { AnnotationLayer } from '../AnnotationLayer';
 import { onUiEvent } from '@/utils/ui-events';
-import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import {
   identifyElement,
   hasFixedPositioning,
@@ -42,7 +38,6 @@ import {
 } from '@/utils/annotation-position';
 import { clsx } from 'clsx';
 import type { Annotation, FeedbackCategory } from '@/types';
-import type { Position } from '@/hooks/useDraggable';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { PendingAnnotation } from './context';
@@ -76,7 +71,6 @@ export function FeedbackToolbar({
   onLightModeChange,
 }: FeedbackToolbarProps) {
   // Zustand store state
-  const isExpanded = useToolbarStore((s) => s.isExpanded);
   const addMode = useToolbarStore((s) => s.addMode);
   const selectedCategory = useToolbarStore((s) => s.selectedCategory);
   const pendingAnnotation = useToolbarStore((s) => s.pendingAnnotation);
@@ -86,8 +80,6 @@ export function FeedbackToolbar({
   const isHidden = useToolbarStore((s) => s.isHidden);
 
   // Toolbar actions
-  const toolbarExpanded = useToolbarStore((s) => s.toolbarExpanded);
-  const toolbarCollapsed = useToolbarStore((s) => s.toolbarCollapsed);
   const categorySelected = useToolbarStore((s) => s.categorySelected);
   const elementSelected = useToolbarStore((s) => s.elementSelected);
   const pendingAnnotationCleared = useToolbarStore((s) => s.pendingAnnotationCleared);
@@ -98,7 +90,6 @@ export function FeedbackToolbar({
   const entranceCompleted = useToolbarStore((s) => s.entranceCompleted);
   const uiHidden = useToolbarStore((s) => s.uiHidden);
   const uiShown = useToolbarStore((s) => s.uiShown);
-  const toggleCategoryPanel = useToolbarStore((s) => s.toggleCategoryPanel);
   const selectionModeCancelled = useToolbarStore((s) => s.selectionModeCancelled);
   const categoryPanelClosed = useToolbarStore((s) => s.categoryPanelClosed);
 
@@ -107,7 +98,6 @@ export function FeedbackToolbar({
   const loadAnnotations = useAnnotationsStore((s) => s.loadAnnotations);
   const annotationCreated = useAnnotationsStore((s) => s.annotationCreated);
   const annotationDeleted = useAnnotationsStore((s) => s.annotationDeleted);
-  const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);
 
   // Derived state
   const selectedAnnotation = useMemo(
@@ -119,27 +109,6 @@ export function FeedbackToolbar({
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
 
   // Local state (component-specific)
-  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
-  const [tooltipsReady, setTooltipsReady] = useState(false);
-  const tooltipDelayTimerRef = useRef<number | null>(null);
-
-  // Tooltip warmup
-  const handleTooltipWarmup = useCallback(() => {
-    if (tooltipsReady || tooltipDelayTimerRef.current !== null) return;
-    tooltipDelayTimerRef.current = window.setTimeout(() => {
-      setTooltipsReady(true);
-      tooltipDelayTimerRef.current = null;
-    }, 850);
-  }, [tooltipsReady]);
-
-  useEffect(() => {
-    return () => {
-      if (tooltipDelayTimerRef.current !== null) {
-        clearTimeout(tooltipDelayTimerRef.current);
-      }
-    };
-  }, []);
-
   // Clear stale selected annotation
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
@@ -147,31 +116,9 @@ export function FeedbackToolbar({
     }
   }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
-  // Handle position persistence
-  const handleToolbarPositionChange = useCallback((position: Position) => {
-    saveToolbarPosition(position).catch(console.error);
-  }, []);
-
   // Load initial data
   useEffect(() => {
-    let isCancelled = false;
-
-    const loadInitialData = async () => {
-      try {
-        const position = await loadToolbarPosition();
-        if (!isCancelled) {
-          setSavedToolbarPosition(position);
-        }
-      } catch (error) {
-        console.error('Failed to load toolbar position:', error);
-      }
-    };
-    loadInitialData();
     loadAnnotations();
-
-    return () => {
-      isCancelled = true;
-    };
   }, [loadAnnotations]);
 
   // Entrance animation complete
@@ -348,13 +295,6 @@ export function FeedbackToolbar({
     [selectedAnnotationId, annotationDeleted, annotationDeselected]
   );
 
-  const handleClearAllAnnotations = useCallback(async () => {
-    await annotationsCleared();
-    startTransition(() => {
-      annotationDeselected();
-    });
-  }, [annotationsCleared, annotationDeselected]);
-
   const handleCategorySelect = useCallback(
     (category: FeedbackCategory) => {
       categorySelected(category);
@@ -367,17 +307,6 @@ export function FeedbackToolbar({
       annotationSelected(id);
     },
     [annotationSelected]
-  );
-
-  const handleExpandedChange = useCallback(
-    (expanded: boolean) => {
-      if (expanded) {
-        toolbarExpanded();
-      } else {
-        toolbarCollapsed();
-      }
-    },
-    [toolbarExpanded, toolbarCollapsed]
   );
 
   // Hide all UI during screenshot
@@ -459,21 +388,8 @@ export function FeedbackToolbar({
 
       {/* Toolbar */}
       <Toolbar
-        isExpanded={isExpanded}
-        isEntranceComplete={isEntranceComplete}
-        annotationsCount={annotations.length}
-        onExpandedChange={handleExpandedChange}
-        onAddClick={toggleCategoryPanel}
-        onExportClick={() => startTransition(() => exportModalOpened())}
-        onClearClick={handleClearAllAnnotations}
         onThemeToggle={() => onLightModeChange?.(!lightMode)}
-        isSelectingElement={isSelectingElement}
-        isCategoryPanelOpen={isCategoryPanelOpen}
         lightMode={lightMode}
-        tooltipsReady={tooltipsReady}
-        onTooltipWarmup={handleTooltipWarmup}
-        initialPosition={savedToolbarPosition}
-        onPositionChange={handleToolbarPositionChange}
       >
         <CategoryPanel
           isOpen={isCategoryPanelOpen}

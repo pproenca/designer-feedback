@@ -1,10 +1,42 @@
 import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
+import { Toolbar } from './Toolbar';
+import { useToolbarStore } from '@/stores/toolbar';
+import { useAnnotationsStore } from '@/stores/annotations';
+
+// Mock storage utilities used by the annotations store
+vi.mock('@/utils/storage', () => ({
+  loadAnnotations: vi.fn(),
+  saveAnnotation: vi.fn(),
+  deleteAnnotation: vi.fn(),
+  clearAnnotations: vi.fn().mockResolvedValue(undefined),
+  getStorageKey: vi.fn(() => 'test-url-key'),
+  updateBadgeCount: vi.fn(),
+}));
+
+vi.mock('./toolbar-position', () => ({
+  loadToolbarPosition: vi.fn().mockResolvedValue(null),
+  saveToolbarPosition: vi.fn(),
+}));
 
 // Mock Framer Motion - filter out non-DOM props to avoid React warnings
 const filterMotionProps = (props: Record<string, unknown>) => {
-  const motionProps = ['initial', 'animate', 'exit', 'variants', 'transition', 'whileHover', 'whileTap', 'whileFocus', 'whileDrag', 'layout', 'layoutId', 'onAnimationStart', 'onAnimationComplete'];
+  const motionProps = [
+    'initial',
+    'animate',
+    'exit',
+    'variants',
+    'transition',
+    'whileHover',
+    'whileTap',
+    'whileFocus',
+    'whileDrag',
+    'layout',
+    'layoutId',
+    'onAnimationStart',
+    'onAnimationComplete',
+  ];
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(props)) {
     if (!motionProps.includes(key)) {
@@ -38,8 +70,32 @@ vi.mock('@/hooks/useDraggable', () => ({
   })),
 }));
 
+async function renderToolbar(props?: { lightMode?: boolean; onThemeToggle?: () => void }) {
+  const { lightMode = false, onThemeToggle = vi.fn() } = props ?? {};
+  const utils = render(
+    <Toolbar
+      lightMode={lightMode}
+      onThemeToggle={onThemeToggle}
+    />
+  );
+
+  await act(async () => {});
+  return { ...utils, onThemeToggle };
+}
+
 describe('Toolbar', () => {
   beforeEach(() => {
+    useToolbarStore.setState({
+      isExpanded: true,
+      addMode: 'idle',
+      selectedCategory: 'suggestion',
+      pendingAnnotation: null,
+      selectedAnnotationId: null,
+      isExportModalOpen: false,
+      isEntranceComplete: true,
+      isHidden: false,
+    });
+    useAnnotationsStore.setState({ annotations: [], isLoading: false });
     vi.clearAllMocks();
   });
 
@@ -47,282 +103,66 @@ describe('Toolbar', () => {
     cleanup();
   });
 
-  describe('rendering', () => {
-    it('renders toolbar with expand/collapse functionality', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
+  it('renders toolbar controls when expanded', async () => {
+    await renderToolbar();
 
-      // Should show controls when expanded - use getAllByRole to handle multiple buttons
-      const exportButtons = screen.getAllByRole('button', { name: /export/i });
-      expect(exportButtons.length).toBeGreaterThan(0);
-    });
-
-    it('shows annotation count badge when collapsed', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      render(
-        <Toolbar
-          isExpanded={false}
-          isEntranceComplete={true}
-          annotationsCount={5}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      expect(screen.getByText('5')).toBeDefined();
-    });
+    const exportButton = screen.getByLabelText('Export feedback');
+    expect(exportButton).toBeInTheDocument();
   });
 
-  describe('button states', () => {
-    it('disables export button when no annotations', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
+  it('shows annotation count badge when collapsed', async () => {
+    useToolbarStore.setState({ isExpanded: false });
+    useAnnotationsStore.setState({ annotations: [{ id: '1' } as never], isLoading: false });
 
-      // Find the export button directly by aria-label
-      const exportButton = container.querySelector('[aria-label="Export feedback"]');
-      expect(exportButton).toHaveAttribute('disabled');
-    });
+    await renderToolbar();
 
-    it('enables export button when annotations exist', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={3}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      const exportButton = container.querySelector('[aria-label="Export feedback"]');
-      expect(exportButton).not.toHaveAttribute('disabled');
-    });
-
-    it('shows active state on add button when selecting', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={true}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      const addButton = container.querySelector('[aria-label="Cancel add annotation"]');
-      expect(addButton?.className).toContain('active');
-    });
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
-  describe('interactions', () => {
-    it('calls onAddClick when add button is clicked', async () => {
-      const onAddClick = vi.fn();
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={onAddClick}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
+  it('disables export button when there are no annotations', async () => {
+    await renderToolbar();
 
-      const addButton = container.querySelector('[aria-label="Add annotation"]');
-      fireEvent.click(addButton!);
-      expect(onAddClick).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls onExportClick when export button is clicked', async () => {
-      const onExportClick = vi.fn();
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={3}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={onExportClick}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      const exportButton = container.querySelector('[aria-label="Export feedback"]');
-      fireEvent.click(exportButton!);
-      expect(onExportClick).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls onThemeToggle when theme button is clicked', async () => {
-      const onThemeToggle = vi.fn();
-      const { Toolbar } = await import('./Toolbar');
-      render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={onThemeToggle}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
-      expect(onThemeToggle).toHaveBeenCalledTimes(1);
-    });
-
-    it('expands toolbar when collapsed toolbar is clicked', async () => {
-      const onExpandedChange = vi.fn();
-      const { Toolbar } = await import('./Toolbar');
-      const { container } = render(
-        <Toolbar
-          isExpanded={false}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={onExpandedChange}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
-
-      // Find the collapsed toolbar by aria-expanded="false"
-      const toolbar = container.querySelector('[aria-expanded="false"]');
-      fireEvent.click(toolbar!);
-      expect(onExpandedChange).toHaveBeenCalledWith(true);
-    });
+    const exportButton = screen.getByLabelText('Export feedback');
+    expect(exportButton).toBeDisabled();
   });
 
-  describe('theme', () => {
-    it('shows sun icon in dark mode', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={false}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
+  it('opens export modal when export button is clicked', async () => {
+    useAnnotationsStore.setState({ annotations: [{ id: '1' } as never], isLoading: false });
 
-      expect(screen.getByRole('button', { name: /switch to light mode/i })).toBeDefined();
+    await renderToolbar();
+
+    fireEvent.click(screen.getByLabelText('Export feedback'));
+    expect(useToolbarStore.getState().isExportModalOpen).toBe(true);
+  });
+
+  it('toggles category panel when add button is clicked', async () => {
+    await renderToolbar();
+
+    const addButton = screen.getByLabelText('Add annotation');
+    fireEvent.click(addButton);
+    expect(useToolbarStore.getState().addMode).toBe('category');
+  });
+
+  it('clears annotations and deselects active annotation', async () => {
+    useAnnotationsStore.setState({ annotations: [{ id: '1' } as never], isLoading: false });
+    useToolbarStore.setState({ selectedAnnotationId: '1' });
+
+    await renderToolbar();
+
+    const clearButton = screen.getByLabelText('Clear all annotations');
+    await act(async () => {
+      fireEvent.click(clearButton);
     });
 
-    it('shows moon icon in light mode', async () => {
-      const { Toolbar } = await import('./Toolbar');
-      render(
-        <Toolbar
-          isExpanded={true}
-          isEntranceComplete={true}
-          annotationsCount={0}
-          onExpandedChange={vi.fn()}
-          onAddClick={vi.fn()}
-          onExportClick={vi.fn()}
-          onClearClick={vi.fn()}
-          onThemeToggle={vi.fn()}
-          isSelectingElement={false}
-          isCategoryPanelOpen={false}
-          lightMode={true}
-          tooltipsReady={true}
-          onTooltipWarmup={vi.fn()}
-        />
-      );
+    expect(useAnnotationsStore.getState().annotations).toHaveLength(0);
+    expect(useToolbarStore.getState().selectedAnnotationId).toBeNull();
+  });
 
-      expect(screen.getByRole('button', { name: /switch to dark mode/i })).toBeDefined();
-    });
+  it('calls onThemeToggle when theme button is clicked', async () => {
+    const onThemeToggle = vi.fn();
+    await renderToolbar({ onThemeToggle });
+
+    fireEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
+    expect(onThemeToggle).toHaveBeenCalledTimes(1);
   });
 });

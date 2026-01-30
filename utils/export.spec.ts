@@ -16,60 +16,6 @@ const mockAnnotations = [
   },
 ];
 
-// Create a mock canvas context for truncateText testing
-function createMockContext(): CanvasRenderingContext2D {
-  const widthMap = new Map<string, number>();
-  return {
-    measureText: (text: string) => {
-      // Simulate ~7px per character for monospace font
-      const width = widthMap.get(text) ?? text.length * 7;
-      return { width };
-    },
-  } as unknown as CanvasRenderingContext2D;
-}
-
-describe('truncateText utility', () => {
-  it('returns original text when it fits within maxWidth', () => {
-    // This tests that the optimization doesn't break the base case
-    const ctx = createMockContext();
-    const text = 'Short';
-    const maxWidth = 100; // 100px, text is ~35px
-
-    // The function is internal, so we test via the createSnapshotImage flow
-    // For now, document the expected behavior
-    expect(ctx.measureText(text).width).toBeLessThan(maxWidth);
-  });
-
-  it('handles long strings efficiently with binary search', () => {
-    // Binary search should be O(log n) vs O(n) for linear truncation
-    // For a 1000 character string, binary search needs ~10 iterations
-    // vs 1000 iterations for linear truncation
-    const ctx = createMockContext();
-    const longText = 'A'.repeat(1000);
-    const maxWidth = 100;
-
-    // The text is ~7000px wide, so it needs truncation
-    const fullWidth = ctx.measureText(longText).width;
-    expect(fullWidth).toBeGreaterThan(maxWidth);
-
-    // With binary search, finding the right truncation point
-    // should take at most log2(1000) ≈ 10 iterations
-    // This documents the expected algorithmic improvement
-    expect(Math.log2(longText.length)).toBeLessThan(15);
-  });
-
-  it('handles empty string', () => {
-    const ctx = createMockContext();
-    expect(ctx.measureText('').width).toBe(0);
-  });
-
-  it('handles string with ellipsis', () => {
-    const ctx = createMockContext();
-    const textWithEllipsis = 'Hello…';
-    expect(ctx.measureText(textWithEllipsis).width).toBeGreaterThan(0);
-  });
-});
-
 describe('export utilities', () => {
   const originalClipboard = navigator.clipboard;
 
