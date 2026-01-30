@@ -8,6 +8,9 @@ dist/*
 .LSOverride
 ._*
 
+
+*/skills/*
+
 # WXT build outputs
 .wxt/
 .output/
