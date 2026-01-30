@@ -9,7 +9,7 @@
  * - AnnotationPopup for creating/viewing annotations
  * - ExportModal for exporting feedback
  *
- * Refactored from a 1265-line monolithic component to ~300 lines.
+ * State management migrated from useReducer to Zustand stores.
  */
 
 import {
@@ -17,7 +17,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   lazy,
   Suspense,
@@ -38,32 +37,24 @@ import {
   hasFixedPositioning,
 } from '@/utils/element-identification';
 import {
-  loadAnnotations,
-  saveAnnotation,
-  deleteAnnotation,
-  clearAnnotations,
-  getStorageKey,
-  updateBadgeCount,
-} from '@/utils/storage';
-import {
   calculatePopupPosition,
   getPopupDisplayPosition,
 } from '@/utils/annotation-position';
-import { debounce } from '@/utils/timing';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import type { Annotation, FeedbackCategory } from '@/types';
 import type { Position } from '@/hooks/useDraggable';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { toolbarReducer, initialToolbarState } from './context';
+import type { PendingAnnotation } from './context';
+
+// Zustand stores
+import { useToolbarStore } from '@/stores/toolbar';
+import { useAnnotationsStore } from '@/stores/annotations';
 
 // Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
   import('../ExportModal').then((m) => ({ default: m.ExportModal }))
 );
-
-// Performance constants
-const BADGE_DEBOUNCE_MS = 150;
 
 // =============================================================================
 // Types
@@ -84,33 +75,53 @@ export function FeedbackToolbar({
   lightMode = false,
   onLightModeChange,
 }: FeedbackToolbarProps) {
-  // State
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
-  const [toolbarState, dispatch] = useReducer(toolbarReducer, initialToolbarState);
-  const [tooltipsReady, setTooltipsReady] = useState(false);
-  const tooltipDelayTimerRef = useRef<number | null>(null);
+  // Zustand store state
+  const isExpanded = useToolbarStore((s) => s.isExpanded);
+  const addMode = useToolbarStore((s) => s.addMode);
+  const selectedCategory = useToolbarStore((s) => s.selectedCategory);
+  const pendingAnnotation = useToolbarStore((s) => s.pendingAnnotation);
+  const selectedAnnotationId = useToolbarStore((s) => s.selectedAnnotationId);
+  const isExportModalOpen = useToolbarStore((s) => s.isExportModalOpen);
+  const isEntranceComplete = useToolbarStore((s) => s.isEntranceComplete);
+  const isHidden = useToolbarStore((s) => s.isHidden);
 
-  const {
-    isExpanded,
-    addMode,
-    selectedCategory,
-    pendingAnnotation,
-    selectedAnnotationId,
-    isExportModalOpen,
-    isEntranceComplete,
-    isHidden,
-  } = toolbarState;
+  // Toolbar actions
+  const toolbarExpanded = useToolbarStore((s) => s.toolbarExpanded);
+  const toolbarCollapsed = useToolbarStore((s) => s.toolbarCollapsed);
+  const categorySelected = useToolbarStore((s) => s.categorySelected);
+  const elementSelected = useToolbarStore((s) => s.elementSelected);
+  const pendingAnnotationCleared = useToolbarStore((s) => s.pendingAnnotationCleared);
+  const annotationSelected = useToolbarStore((s) => s.annotationSelected);
+  const annotationDeselected = useToolbarStore((s) => s.annotationDeselected);
+  const exportModalOpened = useToolbarStore((s) => s.exportModalOpened);
+  const exportModalClosed = useToolbarStore((s) => s.exportModalClosed);
+  const entranceCompleted = useToolbarStore((s) => s.entranceCompleted);
+  const uiHidden = useToolbarStore((s) => s.uiHidden);
+  const uiShown = useToolbarStore((s) => s.uiShown);
+  const toggleCategoryPanel = useToolbarStore((s) => s.toggleCategoryPanel);
+  const selectionModeCancelled = useToolbarStore((s) => s.selectionModeCancelled);
+  const categoryPanelClosed = useToolbarStore((s) => s.categoryPanelClosed);
 
-  const isSelectingElement = addMode === 'selecting';
-  const isCategoryPanelOpen = addMode === 'category';
+  // Annotations store
+  const annotations = useAnnotationsStore((s) => s.annotations);
+  const loadAnnotations = useAnnotationsStore((s) => s.loadAnnotations);
+  const annotationCreated = useAnnotationsStore((s) => s.annotationCreated);
+  const annotationDeleted = useAnnotationsStore((s) => s.annotationDeleted);
+  const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);
 
+  // Derived state
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
     [annotations, selectedAnnotationId]
   );
-
+  const isSelectingElement = addMode === 'selecting';
+  const isCategoryPanelOpen = addMode === 'category';
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
+
+  // Local state (component-specific)
+  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
+  const [tooltipsReady, setTooltipsReady] = useState(false);
+  const tooltipDelayTimerRef = useRef<number | null>(null);
 
   // Tooltip warmup
   const handleTooltipWarmup = useCallback(() => {
@@ -132,28 +143,14 @@ export function FeedbackToolbar({
   // Clear stale selected annotation
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
-      dispatch({ type: 'setSelectedAnnotationId', value: null });
+      annotationDeselected();
     }
-  }, [selectedAnnotationId, selectedAnnotation]);
+  }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
   // Handle position persistence
   const handleToolbarPositionChange = useCallback((position: Position) => {
     saveToolbarPosition(position).catch(console.error);
   }, []);
-
-  // Debounced badge update
-  const debouncedUpdateBadgeCount = useMemo(
-    () => debounce((count: number) => updateBadgeCount(count), BADGE_DEBOUNCE_MS),
-    []
-  );
-
-  useEffect(() => {
-    return () => debouncedUpdateBadgeCount.cancel();
-  }, [debouncedUpdateBadgeCount]);
-
-  useEffect(() => {
-    debouncedUpdateBadgeCount(annotations.length);
-  }, [annotations.length, debouncedUpdateBadgeCount]);
 
   // Load initial data
   useEffect(() => {
@@ -161,49 +158,41 @@ export function FeedbackToolbar({
 
     const loadInitialData = async () => {
       try {
-        const [position, loaded] = await Promise.all([
-          loadToolbarPosition(),
-          loadAnnotations(),
-        ]);
+        const position = await loadToolbarPosition();
         if (!isCancelled) {
           setSavedToolbarPosition(position);
-          setAnnotations(loaded);
         }
       } catch (error) {
-        console.error('Failed to load initial data:', error);
+        console.error('Failed to load toolbar position:', error);
       }
     };
     loadInitialData();
+    loadAnnotations();
 
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [loadAnnotations]);
 
   // Entrance animation complete
   useEffect(() => {
-    const timer = setTimeout(
-      () => dispatch({ type: 'setEntranceComplete', value: true }),
-      500
-    );
+    const timer = setTimeout(() => entranceCompleted(), 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [entranceCompleted]);
 
   // Listen for external events
   useEffect(() => {
     const handleExportMessage = (message: unknown) => {
       const msg = message as { type?: string };
       if (msg.type === 'TRIGGER_EXPORT') {
-        dispatch({ type: 'setExportModalOpen', value: true });
+        exportModalOpened();
       }
     };
     browser.runtime.onMessage.addListener(handleExportMessage);
 
-    const offHide = onUiEvent('hide-ui', () => dispatch({ type: 'setHidden', value: true }));
-    const offShow = onUiEvent('show-ui', () => dispatch({ type: 'setHidden', value: false }));
-    const offOpen = onUiEvent('open-export', () =>
-      dispatch({ type: 'setExportModalOpen', value: true })
-    );
+    const offHide = onUiEvent('hide-ui', () => uiHidden());
+    const offShow = onUiEvent('show-ui', () => uiShown());
+    const offOpen = onUiEvent('open-export', () => exportModalOpened());
 
     return () => {
       browser.runtime.onMessage.removeListener(handleExportMessage);
@@ -211,7 +200,7 @@ export function FeedbackToolbar({
       offShow();
       offOpen();
     };
-  }, []);
+  }, [exportModalOpened, uiHidden, uiShown]);
 
   // Element selection click handler
   useEffect(() => {
@@ -236,25 +225,22 @@ export function FeedbackToolbar({
 
       const { name, path } = identifyElement(target);
 
-      dispatch({
-        type: 'setPendingAnnotation',
-        value: {
-          x: isFixed ? centerX : centerX + scrollLeft,
-          y: isFixed ? centerY : centerY + scrollTop,
-          element: name,
-          elementPath: path,
-          target,
-          rect,
-          isFixed,
-          scrollX: scrollLeft,
-          scrollY: scrollTop,
-        },
+      elementSelected({
+        x: isFixed ? centerX : centerX + scrollLeft,
+        y: isFixed ? centerY : centerY + scrollTop,
+        element: name,
+        elementPath: path,
+        target,
+        rect,
+        isFixed,
+        scrollX: scrollLeft,
+        scrollY: scrollTop,
       });
     };
 
     document.addEventListener('click', handleAddModeClick, true);
     return () => document.removeEventListener('click', handleAddModeClick, true);
-  }, [isSelectingElement]);
+  }, [isSelectingElement, elementSelected]);
 
   // Body class for crosshair cursor
   useEffect(() => {
@@ -270,7 +256,7 @@ export function FeedbackToolbar({
   type EscapeState = {
     hasSelectedAnnotation: boolean;
     isSelectingElement: boolean;
-    pendingAnnotation: typeof pendingAnnotation;
+    pendingAnnotation: PendingAnnotation | null;
     isCategoryPanelOpen: boolean;
   };
 
@@ -288,30 +274,30 @@ export function FeedbackToolbar({
     () => [
       {
         condition: (s: EscapeState) => s.isCategoryPanelOpen,
-        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+        handler: () => categoryPanelClosed(),
       },
       {
         condition: (s: EscapeState) => s.hasSelectedAnnotation,
-        handler: () => dispatch({ type: 'setSelectedAnnotationId', value: null }),
+        handler: () => annotationDeselected(),
       },
       {
         condition: (s: EscapeState) => Boolean(s.pendingAnnotation),
-        handler: () => dispatch({ type: 'setPendingAnnotation', value: null }),
+        handler: () => pendingAnnotationCleared(),
       },
       {
         condition: (s: EscapeState) => s.isSelectingElement,
-        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+        handler: () => selectionModeCancelled(),
       },
     ],
-    []
+    [categoryPanelClosed, annotationDeselected, pendingAnnotationCleared, selectionModeCancelled]
   );
 
   useEscapeKey(escapeState, escapeHandlers);
 
   // Click outside handler for selected annotation
   const handleClickOutside = useCallback(() => {
-    dispatch({ type: 'setSelectedAnnotationId', value: null });
-  }, []);
+    annotationDeselected();
+  }, [annotationDeselected]);
 
   const clickOutsideSelectors = useMemo(
     () => ['data-annotation-popup', 'data-annotation-marker', 'data-toolbar'],
@@ -346,65 +332,53 @@ export function FeedbackToolbar({
         boundingBox,
       };
 
-      try {
-        await saveAnnotation({ ...newAnnotation, url: getStorageKey() });
-        setAnnotations((current) => [...current, newAnnotation]);
-      } catch (error) {
-        console.error('Failed to save annotation:', error);
-      }
-
-      dispatch({ type: 'setPendingAnnotation', value: null });
+      await annotationCreated(newAnnotation);
+      pendingAnnotationCleared();
     },
-    [pendingAnnotation, selectedCategory]
+    [pendingAnnotation, selectedCategory, annotationCreated, pendingAnnotationCleared]
   );
 
   const handleDeleteAnnotation = useCallback(
     async (id: string) => {
-      try {
-        await deleteAnnotation(id);
-        setAnnotations((current) => current.filter((a) => a.id !== id));
-        if (selectedAnnotationId === id) {
-          dispatch({ type: 'setSelectedAnnotationId', value: null });
-        }
-      } catch (error) {
-        console.error('Failed to delete annotation:', error);
+      await annotationDeleted(id);
+      if (selectedAnnotationId === id) {
+        annotationDeselected();
       }
     },
-    [selectedAnnotationId]
+    [selectedAnnotationId, annotationDeleted, annotationDeselected]
   );
 
   const handleClearAllAnnotations = useCallback(async () => {
-    try {
-      await clearAnnotations();
-      startTransition(() => {
-        setAnnotations([]);
-        dispatch({ type: 'setSelectedAnnotationId', value: null });
-      });
-    } catch (error) {
-      console.error('Failed to clear annotations:', error);
-    }
-  }, []);
+    await annotationsCleared();
+    startTransition(() => {
+      annotationDeselected();
+    });
+  }, [annotationsCleared, annotationDeselected]);
 
-  const handleToggleCategoryPanel = useCallback(() => {
-    if (isSelectingElement) {
-      dispatch({ type: 'setAddMode', value: 'idle' });
-    } else {
-      dispatch({
-        type: 'setAddMode',
-        value: isCategoryPanelOpen ? 'idle' : 'category',
-      });
-    }
-    dispatch({ type: 'setPendingAnnotation', value: null });
-  }, [isSelectingElement, isCategoryPanelOpen]);
+  const handleCategorySelect = useCallback(
+    (category: FeedbackCategory) => {
+      categorySelected(category);
+    },
+    [categorySelected]
+  );
 
-  const handleCategorySelect = useCallback((category: FeedbackCategory) => {
-    dispatch({ type: 'setSelectedCategory', value: category });
-    dispatch({ type: 'setAddMode', value: 'selecting' });
-  }, []);
+  const handleMarkerClick = useCallback(
+    (id: string) => {
+      annotationSelected(id);
+    },
+    [annotationSelected]
+  );
 
-  const handleMarkerClick = useCallback((id: string) => {
-    dispatch({ type: 'setSelectedAnnotationId', value: id });
-  }, []);
+  const handleExpandedChange = useCallback(
+    (expanded: boolean) => {
+      if (expanded) {
+        toolbarExpanded();
+      } else {
+        toolbarCollapsed();
+      }
+    },
+    [toolbarExpanded, toolbarCollapsed]
+  );
 
   // Hide all UI during screenshot
   if (isHidden) {
@@ -414,7 +388,7 @@ export function FeedbackToolbar({
   const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={classNames('font-sans df-root', darkModeClassName)}>
+    <div className={clsx('font-sans df-root', darkModeClassName)}>
       {/* Selection overlay for element highlighting */}
       <SelectionOverlay enabled={isSelectingElement} />
 
@@ -439,7 +413,7 @@ export function FeedbackToolbar({
             mode="create"
             element={pendingAnnotation.element}
             onSubmit={handleAnnotationSubmit}
-            onCancel={() => dispatch({ type: 'setPendingAnnotation', value: null })}
+            onCancel={() => pendingAnnotationCleared()}
             lightMode={lightMode}
             x={popupPos.x}
             y={popupPos.y}
@@ -458,9 +432,9 @@ export function FeedbackToolbar({
             annotation={selectedAnnotation}
             onDelete={() => {
               handleDeleteAnnotation(selectedAnnotation.id);
-              dispatch({ type: 'setSelectedAnnotationId', value: null });
+              annotationDeselected();
             }}
-            onCancel={() => dispatch({ type: 'setSelectedAnnotationId', value: null })}
+            onCancel={() => annotationDeselected()}
             lightMode={lightMode}
             x={popupPos.x}
             y={popupPos.y}
@@ -475,7 +449,7 @@ export function FeedbackToolbar({
           <Suspense fallback={null}>
             <ExportModal
               annotations={annotations}
-              onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
+              onClose={() => exportModalClosed()}
               lightMode={lightMode}
             />
           </Suspense>
@@ -487,11 +461,9 @@ export function FeedbackToolbar({
         isExpanded={isExpanded}
         isEntranceComplete={isEntranceComplete}
         annotationsCount={annotations.length}
-        onExpandedChange={(expanded) => dispatch({ type: 'setExpanded', value: expanded })}
-        onAddClick={handleToggleCategoryPanel}
-        onExportClick={() =>
-          startTransition(() => dispatch({ type: 'setExportModalOpen', value: true }))
-        }
+        onExpandedChange={handleExpandedChange}
+        onAddClick={toggleCategoryPanel}
+        onExportClick={() => startTransition(() => exportModalOpened())}
         onClearClick={handleClearAllAnnotations}
         onThemeToggle={() => onLightModeChange?.(!lightMode)}
         isSelectingElement={isSelectingElement}

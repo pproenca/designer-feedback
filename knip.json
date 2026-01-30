@@ -4,7 +4,9 @@
   "ignoreUnresolved": ["#imports"],
   "entry": [
     "entrypoints/**/*.{ts,tsx}",
+    "app.config.ts",
     "scripts/*.ts",
+    "web-ext.config.ts",
     "wxt.config.ts"
   ],
   "project": ["**/*.{ts,tsx}"],

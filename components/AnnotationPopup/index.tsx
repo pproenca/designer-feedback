@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { Annotation } from '@/types';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import { usePopupPosition } from './usePopupPosition';
 import { ViewModeContent } from './ViewModeContent';
 import { CreateModeContent } from './CreateModeContent';
@@ -166,7 +166,7 @@ export const AnnotationPopup = forwardRef<AnnotationPopupHandle, AnnotationPopup
       [position.x, position.y, position.isFixed]
     );
 
-    const popupClassName = classNames(
+    const popupClassName = clsx(
       'w-75 -translate-x-1/2 z-panel',
       'px-4 pt-3 pb-3.5 rounded-2xl',
       'font-sans cursor-default',

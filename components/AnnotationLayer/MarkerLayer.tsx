@@ -11,7 +11,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useMemo } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import { getCategoryConfig } from '@/shared/categories';
 import type { Annotation } from '@/types';
 
@@ -73,18 +73,18 @@ function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
   return (
     <m.div
       variants={variants}
-      className={classNames(
+      className={clsx(
         'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 z-tooltip',
         'px-3 py-2 rounded-xl min-w-30 max-w-50 pointer-events-none cursor-default',
         'bg-white shadow-popup-light',
         'dark:bg-df-dark-ink dark:shadow-popup'
       )}
     >
-      <span className={classNames('block text-xs font-semibold mb-1', config.tw.text)}>
+      <span className={clsx('block text-xs font-semibold mb-1', config.tw.text)}>
         {config.emoji} {config.label}
       </span>
       <span
-        className={classNames(
+        className={clsx(
           'block text-sm font-normal leading-tight whitespace-nowrap overflow-hidden text-ellipsis pb-0.5',
           'text-black/85 dark:text-white'
         )}
@@ -92,7 +92,7 @@ function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
         {annotation.comment}
       </span>
       <span
-        className={classNames(
+        className={clsx(
           'block text-2xs font-normal mt-1.5 whitespace-nowrap',
           'text-black/35 dark:text-white/60'
         )}
@@ -141,7 +141,7 @@ function Marker({
       animate="visible"
       whileHover="hover"
       variants={variants.marker}
-      className={classNames(
+      className={clsx(
         'w-5.5 h-5.5 rounded-full flex items-center justify-center',
         'text-xs font-semibold text-white cursor-pointer select-none',
         'shadow-marker -translate-x-1/2 -translate-y-1/2 z-10',

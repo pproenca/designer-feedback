@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import { IconExport } from '../Icons';
 import { StatusMessage, type StatusType } from '../StatusMessage';
 
@@ -51,13 +51,13 @@ export function ExportActions({
 
       {/* Actions */}
       <div
-        className={classNames(
+        className={clsx(
           'flex justify-end gap-2.5 py-4 px-4.5 pb-4.5 border-t',
           'border-black/8 dark:border-white/8'
         )}
       >
         <button
-          className={classNames(
+          className={clsx(
             'py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer',
             'transition-interactive',
             'focus-ring',
@@ -71,7 +71,7 @@ export function ExportActions({
           Cancel
         </button>
         <button
-          className={classNames(
+          className={clsx(
             'flex items-center gap-1.5 py-2.5 px-5 text-sm font-semibold rounded-lg border-none cursor-pointer text-white',
             'bg-df-blue',
             'transition duration-150 ease-out',

@@ -2,7 +2,7 @@ import { useState, type ReactNode, type RefObject } from 'react';
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
 import type { ExportFormat } from '@/types';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 
 export type ExportFormatOption = {
   id: ExportFormat;
@@ -39,7 +39,7 @@ export function FormatSelector({
     <div className="mb-3.5">
       <h3
         id="format-selector-label"
-        className={classNames('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}
+        className={clsx('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}
       >
         Format
       </h3>
@@ -59,7 +59,7 @@ export function FormatSelector({
           return (
             <label
               key={option.id}
-              className={classNames(
+              className={clsx(
                 'flex items-start gap-3 py-3 px-3.5 border rounded-xl',
                 'cursor-pointer text-left relative',
                 'transition duration-150 ease-out',
@@ -78,7 +78,7 @@ export function FormatSelector({
               />
               {/* Radio indicator */}
               <span
-                className={classNames(
+                className={clsx(
                   'flex items-center justify-center w-4.5 h-4.5 rounded-full border-2 shrink-0 mt-0.5',
                   'transition-colors duration-150',
                   !isSelected && 'border-black/20 dark:border-white/25',
@@ -86,7 +86,7 @@ export function FormatSelector({
                 )}
               >
                 <span
-                  className={classNames(
+                  className={clsx(
                     'w-2 h-2 rounded-full',
                     !isKeyboardNav && 'transition-transform duration-150',
                     isSelected ? 'bg-df-blue scale-100' : 'scale-0'
@@ -95,7 +95,7 @@ export function FormatSelector({
               </span>
               {/* Icon */}
               <span
-                className={classNames(
+                className={clsx(
                   'inline-flex items-center justify-center w-8 h-8 rounded-xl leading-none',
                   'transition-colors duration-150',
                   !isSelected && 'bg-black/5 text-black/60',
@@ -107,10 +107,10 @@ export function FormatSelector({
                 {option.icon}
               </span>
               <div className="flex flex-col gap-0.5 flex-1">
-                <span className={classNames('text-sm font-medium', 'text-df-ink dark:text-white')}>
+                <span className={clsx('text-sm font-medium', 'text-df-ink dark:text-white')}>
                   {option.label}
                 </span>
-                <span className={classNames('text-xs leading-snug', 'text-muted-soft')}>
+                <span className={clsx('text-xs leading-snug', 'text-muted-soft')}>
                   {option.description}
                 </span>
               </div>

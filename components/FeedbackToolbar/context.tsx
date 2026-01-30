@@ -1,8 +1,13 @@
 /**
- * Toolbar State Management
+ * Toolbar Types and Legacy Reducer
  *
- * Provides types, initial state, and reducer for toolbar state.
- * Used directly with useReducer in FeedbackToolbar component.
+ * This module provides types for toolbar state. The reducer and initial state
+ * are kept for backwards compatibility but are no longer used in the main
+ * component - state management has been migrated to Zustand stores in
+ * `stores/toolbar.ts` and `stores/annotations.ts`.
+ *
+ * @see stores/toolbar.ts - Zustand store for toolbar UI state
+ * @see stores/annotations.ts - Zustand store for annotations data
  */
 
 import type { FeedbackCategory } from '@/types';

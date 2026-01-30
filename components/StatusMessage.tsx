@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { m, useReducedMotion, type Variants } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 
 export type StatusType = 'success' | 'warning' | 'error' | 'info';
 
@@ -45,7 +45,7 @@ export function StatusMessage({ type, message, id }: StatusMessageProps) {
       exit="exit"
       variants={variants}
       id={id}
-      className={classNames('status-message', STATUS_CLASSES[type])}
+      className={clsx('status-message', STATUS_CLASSES[type])}
       role={type === 'error' ? 'alert' : 'status'}
       aria-live={type === 'error' ? 'assertive' : 'polite'}
     >

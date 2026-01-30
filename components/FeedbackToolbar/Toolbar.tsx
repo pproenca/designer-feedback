@@ -8,7 +8,7 @@
 import type { ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import {
   IconList,
   IconClose,
@@ -136,7 +136,7 @@ export function Toolbar({
 
   return (
     <div
-      className={classNames(
+      className={clsx(
         'fixed top-5 right-5 z-toolbar font-sans pointer-events-none',
         isDragging && 'cursor-grabbing [&_*]:cursor-grabbing'
       )}
@@ -163,14 +163,14 @@ export function Toolbar({
         initial={!isEntranceComplete ? 'hidden' : false}
         animate="visible"
         variants={variants.toolbar}
-        className={classNames(
+        className={clsx(
           'select-none flex items-center justify-center pointer-events-auto cursor-default',
           'transition-all duration-200 ease-out',
           'bg-white text-black/85 shadow-toolbar-light',
           'dark:bg-df-dark dark:text-white dark:border dark:border-white/8 dark:shadow-toolbar',
           isExpanded
             ? 'w-auto h-11 rounded-toolbar p-1.5'
-            : classNames(
+            : clsx(
                 'w-11 h-11 rounded-full p-0 cursor-pointer',
                 'hover:bg-df-surface-subtle dark:hover:bg-df-dark-hover',
                 'active:scale-95'
@@ -190,7 +190,7 @@ export function Toolbar({
       >
         {/* Collapsed state: show icon + badge */}
         <div
-          className={classNames(
+          className={clsx(
             'absolute flex items-center justify-center transition-opacity duration-100',
             isExpanded
               ? 'opacity-0 invisible pointer-events-none'
@@ -215,14 +215,14 @@ export function Toolbar({
 
         {/* Expanded state: show controls */}
         <div
-          className={classNames(
+          className={clsx(
             'flex items-center gap-1.5 transition duration-200',
             isExpanded
-              ? classNames(
+              ? clsx(
                   'opacity-100 scale-100 visible pointer-events-auto',
                   !reduceMotion && 'blur-0'
                 )
-              : classNames(
+              : clsx(
                   'opacity-0 scale-60 invisible pointer-events-none',
                   !reduceMotion && 'blur-sm'
                 )
@@ -231,7 +231,7 @@ export function Toolbar({
           {/* Add annotation button */}
           <div className="relative flex items-center justify-center group">
             <button
-              className={classNames(
+              className={clsx(
                 'btn-toolbar',
                 (isSelectingElement || isCategoryPanelOpen) && 'active'
               )}
@@ -300,7 +300,7 @@ export function Toolbar({
           {/* Clear button */}
           <div className="relative flex items-center justify-center group">
             <button
-              className={classNames('btn-toolbar', 'danger')}
+              className={clsx('btn-toolbar', 'danger')}
               type="button"
               aria-label="Clear all annotations"
               aria-describedby="tooltip-clear"

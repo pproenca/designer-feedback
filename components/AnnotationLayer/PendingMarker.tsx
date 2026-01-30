@@ -6,7 +6,7 @@
  */
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 import type { PendingAnnotation } from '@/components/FeedbackToolbar/context';
 
 // =============================================================================
@@ -63,7 +63,7 @@ export function PendingMarker({ pendingAnnotation, markerNumber }: PendingMarker
         animate="visible"
         exit="hidden"
         variants={variants.marker}
-        className={classNames(
+        className={clsx(
           'w-5.5 h-5.5 rounded-full flex items-center justify-center',
           'text-xs font-semibold text-white select-none',
           'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'

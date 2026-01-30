@@ -16,17 +16,6 @@ export const MESSAGE_TARGET = {
   CONTENT: 'content',
 } as const;
 
-export type MessageTarget = (typeof MESSAGE_TARGET)[keyof typeof MESSAGE_TARGET];
-
-/**
- * Offscreen document reasons for createDocument API
- * See: https://developer.chrome.com/docs/extensions/reference/api/offscreen#type-Reason
- */
-export const OFFSCREEN_REASON = {
-  /** For handling blob URLs and data URL conversions */
-  BLOBS: 'BLOBS',
-} as const;
-
 /**
  * Message types specific to offscreen document operations
  */
