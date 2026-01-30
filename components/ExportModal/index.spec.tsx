@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
+import { render, fireEvent, cleanup, act, within } from '@testing-library/react';
 import { ExportModal } from './index';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { isRestrictedPage } from '@/utils/screenshot';
@@ -62,24 +62,42 @@ describe('ExportModal', () => {
   const mockedExportAsSnapshotImage = vi.mocked(exportAsSnapshotImage);
   const mockedIsRestrictedPage = vi.mocked(isRestrictedPage);
 
+  // Create a mock shadow root for portal rendering
+  let mockShadowHost: HTMLDivElement;
+  let mockShadowRoot: ShadowRoot;
+  // Shadow-scoped screen queries (portal renders into shadow root)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let screen: any;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'full' });
     mockedIsRestrictedPage.mockReturnValue(false);
+
+    // Set up mock shadow DOM
+    mockShadowHost = document.createElement('div');
+    document.body.appendChild(mockShadowHost);
+    mockShadowRoot = mockShadowHost.attachShadow({ mode: 'open' });
+    // Portal renders into shadow root, so query within it
+    screen = within(mockShadowRoot as unknown as HTMLElement);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     cleanup();
+    // Clean up mock shadow DOM
+    if (mockShadowHost.parentNode) {
+      mockShadowHost.parentNode.removeChild(mockShadowHost);
+    }
   });
 
   it('clears timeout when component unmounts before auto-close', async () => {
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const onClose = vi.fn();
 
-    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
@@ -101,7 +119,7 @@ describe('ExportModal', () => {
   it('does not call onClose after component unmounts', async () => {
     const onClose = vi.fn();
 
-    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     // Click export button to trigger the auto-close timer
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
@@ -128,7 +146,7 @@ describe('ExportModal', () => {
   it('stores timer ID in ref for cleanup', async () => {
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     // Click export button
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
@@ -150,7 +168,7 @@ describe('ExportModal', () => {
   it('downloads snapshot and auto-closes on success', async () => {
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -167,7 +185,7 @@ describe('ExportModal', () => {
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'placeholder' });
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -184,7 +202,7 @@ describe('ExportModal', () => {
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'viewport' });
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -200,7 +218,7 @@ describe('ExportModal', () => {
   it('exports markdown to clipboard and auto-closes', async () => {
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     // Click on the Markdown label to select it (Base UI RadioGroup structure)
     const markdownLabel = screen.getByText('Markdown (Clipboard)').closest('label');
@@ -222,7 +240,7 @@ describe('ExportModal', () => {
   it('disables snapshot option on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} shadowRoot={mockShadowRoot} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -230,7 +248,7 @@ describe('ExportModal', () => {
 
     // Snapshot option should be disabled (Base UI uses data-disabled attribute)
     const radios = screen.getAllByRole('radio');
-    const snapshotRadio = radios.find((r) => r.hasAttribute('data-disabled'));
+    const snapshotRadio = radios.find((r: HTMLElement) => r.hasAttribute('data-disabled'));
     expect(snapshotRadio).toBeInTheDocument();
 
     // Should show "not available" message
@@ -240,7 +258,7 @@ describe('ExportModal', () => {
   it('auto-selects markdown format on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} shadowRoot={mockShadowRoot} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -250,15 +268,16 @@ describe('ExportModal', () => {
     const radios = screen.getAllByRole('radio');
     // On restricted pages, markdown (image-notes) is auto-selected
     // The non-disabled radio with aria-checked=true should be the markdown option
-    const selectedRadio = radios.find((r) => r.getAttribute('aria-checked') === 'true' && !r.hasAttribute('data-disabled'));
+    const selectedRadio = radios.find((r: HTMLElement) => r.getAttribute('aria-checked') === 'true' && !r.hasAttribute('data-disabled'));
     expect(selectedRadio).toBeInTheDocument();
   });
 
   it('shows error when export fails', async () => {
     mockedExportAsSnapshotImage.mockRejectedValue(new Error('Network error'));
     const onClose = vi.fn();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} />);
+    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -268,5 +287,7 @@ describe('ExportModal', () => {
 
     expect(screen.getByText(/network error/i)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith('Export failed:', expect.any(Error));
+    consoleSpy.mockRestore();
   });
 });

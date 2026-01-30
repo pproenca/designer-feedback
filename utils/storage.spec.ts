@@ -20,16 +20,26 @@ describe('Storage Quota Validation', () => {
   });
 
   it('should check bytes in use before saving', async () => {
+    // Mock console.warn since getBytesInUse is not available in fakeBrowser
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const result = await checkStorageQuota();
     expect(result.ok).toBe(true);
     expect(result.bytesUsed).toBeGreaterThanOrEqual(0);
+
+    consoleSpy.mockRestore();
   });
 
   it('should return expected shape from checkStorageQuota', async () => {
+    // Mock console.warn since getBytesInUse is not available in fakeBrowser
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const result = await checkStorageQuota();
     expect(result).toHaveProperty('ok');
     expect(result).toHaveProperty('bytesUsed');
     expect(result).toHaveProperty('percentUsed');
+
+    consoleSpy.mockRestore();
   });
 });
 

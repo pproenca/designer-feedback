@@ -50,6 +50,7 @@ describe('useSettings', () => {
 
     it('should use default settings on message error', async () => {
       mockSendMessage.mockRejectedValueOnce(new Error('Failed to get settings'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const { result } = renderHook(() => useSettings());
 
@@ -59,6 +60,8 @@ describe('useSettings', () => {
 
       // Should keep default settings on error
       expect(result.current.settings).toEqual(DEFAULT_SETTINGS);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to get settings:', expect.any(Error));
+      consoleSpy.mockRestore();
     });
   });
 

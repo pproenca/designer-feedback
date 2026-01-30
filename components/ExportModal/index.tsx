@@ -58,6 +58,7 @@ interface ExportModalProps {
   annotations: Annotation[];
   onClose: () => void;
   lightMode?: boolean;
+  shadowRoot: ShadowRoot;
 }
 
 type ExportStatus = {
@@ -98,7 +99,7 @@ function exportModalReducer(state: ExportState, action: ExportAction): ExportSta
 // Component
 // =============================================================================
 
-export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
+export function ExportModal({ annotations, onClose, lightMode = false, shadowRoot }: ExportModalProps) {
   const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
   const reduceMotion = useReducedMotion() ?? false;
   const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
@@ -228,7 +229,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
 
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
+      <Dialog.Portal container={shadowRoot}>
         <AnimatePresence>
           <Dialog.Backdrop
             render={

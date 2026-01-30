@@ -148,11 +148,14 @@ describe('Background Helpers', () => {
       vi.spyOn(fakeBrowser.tabs, 'captureVisibleTab').mockRejectedValue(
         new Error('Tab capture failed')
       );
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await captureVisibleTabScreenshot(1);
 
       expect(result.data).toBe('');
       expect(result.error).toContain('Tab capture failed');
+      expect(consoleSpy).toHaveBeenCalledWith('[Background] captureVisibleTab failed:', expect.any(Error));
+      consoleSpy.mockRestore();
     });
 
     it('returns error when captureVisibleTab returns empty', async () => {
@@ -212,10 +215,13 @@ describe('Background Helpers', () => {
 
     it('returns WINDOW_ID_CURRENT when tab query fails', async () => {
       vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(new Error('Query failed'));
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const windowId = await getWindowIdForCapture(undefined);
 
       expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+      expect(consoleSpy).toHaveBeenCalledWith('[Background] Failed to query active tab:', expect.any(Error));
+      consoleSpy.mockRestore();
     });
   });
 
@@ -240,17 +246,24 @@ describe('Background Helpers', () => {
     });
 
     it('returns false for invalid URLs', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       const result = await verifyScreenshotPermission('not-a-valid-url');
 
       expect(result).toBe(false);
+      expect(consoleSpy).toHaveBeenCalledWith('[Background] Permission check failed:', expect.any(Error));
+      consoleSpy.mockRestore();
     });
 
     it('returns false when permission check throws', async () => {
       vi.spyOn(fakeBrowser.permissions, 'contains').mockRejectedValue(new Error('Permission error'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await verifyScreenshotPermission('https://example.com/page');
 
       expect(result).toBe(false);
+      expect(consoleSpy).toHaveBeenCalledWith('[Background] Permission check failed:', expect.any(Error));
+      consoleSpy.mockRestore();
     });
   });
 
@@ -272,11 +285,14 @@ describe('Background Helpers', () => {
 
       it('returns default settings when storage fails', async () => {
         vi.spyOn(fakeBrowser.storage.sync, 'get').mockRejectedValue(new Error('Storage error'));
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const result = await getSettings();
 
         expect(result.settings).toEqual(DEFAULT_SETTINGS);
         expect(result.error).toContain('Storage error');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to get settings:', expect.any(Error));
+        consoleSpy.mockRestore();
       });
     });
 
@@ -294,11 +310,14 @@ describe('Background Helpers', () => {
 
       it('returns error when saving fails', async () => {
         vi.spyOn(fakeBrowser.storage.sync, 'set').mockRejectedValue(new Error('Quota exceeded'));
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const result = await saveSettings(DEFAULT_SETTINGS);
 
         expect(result.settings).toEqual(DEFAULT_SETTINGS);
         expect(result.error).toContain('Quota exceeded');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to save settings:', expect.any(Error));
+        consoleSpy.mockRestore();
       });
     });
   });

@@ -451,6 +451,7 @@ export function FeedbackToolbar({
               annotations={annotations}
               onClose={() => exportModalClosed()}
               lightMode={lightMode}
+              shadowRoot={shadowRoot}
             />
           </Suspense>
         )}

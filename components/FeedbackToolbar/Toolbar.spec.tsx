@@ -2,14 +2,25 @@ import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
-// Mock Framer Motion
+// Mock Framer Motion - filter out non-DOM props to avoid React warnings
+const filterMotionProps = (props: Record<string, unknown>) => {
+  const motionProps = ['initial', 'animate', 'exit', 'variants', 'transition', 'whileHover', 'whileTap', 'whileFocus', 'whileDrag', 'layout', 'layoutId', 'onAnimationStart', 'onAnimationComplete'];
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (!motionProps.includes(key)) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+};
+
 vi.mock('framer-motion', () => ({
   m: {
     div: ({ children, style, ...props }: HTMLAttributes<HTMLDivElement> & { style?: CSSProperties }) => (
-      <div style={style} {...props}>{children}</div>
+      <div style={style} {...filterMotionProps(props)}>{children}</div>
     ),
     span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => (
-      <span {...props}>{children}</span>
+      <span {...filterMotionProps(props)}>{children}</span>
     ),
   },
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
