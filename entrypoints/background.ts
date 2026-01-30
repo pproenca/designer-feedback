@@ -24,13 +24,12 @@ import {
   // Security
   isExtensionSender,
   // Tab tracking
-  ACTIVATED_TABS_KEY,
-  canUseSessionStorage,
   persistActivatedTabs,
   restoreActivatedTabs,
   ensureHostPermission,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
+import { activatedTabs as activatedTabsStorage } from '@/utils/storage-items';
 
 export default defineBackground(() => {
   // =============================================================================
@@ -57,10 +56,8 @@ export default defineBackground(() => {
   async function getActivatedOriginHash(tabId: number): Promise<string | null> {
     const cached = activatedTabs.get(tabId);
     if (cached) return cached;
-    if (!canUseSessionStorage()) return null;
     try {
-      const result = await browser.storage.session.get({ [ACTIVATED_TABS_KEY]: {} });
-      const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+      const stored = await activatedTabsStorage.getValue();
       const origin = stored?.[String(tabId)];
       if (origin) {
         const normalized = normalizeOriginHash(origin);

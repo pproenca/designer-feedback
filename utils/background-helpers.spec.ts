@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { Settings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
+import {
+  activatedTabs,
+  settingsEnabled,
+  settingsLightMode,
+} from '@/utils/storage-items';
 // Note: OFFSCREEN_DOCUMENT_PATH imported for downloadFile tests (commented out for now)
 
 import {
@@ -28,8 +33,6 @@ import {
   // Security
   isExtensionSender,
   // Tab tracking
-  ACTIVATED_TABS_KEY,
-  canUseSessionStorage,
   persistActivatedTabs,
   restoreActivatedTabs,
   hasOptionalHostPermissions,
@@ -275,7 +278,8 @@ describe('Background Helpers', () => {
     describe('getSettings', () => {
       it('returns settings from sync storage', async () => {
         const customSettings: Settings = { enabled: false, lightMode: false };
-        vi.spyOn(fakeBrowser.storage.sync, 'get').mockResolvedValue(customSettings);
+        await settingsEnabled.setValue(customSettings.enabled);
+        await settingsLightMode.setValue(customSettings.lightMode);
 
         const result = await getSettings();
 
@@ -284,7 +288,7 @@ describe('Background Helpers', () => {
       });
 
       it('returns default settings when storage fails', async () => {
-        vi.spyOn(fakeBrowser.storage.sync, 'get').mockRejectedValue(new Error('Storage error'));
+        vi.spyOn(settingsEnabled, 'getValue').mockRejectedValue(new Error('Storage error'));
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const result = await getSettings();
@@ -299,17 +303,19 @@ describe('Background Helpers', () => {
     describe('saveSettings', () => {
       it('saves settings to sync storage', async () => {
         const newSettings: Settings = { enabled: false, lightMode: true };
-        vi.spyOn(fakeBrowser.storage.sync, 'set').mockResolvedValue(undefined);
+        const enabledSpy = vi.spyOn(settingsEnabled, 'setValue').mockResolvedValue(undefined);
+        const lightModeSpy = vi.spyOn(settingsLightMode, 'setValue').mockResolvedValue(undefined);
 
         const result = await saveSettings(newSettings);
 
-        expect(fakeBrowser.storage.sync.set).toHaveBeenCalledWith(newSettings);
+        expect(enabledSpy).toHaveBeenCalledWith(false);
+        expect(lightModeSpy).toHaveBeenCalledWith(true);
         expect(result.settings).toEqual(newSettings);
         expect(result.error).toBeUndefined();
       });
 
       it('returns error when saving fails', async () => {
-        vi.spyOn(fakeBrowser.storage.sync, 'set').mockRejectedValue(new Error('Quota exceeded'));
+        vi.spyOn(settingsEnabled, 'setValue').mockRejectedValue(new Error('Quota exceeded'));
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const result = await saveSettings(DEFAULT_SETTINGS);
@@ -401,16 +407,9 @@ describe('Background Helpers', () => {
   // =============================================================================
 
   describe('Tab Tracking', () => {
-    describe('canUseSessionStorage', () => {
-      it('returns true when session storage is available', () => {
-        // fakeBrowser should have storage.session
-        expect(canUseSessionStorage()).toBe(true);
-      });
-    });
-
     describe('persistActivatedTabs', () => {
       it('persists tabs to session storage', () => {
-        vi.spyOn(fakeBrowser.storage.session, 'set').mockResolvedValue(undefined);
+        const setSpy = vi.spyOn(activatedTabs, 'setValue').mockResolvedValue(undefined);
 
         const tabs = new Map<number, string>();
         tabs.set(1, 'hash1');
@@ -418,28 +417,25 @@ describe('Background Helpers', () => {
 
         persistActivatedTabs(tabs);
 
-        expect(fakeBrowser.storage.session.set).toHaveBeenCalledWith({
-          [ACTIVATED_TABS_KEY]: { '1': 'hash1', '2': 'hash2' },
-        });
+        expect(setSpy).toHaveBeenCalledWith({ '1': 'hash1', '2': 'hash2' });
       });
 
       it('persists empty map as empty object', () => {
-        vi.spyOn(fakeBrowser.storage.session, 'set').mockResolvedValue(undefined);
+        const setSpy = vi.spyOn(activatedTabs, 'setValue').mockResolvedValue(undefined);
 
         const tabs = new Map<number, string>();
 
         persistActivatedTabs(tabs);
 
-        expect(fakeBrowser.storage.session.set).toHaveBeenCalledWith({
-          [ACTIVATED_TABS_KEY]: {},
-        });
+        expect(setSpy).toHaveBeenCalledWith({});
       });
     });
 
     describe('restoreActivatedTabs', () => {
       it('restores tabs from session storage', async () => {
-        vi.spyOn(fakeBrowser.storage.session, 'get').mockResolvedValue({
-          [ACTIVATED_TABS_KEY]: { '1': 'hash1', '2': 'hash2' },
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({
+          '1': 'hash1',
+          '2': 'hash2',
         });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
           { id: 1, url: 'https://example.com' },
@@ -454,8 +450,9 @@ describe('Background Helpers', () => {
       });
 
       it('removes tabs that no longer exist', async () => {
-        vi.spyOn(fakeBrowser.storage.session, 'get').mockResolvedValue({
-          [ACTIVATED_TABS_KEY]: { '1': 'hash1', '999': 'hash999' },
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({
+          '1': 'hash1',
+          '999': 'hash999',
         });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
           { id: 1, url: 'https://example.com' },
@@ -473,9 +470,7 @@ describe('Background Helpers', () => {
         const fullUrl = 'https://example.com';
         const expectedHash = hashString(fullUrl);
 
-        vi.spyOn(fakeBrowser.storage.session, 'get').mockResolvedValue({
-          [ACTIVATED_TABS_KEY]: { '1': fullUrl },
-        });
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({ '1': fullUrl });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
           { id: 1, url: 'https://example.com' },
         ]);
@@ -489,9 +484,7 @@ describe('Background Helpers', () => {
 
       it('returns false when nothing changed', async () => {
         const hash = 'alreadyhashed123';
-        vi.spyOn(fakeBrowser.storage.session, 'get').mockResolvedValue({
-          [ACTIVATED_TABS_KEY]: { '1': hash },
-        });
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({ '1': hash });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
           { id: 1, url: 'https://example.com' },
         ]);

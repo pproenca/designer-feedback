@@ -3,6 +3,7 @@
  * Provides type-safe storage access with fallback defaults
  */
 import { storage } from 'wxt/utils/storage';
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 
 // =============================================================================
 // Session Storage Items (cleared when browser closes)
@@ -13,12 +14,16 @@ import { storage } from 'wxt/utils/storage';
  * Key format: tabId -> originHash
  */
 export const activatedTabs = storage.defineItem<Record<string, string>>(
-  'session:activated-tabs',
+  'session:designer-feedback:activated-tabs',
   {
     fallback: {},
   }
 );
 
-// Note: User settings are stored using raw browser.storage.sync with individual keys
-// (enabled, lightMode) to maintain backward compatibility with existing user data.
-// See hooks/useSettings.ts and entrypoints/background.ts for the settings pattern.
+export const settingsEnabled = storage.defineItem<boolean>('sync:enabled', {
+  fallback: DEFAULT_SETTINGS.enabled,
+});
+
+export const settingsLightMode = storage.defineItem<boolean>('sync:lightMode', {
+  fallback: DEFAULT_SETTINGS.lightMode,
+});

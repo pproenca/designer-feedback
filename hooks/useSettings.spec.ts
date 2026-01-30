@@ -118,7 +118,7 @@ describe('useSettings', () => {
   });
 
   describe('storage change listener', () => {
-    it('should still listen to browser.storage.onChanged events', async () => {
+    it('should still listen to sync storage changes', async () => {
       const { result } = renderHook(() => useSettings());
 
       // Wait for initial load
@@ -128,9 +128,8 @@ describe('useSettings', () => {
 
       // Simulate storage change from another context
       act(() => {
-        fakeBrowser.storage.onChanged.trigger(
+        fakeBrowser.storage.sync.onChanged.trigger(
           { lightMode: { newValue: false, oldValue: true } },
-          'sync'
         );
       });
 
@@ -147,10 +146,9 @@ describe('useSettings', () => {
 
       // Simulate storage change from local area (should be ignored)
       act(() => {
-        fakeBrowser.storage.onChanged.trigger(
-          { lightMode: { newValue: false, oldValue: true } },
-          'local'
-        );
+        fakeBrowser.storage.local.onChanged.trigger({
+          lightMode: { newValue: false, oldValue: true },
+        });
       });
 
       // Should still be true (unchanged)
