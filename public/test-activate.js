@@ -56,12 +56,17 @@
     });
     window.__dfActivateDebug.flagCheck = flagCheckResult?.result;
 
+    // @webext-core/messaging expects messages with id, type, data, and timestamp fields
     const sendShowToolbar = () =>
       new Promise((resolve) => {
-        chrome.tabs.sendMessage(targetTab.id, { type: 'SHOW_TOOLBAR' }, () => {
-          const ok = !chrome.runtime.lastError;
-          resolve(ok);
-        });
+        chrome.tabs.sendMessage(
+          targetTab.id,
+          { id: Date.now(), type: 'showToolbar', data: undefined, timestamp: Date.now() },
+          () => {
+            const ok = !chrome.runtime.lastError;
+            resolve(ok);
+          }
+        );
       });
 
     const firstAttempt = await sendShowToolbar();
