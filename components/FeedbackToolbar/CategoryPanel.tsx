@@ -6,12 +6,7 @@
  */
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import {
-  IconBug,
-  IconLightbulb,
-  IconQuestion,
-  IconAccessibility,
-} from '../Icons';
+import { Bug, Lightbulb, CircleHelp, Accessibility } from 'lucide-react';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // =============================================================================
@@ -63,7 +58,7 @@ export function CategoryPanel() {
             data-category="bug"
             aria-label="Bug"
           >
-            <IconBug size={20} aria-hidden="true" />
+            <Bug size={20} aria-hidden="true" />
             <span>Bug</span>
           </button>
           <button
@@ -73,7 +68,7 @@ export function CategoryPanel() {
             data-category="question"
             aria-label="Question"
           >
-            <IconQuestion size={20} aria-hidden="true" />
+            <CircleHelp size={20} aria-hidden="true" />
             <span>Question</span>
           </button>
           <button
@@ -83,7 +78,7 @@ export function CategoryPanel() {
             data-category="suggestion"
             aria-label="Suggestion"
           >
-            <IconLightbulb size={20} aria-hidden="true" />
+            <Lightbulb size={20} aria-hidden="true" />
             <span>Suggestion</span>
           </button>
           <button
@@ -93,7 +88,7 @@ export function CategoryPanel() {
             data-category="accessibility"
             aria-label="Accessibility"
           >
-            <IconAccessibility size={20} aria-hidden="true" />
+            <Accessibility size={20} aria-hidden="true" />
             <span>Accessibility</span>
           </button>
         </m.div>

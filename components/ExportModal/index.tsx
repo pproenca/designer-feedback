@@ -4,7 +4,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { isRestrictedPage } from '@/utils/screenshot';
-import { IconClose, IconCopy, IconImage } from '../Icons';
+import { X, Copy, Image } from 'lucide-react';
 import { clsx } from 'clsx';
 import { FormatSelector, type ExportFormatOption } from './FormatSelector';
 import { AnnotationPreview } from './AnnotationPreview';
@@ -118,7 +118,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
         id: 'image-notes',
         label: 'Markdown (Clipboard)',
         description: 'Copies a concise markdown report to your clipboard.',
-        icon: <IconCopy size={18} aria-hidden="true" />,
+        icon: <Copy size={18} aria-hidden="true" />,
       },
       {
         id: 'snapshot',
@@ -126,7 +126,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
         description: restricted
           ? 'Not available on browser pages (chrome://, about:, etc.)'
           : 'Full-page image with highlights and details sidebar.',
-        icon: <IconImage size={18} aria-hidden="true" />,
+        icon: <Image size={18} aria-hidden="true" />,
         disabled: restricted,
         disabledHint: 'Not available on browser pages',
       },
@@ -290,7 +290,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
                 )}
                 aria-label="Close export dialog"
               >
-                <IconClose size={18} />
+                <X size={18} />
               </Dialog.Close>
             </div>
 

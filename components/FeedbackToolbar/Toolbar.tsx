@@ -8,14 +8,7 @@ import { useState, useEffect, useCallback, useRef, startTransition, type ReactNo
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
 import { clsx } from 'clsx';
-import {
-  IconList,
-  IconClose,
-  IconTrash,
-  IconSun,
-  IconMoon,
-  IconExport,
-} from '../Icons';
+import { X, Trash2, Sun, Moon, Download, MessageSquarePlus } from 'lucide-react';
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
@@ -238,7 +231,7 @@ export function Toolbar({
               : 'opacity-100 visible pointer-events-auto'
           )}
         >
-          <IconList size={20} />
+          <MessageSquarePlus size={20} />
           <AnimatePresence>
             {annotationsCount > 0 && (
               <m.span
@@ -293,7 +286,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconClose size={18} />
+                    <X size={18} />
                   </m.span>
                 ) : (
                   <m.span
@@ -304,7 +297,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconList size={18} />
+                    <MessageSquarePlus size={18} />
                   </m.span>
                 )}
               </AnimatePresence>
@@ -329,7 +322,7 @@ export function Toolbar({
               onClick={handleExportClick}
               disabled={annotationsCount === 0}
             >
-              <IconExport size={18} />
+              <Download size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-export">
               Export feedback
@@ -348,7 +341,7 @@ export function Toolbar({
               onClick={handleClearClick}
               disabled={annotationsCount === 0}
             >
-              <IconTrash size={18} />
+              <Trash2 size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-clear">
               Clear all
@@ -376,7 +369,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconMoon size={18} />
+                    <Moon size={18} />
                   </m.span>
                 ) : (
                   <m.span
@@ -387,7 +380,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconSun size={18} />
+                    <Sun size={18} />
                   </m.span>
                 )}
               </AnimatePresence>
@@ -406,7 +399,7 @@ export function Toolbar({
               aria-describedby="tooltip-minimize"
               onClick={() => handleExpandedChange(false)}
             >
-              <IconClose size={18} />
+              <X size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-minimize">
               Minimize

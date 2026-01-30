@@ -1,6 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
-import { IconExport } from '../Icons';
+import { Download } from 'lucide-react';
 import { StatusMessage, type StatusType } from '../StatusMessage';
 
 interface ExportActionsProps {
@@ -85,7 +85,7 @@ export function ExportActions({
           onClick={onExport}
           disabled={isExporting}
         >
-          {!exportOutcome && !isExporting && <IconExport size={16} aria-hidden="true" />}
+          {!exportOutcome && !isExporting && <Download size={16} aria-hidden="true" />}
           {getButtonText()}
         </button>
       </div>
