@@ -10,6 +10,7 @@ import {
   getAnnotationsBucketKey,
 } from '@/utils/storage-constants';
 import { storage } from 'wxt/utils/storage';
+import { backgroundMessenger } from '@/utils/messaging';
 
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -342,5 +343,5 @@ export async function getAnnotationCount(url: string): Promise<number> {
  * Update badge count via background script
  */
 export function updateBadgeCount(count: number): void {
-  browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count });
+  backgroundMessenger.sendMessage('updateBadge', count);
 }

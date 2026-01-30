@@ -5,6 +5,7 @@
 import { createPlaceholderScreenshot } from './screenshot/placeholder';
 import { hideStickyElements, restoreHiddenElements } from './screenshot/sticky';
 import { stitchScreenshots } from './screenshot/stitch';
+import { backgroundMessenger, withTimeout } from './messaging';
 
 export type FullPageCaptureResult = {
   dataUrl: string;
@@ -31,16 +32,9 @@ export function isRestrictedPage(): boolean {
  * Capture the visible tab screenshot via the background service worker
  */
 export async function captureScreenshot(): Promise<string> {
-  const response = (await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' })) as {
-    type?: string;
-    data?: string;
-    error?: string;
-  } | undefined;
-
-  // Check if response is undefined (no listener responded)
-  if (!response) {
-    throw new Error('Failed to capture screenshot: no response from background');
-  }
+  const response = await withTimeout(
+    backgroundMessenger.sendMessage('captureScreenshot', undefined)
+  );
 
   if (response.error) {
     throw new Error(response.error);

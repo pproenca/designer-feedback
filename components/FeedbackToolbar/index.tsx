@@ -142,22 +142,13 @@ function FeedbackToolbarContent({
     return () => clearTimeout(timer);
   }, [entranceCompleted]);
 
-  // Listen for external events
+  // Listen for external events (UI events emitted from content script handlers)
   useEffect(() => {
-    const handleExportMessage = (message: unknown) => {
-      const msg = message as { type?: string };
-      if (msg.type === 'TRIGGER_EXPORT') {
-        exportModalOpened();
-      }
-    };
-    browser.runtime.onMessage.addListener(handleExportMessage);
-
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
 
     return () => {
-      browser.runtime.onMessage.removeListener(handleExportMessage);
       offHide();
       offShow();
       offOpen();

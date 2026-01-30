@@ -3,14 +3,12 @@
 // =============================================================================
 
 import type { Annotation } from '@/types';
-import { sendMessage } from '@/utils/messaging';
+import { backgroundMessenger, withTimeout } from '@/utils/messaging';
 import { captureFullPage } from './screenshot';
 import { emitUiEvent } from './ui-events';
 import { copyToClipboard } from './export/clipboard';
 import { generateNotesMarkdown } from './export/markdown';
 import { createSnapshotImage } from './export/snapshot';
-
-type DownloadResponse = { ok: boolean; error?: string };
 
 /**
  * Download a data URL as a file via the background service worker.
@@ -19,11 +17,9 @@ type DownloadResponse = { ok: boolean; error?: string };
  * data URLs to blob URLs for Chrome MV3 compatibility.
  */
 export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
-  const response = await sendMessage<DownloadResponse>({
-    type: 'DOWNLOAD_FILE',
-    filename,
-    dataUrl,
-  });
+  const response = await withTimeout(
+    backgroundMessenger.sendMessage('downloadFile', { filename, dataUrl })
+  );
   if (!response?.ok) {
     throw new Error(response?.error ?? 'Download failed');
   }

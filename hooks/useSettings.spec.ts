@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
-// Mock sendMessage module
+// Mock backgroundMessenger
+const mockSendMessage = vi.fn();
 vi.mock('@/utils/messaging', () => ({
-  sendMessage: vi.fn(),
+  backgroundMessenger: {
+    sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+  },
 }));
 
 import { useSettings } from './useSettings';
-import { sendMessage } from '@/utils/messaging';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import type { Settings } from '@/types';
-
-const mockSendMessage = vi.mocked(sendMessage);
 
 describe('useSettings', () => {
   beforeEach(() => {
@@ -20,7 +20,6 @@ describe('useSettings', () => {
     fakeBrowser.reset();
     // Default mock implementation returns settings
     mockSendMessage.mockResolvedValue({
-      type: 'SETTINGS_RESPONSE',
       settings: DEFAULT_SETTINGS,
     });
   });
@@ -30,17 +29,16 @@ describe('useSettings', () => {
   });
 
   describe('loading settings', () => {
-    it('should use sendMessage to get settings on mount', async () => {
+    it('should use backgroundMessenger to get settings on mount', async () => {
       const customSettings: Settings = { enabled: false, lightMode: false };
       mockSendMessage.mockResolvedValueOnce({
-        type: 'SETTINGS_RESPONSE',
         settings: customSettings,
       });
 
       const { result } = renderHook(() => useSettings());
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_SETTINGS' });
+        expect(mockSendMessage).toHaveBeenCalledWith('getSettings', undefined);
       });
 
       await waitFor(() => {
@@ -55,7 +53,7 @@ describe('useSettings', () => {
       const { result } = renderHook(() => useSettings());
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_SETTINGS' });
+        expect(mockSendMessage).toHaveBeenCalledWith('getSettings', undefined);
       });
 
       // Should keep default settings on error
@@ -66,18 +64,17 @@ describe('useSettings', () => {
   });
 
   describe('updating settings', () => {
-    it('should use sendMessage to save settings when updateSettings is called', async () => {
+    it('should use backgroundMessenger to save settings when updateSettings is called', async () => {
       const { result } = renderHook(() => useSettings());
 
       // Wait for initial load
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_SETTINGS' });
+        expect(mockSendMessage).toHaveBeenCalledWith('getSettings', undefined);
       });
 
       // Clear mock to track new calls
       mockSendMessage.mockClear();
       mockSendMessage.mockResolvedValueOnce({
-        type: 'SETTINGS_RESPONSE',
         settings: { ...DEFAULT_SETTINGS, lightMode: false },
       });
 
@@ -87,21 +84,21 @@ describe('useSettings', () => {
       });
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith({
-          type: 'SAVE_SETTINGS',
-          settings: { ...DEFAULT_SETTINGS, lightMode: false },
+        expect(mockSendMessage).toHaveBeenCalledWith('saveSettings', {
+          ...DEFAULT_SETTINGS,
+          lightMode: false,
         });
       });
 
       expect(result.current.settings.lightMode).toBe(false);
     });
 
-    it('should not call sendMessage when updateSettings is called with empty object', async () => {
+    it('should not call backgroundMessenger when updateSettings is called with empty object', async () => {
       const { result } = renderHook(() => useSettings());
 
       // Wait for initial load
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_SETTINGS' });
+        expect(mockSendMessage).toHaveBeenCalledWith('getSettings', undefined);
       });
 
       // Clear mock to track new calls
@@ -128,9 +125,9 @@ describe('useSettings', () => {
 
       // Simulate storage change from another context
       act(() => {
-        fakeBrowser.storage.sync.onChanged.trigger(
-          { lightMode: { newValue: false, oldValue: true } },
-        );
+        fakeBrowser.storage.sync.onChanged.trigger({
+          lightMode: { newValue: false, oldValue: true },
+        });
       });
 
       expect(result.current.settings.lightMode).toBe(false);

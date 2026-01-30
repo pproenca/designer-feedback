@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+
+// Mock backgroundMessenger
+const mockSendMessage = vi.fn();
+vi.mock('@/utils/messaging', () => ({
+  backgroundMessenger: {
+    sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+  },
+}));
+
 import {
   getAnnotationCount,
   getStorageKey,
@@ -142,13 +151,9 @@ describe('Storage helpers and flows', () => {
   });
 
   it('sends badge update message', () => {
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined);
+    mockSendMessage.mockReset();
     updateBadgeCount(7);
-    expect(spy).toHaveBeenCalledWith({
-      type: 'UPDATE_BADGE',
-      count: 7,
-    });
-    spy.mockRestore();
+    expect(mockSendMessage).toHaveBeenCalledWith('updateBadge', 7);
   });
 
   it('saves annotation successfully', async () => {
