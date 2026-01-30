@@ -8,6 +8,7 @@ import {
   updateBadgeCount,
   checkStorageQuota,
   saveAnnotation,
+  deleteAnnotation,
 } from './storage';
 import { hashString } from './hash';
 
@@ -19,16 +20,26 @@ describe('Storage Quota Validation', () => {
   });
 
   it('should check bytes in use before saving', async () => {
+    // Mock console.warn since getBytesInUse is not available in fakeBrowser
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const result = await checkStorageQuota();
     expect(result.ok).toBe(true);
     expect(result.bytesUsed).toBeGreaterThanOrEqual(0);
+
+    consoleSpy.mockRestore();
   });
 
   it('should return expected shape from checkStorageQuota', async () => {
+    // Mock console.warn since getBytesInUse is not available in fakeBrowser
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const result = await checkStorageQuota();
     expect(result).toHaveProperty('ok');
     expect(result).toHaveProperty('bytesUsed');
     expect(result).toHaveProperty('percentUsed');
+
+    consoleSpy.mockRestore();
   });
 });
 
@@ -166,5 +177,28 @@ describe('Storage helpers and flows', () => {
   it('returns empty array when no annotations exist', async () => {
     const results = await loadAnnotations();
     expect(results).toEqual([]);
+  });
+
+  it('deletes annotation from storage', async () => {
+    const annotation = {
+      id: 'delete-test',
+      x: 100,
+      y: 200,
+      comment: 'To be deleted',
+      category: 'bug' as const,
+      element: 'div.test',
+      elementPath: 'div.test',
+      timestamp: Date.now(),
+      isFixed: false,
+      url: getStorageKey(),
+    };
+
+    await saveAnnotation(annotation);
+    const before = await loadAnnotations();
+    expect(before).toHaveLength(1);
+
+    await deleteAnnotation('delete-test');
+    const after = await loadAnnotations();
+    expect(after).toHaveLength(0);
   });
 });

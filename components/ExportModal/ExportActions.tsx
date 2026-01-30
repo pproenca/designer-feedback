@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
-import { IconExport } from '../Icons';
+import { clsx } from 'clsx';
+import { Check, Download } from 'lucide-react';
 import { StatusMessage, type StatusType } from '../StatusMessage';
 
 interface ExportActionsProps {
@@ -26,9 +27,14 @@ export function ExportActions({
   onCancel,
   onExport,
 }: ExportActionsProps) {
-  const getButtonText = () => {
+  const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
-      return exportOutcome === 'copied' ? '✓ Copied!' : '✓ Downloaded!';
+      return (
+        <>
+          <Check size={16} aria-hidden="true" />
+          {exportOutcome === 'copied' ? 'Copied!' : 'Downloaded!'}
+        </>
+      );
     }
     if (isExporting) {
       return isClipboardFormat ? 'Copying…' : 'Exporting…';
@@ -51,13 +57,13 @@ export function ExportActions({
 
       {/* Actions */}
       <div
-        className={classNames(
+        className={clsx(
           'flex justify-end gap-2.5 py-4 px-4.5 pb-4.5 border-t',
           'border-black/8 dark:border-white/8'
         )}
       >
         <button
-          className={classNames(
+          className={clsx(
             'py-2 px-4 text-sm font-medium rounded-lg border-none cursor-pointer',
             'transition-interactive',
             'focus-ring',
@@ -71,7 +77,7 @@ export function ExportActions({
           Cancel
         </button>
         <button
-          className={classNames(
+          className={clsx(
             'flex items-center gap-1.5 py-2.5 px-5 text-sm font-semibold rounded-lg border-none cursor-pointer text-white',
             'bg-df-blue',
             'transition duration-150 ease-out',
@@ -85,8 +91,8 @@ export function ExportActions({
           onClick={onExport}
           disabled={isExporting}
         >
-          {!exportOutcome && !isExporting && <IconExport size={16} aria-hidden="true" />}
-          {getButtonText()}
+          {!exportOutcome && !isExporting && <Download size={16} aria-hidden="true" />}
+          {getButtonContent()}
         </button>
       </div>
     </>

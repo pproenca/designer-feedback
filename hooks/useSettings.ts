@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import { sendMessage } from '@/utils/messaging';
+import { settingsEnabled, settingsLightMode } from '@/utils/storage-items';
 import type { Settings } from '@/types';
 
-type StorageChangeEntry = { newValue?: unknown; oldValue?: unknown };
 type SettingsResponse = { type: string; settings: Settings; error?: string };
 
 export function useSettings() {
@@ -28,30 +28,21 @@ export function useSettings() {
   }, []);
 
   useEffect(() => {
-    const handleStorageChange = (
-      changes: Record<string, StorageChangeEntry>,
-      area: string
-    ) => {
-      if (area !== 'sync') return;
-      if (!changes.enabled && !changes.lightMode) return;
+    const unwatchEnabled = settingsEnabled.watch((newValue) => {
+      setSettings((prev) =>
+        prev.enabled === newValue ? prev : { ...prev, enabled: newValue }
+      );
+    });
+    const unwatchLightMode = settingsLightMode.watch((newValue) => {
+      setSettings((prev) =>
+        prev.lightMode === newValue ? prev : { ...prev, lightMode: newValue }
+      );
+    });
 
-      setSettings((prev) => {
-        let nextSettings = prev;
-        if (changes.enabled || changes.lightMode) {
-          nextSettings = { ...prev };
-          if (changes.enabled) {
-            nextSettings.enabled = Boolean(changes.enabled.newValue);
-          }
-          if (changes.lightMode) {
-            nextSettings.lightMode = Boolean(changes.lightMode.newValue);
-          }
-        }
-        return nextSettings;
-      });
+    return () => {
+      unwatchEnabled();
+      unwatchLightMode();
     };
-
-    browser.storage.onChanged.addListener(handleStorageChange);
-    return () => browser.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   const updateSettings = useCallback((next: Partial<Settings>) => {

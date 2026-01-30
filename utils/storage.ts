@@ -1,5 +1,5 @@
 // =============================================================================
-// Extension Storage Utilities (browser.storage.local)
+// Extension Storage Utilities (WXT storage local area)
 // =============================================================================
 
 import type { Annotation } from '@/types';
@@ -8,12 +8,13 @@ import {
   ANNOTATIONS_PREFIX,
   STORAGE_KEY_VERSION,
   getAnnotationsBucketKey,
-} from '@/utils/storage-items';
+} from '@/utils/storage-constants';
+import { storage } from 'wxt/utils/storage';
 
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
-// Storage quota constants (browser.storage.local has 10MB limit)
+// Storage quota constants (local storage area has 10MB limit)
 const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB
 const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
 
@@ -26,26 +27,65 @@ function stripUrl(annotation: Annotation & { url?: string }): Annotation {
   return rest as Annotation;
 }
 
-async function getLocal<T>(keys: string | string[] | Record<string, T>): Promise<Record<string, T>> {
-  const result = await browser.storage.local.get(keys);
-  return result as Record<string, T>;
+async function getLocal<T>(key: string, fallback: T): Promise<T> {
+  try {
+    return await storage.getItem<T>(`local:${key}`, { fallback });
+  } catch (error) {
+    console.warn('Storage access failed (get):', error);
+    return fallback;
+  }
 }
 
 async function setLocal(values: Record<string, unknown>): Promise<void> {
-  await browser.storage.local.set(values);
+  const entries = Object.entries(values).map(([key, value]) => ({
+    key: `local:${key}` as const,
+    value,
+  }));
+  if (!entries.length) return;
+  try {
+    await storage.setItems(entries);
+  } catch (error) {
+    console.warn('Storage access failed (set):', error);
+  }
 }
 
 async function removeLocal(keys: string | string[]): Promise<void> {
-  await browser.storage.local.remove(keys);
+  const entries = (Array.isArray(keys) ? keys : [keys]).map((key) => ({
+    key: `local:${key}` as const,
+  }));
+  if (!entries.length) return;
+  try {
+    await storage.removeItems(entries);
+  } catch (error) {
+    console.warn('Storage access failed (remove):', error);
+  }
 }
 
 async function getAllLocal(): Promise<Record<string, unknown>> {
-  return await browser.storage.local.get(null);
+  try {
+    return await storage.snapshot('local');
+  } catch (error) {
+    console.warn('Storage access failed (get all):', error);
+    return {};
+  }
 }
 
 function normalizeStoredAnnotations(value: unknown): Annotation[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(Boolean) as Annotation[];
+  const seen = new Set<string>();
+  return value
+    .filter(Boolean)
+    .map((raw, index) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const annotation = raw as Annotation;
+      let id = typeof annotation.id === 'string' ? annotation.id.trim() : '';
+      if (!id || seen.has(id)) {
+        id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`;
+      }
+      seen.add(id);
+      return { ...annotation, id };
+    })
+    .filter(Boolean) as Annotation[];
 }
 
 /**
@@ -53,8 +93,15 @@ function normalizeStoredAnnotations(value: unknown): Annotation[] {
  */
 async function getBytesInUse(): Promise<number> {
   try {
-    const bytesInUse = await browser.storage.local.getBytesInUse(null);
-    return bytesInUse;
+    const snapshot = await storage.snapshot('local');
+    const serialized = JSON.stringify(snapshot);
+    if (typeof Blob !== 'undefined') {
+      return new Blob([serialized]).size;
+    }
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(serialized).length;
+    }
+    return serialized.length;
   } catch (error) {
     console.warn('Failed to get storage usage:', error);
     return 0;
@@ -170,8 +217,8 @@ async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
 
 async function loadAnnotationsForKey(urlKey: string): Promise<Annotation[]> {
   const bucketKey = getAnnotationsBucketKey(urlKey);
-  const result = await getLocal<Annotation[]>({ [bucketKey]: [] });
-  return normalizeStoredAnnotations(result[bucketKey]);
+  const stored = await getLocal<Annotation[]>(bucketKey, []);
+  return normalizeStoredAnnotations(stored);
 }
 
 async function saveAnnotationsForKey(urlKey: string, annotations: Annotation[]): Promise<void> {

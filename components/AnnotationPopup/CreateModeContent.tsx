@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, useCallback, type KeyboardEvent } from 'react';
-import { m, type Variants } from 'framer-motion';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 
 const BUTTON_BASE = [
   'px-4 py-2 text-xs font-medium rounded-lg border-none cursor-pointer',
@@ -9,13 +8,13 @@ const BUTTON_BASE = [
   'active:scale-[0.98]',
 ].join(' ');
 
-const BUTTON_SECONDARY = classNames(
+const BUTTON_SECONDARY = clsx(
   BUTTON_BASE,
   'bg-black/5 text-black/60 hover:bg-black/8 hover:text-black/75',
   'dark:bg-white/8 dark:text-white/70 dark:hover:bg-white/12 dark:hover:text-white/85'
 );
 
-const ELEMENT_LABEL = classNames(
+const ELEMENT_LABEL = clsx(
   'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
   'text-muted'
 );
@@ -27,8 +26,6 @@ interface CreateModeContentProps {
   initialValue?: string;
   submitLabel?: string;
   accentColor?: string;
-  isShakeActive: boolean;
-  shakeVariants: Variants;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }
@@ -40,8 +37,6 @@ export function CreateModeContent({
   initialValue = '',
   submitLabel = 'Add',
   accentColor = 'var(--color-df-blue)',
-  isShakeActive,
-  shakeVariants,
   onSubmit,
   onCancel,
 }: CreateModeContentProps) {
@@ -90,7 +85,7 @@ export function CreateModeContent({
   );
 
   return (
-    <m.div variants={shakeVariants} animate={isShakeActive ? 'shake' : undefined}>
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className={ELEMENT_LABEL}>{element}</span>
@@ -107,7 +102,7 @@ export function CreateModeContent({
       {/* Textarea */}
       <textarea
         ref={textareaRef}
-        className={classNames(
+        className={clsx(
           'w-full py-2 px-2.5 text-sm font-sans rounded-lg resize-none outline-none',
           'border transition-all duration-200 ease-out',
           'custom-scrollbar',
@@ -134,7 +129,7 @@ export function CreateModeContent({
           Cancel
         </button>
         <button
-          className={classNames(
+          className={clsx(
             BUTTON_BASE,
             'font-semibold text-white',
             'hover:enabled:brightness-110 hover:enabled:shadow-[0_2px_8px_rgba(0,0,0,0.15)]',
@@ -148,6 +143,6 @@ export function CreateModeContent({
           {submitLabel}
         </button>
       </div>
-    </m.div>
+    </div>
   );
 }

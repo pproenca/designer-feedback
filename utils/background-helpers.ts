@@ -7,6 +7,11 @@ import type { Settings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import { hashString } from '@/utils/hash';
 import {
+  activatedTabs as activatedTabsStorage,
+  settingsEnabled,
+  settingsLightMode,
+} from '@/utils/storage-items';
+import {
   OFFSCREEN_DOCUMENT_PATH,
   MESSAGE_TARGET,
   OFFSCREEN_MESSAGE_TYPE,
@@ -246,8 +251,11 @@ export type SettingsResult = { settings: Settings; error?: string };
  */
 export async function getSettings(): Promise<SettingsResult> {
   try {
-    const result = await browser.storage.sync.get(DEFAULT_SETTINGS);
-    return { settings: result as Settings };
+    const [enabled, lightMode] = await Promise.all([
+      settingsEnabled.getValue(),
+      settingsLightMode.getValue(),
+    ]);
+    return { settings: { enabled, lightMode } };
   } catch (error) {
     console.error('Failed to get settings:', error);
     return { settings: DEFAULT_SETTINGS, error: String(error) };
@@ -259,7 +267,10 @@ export async function getSettings(): Promise<SettingsResult> {
  */
 export async function saveSettings(settings: Settings): Promise<SettingsResult> {
   try {
-    await browser.storage.sync.set(settings);
+    await Promise.all([
+      settingsEnabled.setValue(settings.enabled),
+      settingsLightMode.setValue(settings.lightMode),
+    ]);
     return { settings };
   } catch (error) {
     console.error('Failed to save settings:', error);
@@ -298,25 +309,15 @@ export function isExtensionSender(sender: { id?: string }): boolean {
 // Tab Tracking
 // =============================================================================
 
-export const ACTIVATED_TABS_KEY = 'designer-feedback:activated-tabs';
-
-/**
- * Check if session storage is available
- */
-export function canUseSessionStorage(): boolean {
-  return typeof browser !== 'undefined' && Boolean(browser.storage?.session);
-}
-
 /**
  * Persist activated tabs to session storage
  */
 export function persistActivatedTabs(activatedTabs: Map<number, string>): void {
-  if (!canUseSessionStorage()) return;
   const payload: Record<string, string> = {};
   activatedTabs.forEach((origin, tabId) => {
     payload[String(tabId)] = origin;
   });
-  browser.storage.session.set({ [ACTIVATED_TABS_KEY]: payload }).catch((error) => {
+  activatedTabsStorage.setValue(payload).catch((error) => {
     console.warn('Failed to persist activated tabs:', error);
   });
 }
@@ -327,10 +328,8 @@ export function persistActivatedTabs(activatedTabs: Map<number, string>): void {
 export async function restoreActivatedTabs(
   activatedTabs: Map<number, string>
 ): Promise<boolean> {
-  if (!canUseSessionStorage()) return false;
   try {
-    const result = await browser.storage.session.get({ [ACTIVATED_TABS_KEY]: {} });
-    const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+    const stored = await activatedTabsStorage.getValue();
     let changed = false;
     Object.entries(stored ?? {}).forEach(([tabId, origin]) => {
       const id = Number(tabId);

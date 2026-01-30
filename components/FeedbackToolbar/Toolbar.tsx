@@ -1,58 +1,27 @@
 /**
  * Toolbar - The main floating toolbar UI component
  *
- * This is a pure presentation component that renders the toolbar controls.
- * All state management is handled by the parent composition root.
+ * Reads toolbar state from local context and renders controls.
  */
 
-import type { ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDraggable, type Position } from '@/hooks/useDraggable';
-import { classNames } from '@/utils/classNames';
-import {
-  IconList,
-  IconClose,
-  IconTrash,
-  IconSun,
-  IconMoon,
-  IconExport,
-} from '../Icons';
+import { clsx } from 'clsx';
+import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react';
+import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
+import { useAnnotationsStore } from '@/stores/annotations';
+import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export interface ToolbarProps {
-  /** Whether the toolbar is expanded */
-  isExpanded: boolean;
-  /** Whether entrance animation is complete */
-  isEntranceComplete: boolean;
-  /** Number of annotations */
-  annotationsCount: number;
-  /** Callback when expanded state changes */
-  onExpandedChange: (expanded: boolean) => void;
-  /** Callback when add button is clicked */
-  onAddClick: () => void;
-  /** Callback when export button is clicked */
-  onExportClick: () => void;
-  /** Callback when clear button is clicked */
-  onClearClick: () => void;
   /** Callback when theme button is clicked */
   onThemeToggle: () => void;
-  /** Whether element selection mode is active */
-  isSelectingElement: boolean;
-  /** Whether category panel is open */
-  isCategoryPanelOpen: boolean;
   /** Whether light mode is enabled */
   lightMode: boolean;
-  /** Whether tooltips are ready to show */
-  tooltipsReady: boolean;
-  /** Callback to warm up tooltips */
-  onTooltipWarmup: () => void;
-  /** Initial toolbar position */
-  initialPosition?: Position | null;
-  /** Callback when toolbar position changes */
-  onPositionChange?: (position: Position) => void;
   /** Children to render in add button area (CategoryPanel) */
   children?: ReactNode;
 }
@@ -102,23 +71,88 @@ const getVariants = (reduceMotion: boolean) => ({
 // =============================================================================
 
 export function Toolbar({
-  isExpanded,
-  isEntranceComplete,
-  annotationsCount,
-  onExpandedChange,
-  onAddClick,
-  onExportClick,
-  onClearClick,
   onThemeToggle,
-  isSelectingElement,
-  isCategoryPanelOpen,
   lightMode,
-  tooltipsReady,
-  onTooltipWarmup,
-  initialPosition,
-  onPositionChange,
   children,
 }: ToolbarProps) {
+  const { isExpanded, addMode, isEntranceComplete } = useToolbarState();
+  const {
+    toolbarExpanded,
+    toolbarCollapsed,
+    toggleCategoryPanel,
+    exportModalOpened,
+    annotationDeselected,
+  } = useToolbarActions();
+
+  const annotationsCount = useAnnotationsStore((s) => s.annotations.length);
+  const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);
+
+  const isSelectingElement = addMode === 'selecting';
+  const isCategoryPanelOpen = addMode === 'category';
+
+  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
+  const [tooltipsReady, setTooltipsReady] = useState(false);
+  const tooltipDelayTimerRef = useRef<number | null>(null);
+
+  const handleTooltipWarmup = useCallback(() => {
+    if (tooltipsReady || tooltipDelayTimerRef.current !== null) return;
+    tooltipDelayTimerRef.current = window.setTimeout(() => {
+      setTooltipsReady(true);
+      tooltipDelayTimerRef.current = null;
+    }, 850);
+  }, [tooltipsReady]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipDelayTimerRef.current !== null) {
+        clearTimeout(tooltipDelayTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadInitialPosition = async () => {
+      try {
+        const position = await loadToolbarPosition();
+        if (!isCancelled) {
+          setSavedToolbarPosition(position);
+        }
+      } catch (error) {
+        console.error('Failed to load toolbar position:', error);
+      }
+    };
+
+    loadInitialPosition();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const handleToolbarPositionChange = useCallback((position: Position) => {
+    saveToolbarPosition(position).catch(console.error);
+  }, []);
+
+  const handleExpandedChange = useCallback(
+    (expanded: boolean) => {
+      if (expanded) {
+        toolbarExpanded();
+      } else {
+        toolbarCollapsed();
+      }
+    },
+    [toolbarExpanded, toolbarCollapsed]
+  );
+
+  const handleExportClick = useCallback(() => {
+    startTransition(() => exportModalOpened());
+  }, [exportModalOpened]);
+
+  const handleClearClick = useCallback(async () => {
+    await annotationsCleared();
+    startTransition(() => annotationDeselected());
+  }, [annotationsCleared, annotationDeselected]);
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -130,19 +164,19 @@ export function Toolbar({
   } = useDraggable({
     elementWidth: 44,
     elementHeight: 44,
-    initialPosition,
-    onPositionChange,
+    initialPosition: savedToolbarPosition,
+    onPositionChange: handleToolbarPositionChange,
   });
 
   return (
     <div
-      className={classNames(
+      className={clsx(
         'fixed top-5 right-5 z-toolbar font-sans pointer-events-none',
         isDragging && 'cursor-grabbing [&_*]:cursor-grabbing'
       )}
       data-toolbar
       data-tooltips-ready={tooltipsReady ? 'true' : 'false'}
-      onMouseEnter={onTooltipWarmup}
+      onMouseEnter={handleTooltipWarmup}
       style={
         toolbarPosition
           ? expandDirection === 'left'
@@ -163,24 +197,24 @@ export function Toolbar({
         initial={!isEntranceComplete ? 'hidden' : false}
         animate="visible"
         variants={variants.toolbar}
-        className={classNames(
+        className={clsx(
           'select-none flex items-center justify-center pointer-events-auto cursor-default',
           'transition-all duration-200 ease-out',
           'bg-white text-black/85 shadow-toolbar-light',
           'dark:bg-df-dark dark:text-white dark:border dark:border-white/8 dark:shadow-toolbar',
           isExpanded
             ? 'w-auto h-11 rounded-toolbar p-1.5'
-            : classNames(
+            : clsx(
                 'w-11 h-11 rounded-full p-0 cursor-pointer',
                 'hover:bg-df-surface-subtle dark:hover:bg-df-dark-hover',
                 'active:scale-95'
               )
         )}
-        onClick={() => !isExpanded && onExpandedChange(true)}
+        onClick={() => !isExpanded && handleExpandedChange(true)}
         onKeyDown={(event) => {
           if (!isExpanded && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
-            onExpandedChange(true);
+            handleExpandedChange(true);
           }
         }}
         onMouseDown={handleToolbarDragMouseDown}
@@ -190,14 +224,14 @@ export function Toolbar({
       >
         {/* Collapsed state: show icon + badge */}
         <div
-          className={classNames(
+          className={clsx(
             'absolute flex items-center justify-center transition-opacity duration-100',
             isExpanded
               ? 'opacity-0 invisible pointer-events-none'
               : 'opacity-100 visible pointer-events-auto'
           )}
         >
-          <IconList size={20} />
+          <MessageCircleMore size={20} />
           <AnimatePresence>
             {annotationsCount > 0 && (
               <m.span
@@ -215,14 +249,14 @@ export function Toolbar({
 
         {/* Expanded state: show controls */}
         <div
-          className={classNames(
+          className={clsx(
             'flex items-center gap-1.5 transition duration-200',
             isExpanded
-              ? classNames(
+              ? clsx(
                   'opacity-100 scale-100 visible pointer-events-auto',
                   !reduceMotion && 'blur-0'
                 )
-              : classNames(
+              : clsx(
                   'opacity-0 scale-60 invisible pointer-events-none',
                   !reduceMotion && 'blur-sm'
                 )
@@ -231,7 +265,7 @@ export function Toolbar({
           {/* Add annotation button */}
           <div className="relative flex items-center justify-center group">
             <button
-              className={classNames(
+              className={clsx(
                 'btn-toolbar',
                 (isSelectingElement || isCategoryPanelOpen) && 'active'
               )}
@@ -240,7 +274,7 @@ export function Toolbar({
               aria-pressed={isSelectingElement || isCategoryPanelOpen}
               aria-expanded={isCategoryPanelOpen}
               aria-describedby="tooltip-add-annotation"
-              onClick={onAddClick}
+              onClick={toggleCategoryPanel}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {isSelectingElement ? (
@@ -252,7 +286,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconClose size={18} />
+                    <X size={18} />
                   </m.span>
                 ) : (
                   <m.span
@@ -263,7 +297,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconList size={18} />
+                    <MessageCircleMore size={18} />
                   </m.span>
                 )}
               </AnimatePresence>
@@ -285,10 +319,10 @@ export function Toolbar({
               type="button"
               aria-label="Export feedback"
               aria-describedby="tooltip-export"
-              onClick={onExportClick}
+              onClick={handleExportClick}
               disabled={annotationsCount === 0}
             >
-              <IconExport size={18} />
+              <Download size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-export">
               Export feedback
@@ -300,14 +334,14 @@ export function Toolbar({
           {/* Clear button */}
           <div className="relative flex items-center justify-center group">
             <button
-              className={classNames('btn-toolbar', 'danger')}
+              className={clsx('btn-toolbar', 'danger')}
               type="button"
               aria-label="Clear all annotations"
               aria-describedby="tooltip-clear"
-              onClick={onClearClick}
+              onClick={handleClearClick}
               disabled={annotationsCount === 0}
             >
-              <IconTrash size={18} />
+              <Trash2 size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-clear">
               Clear all
@@ -335,7 +369,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconMoon size={18} />
+                    <Moon size={18} />
                   </m.span>
                 ) : (
                   <m.span
@@ -346,7 +380,7 @@ export function Toolbar({
                     variants={variants.iconSwap}
                     className="flex items-center justify-center"
                   >
-                    <IconSun size={18} />
+                    <Sun size={18} />
                   </m.span>
                 )}
               </AnimatePresence>
@@ -363,9 +397,9 @@ export function Toolbar({
               type="button"
               aria-label="Minimize toolbar"
               aria-describedby="tooltip-minimize"
-              onClick={() => onExpandedChange(false)}
+              onClick={() => handleExpandedChange(false)}
             >
-              <IconClose size={18} />
+              <X size={18} />
             </button>
             <span className="tooltip" role="tooltip" id="tooltip-minimize">
               Minimize

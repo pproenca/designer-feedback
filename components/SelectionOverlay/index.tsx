@@ -13,7 +13,7 @@
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useElementSelection } from './useElementSelection';
-import { classNames } from '@/utils/classNames';
+import { clsx } from 'clsx';
 
 // =============================================================================
 // Types
@@ -79,7 +79,7 @@ export function SelectionOverlay({ enabled }: SelectionOverlayProps) {
             animate="visible"
             exit="hidden"
             variants={variants.highlight}
-            className={classNames(
+            className={clsx(
               'fixed border-2 border-df-blue/50 rounded bg-df-blue/4',
               'pointer-events-none box-border'
             )}
@@ -98,7 +98,7 @@ export function SelectionOverlay({ enabled }: SelectionOverlayProps) {
             animate="visible"
             exit="hidden"
             variants={variants.tooltip}
-            className={classNames(
+            className={clsx(
               'fixed text-xs font-medium text-white',
               'bg-black/85 py-1.5 px-2.5 rounded-md',
               'pointer-events-none whitespace-nowrap',

@@ -24,13 +24,12 @@ import {
   // Security
   isExtensionSender,
   // Tab tracking
-  ACTIVATED_TABS_KEY,
-  canUseSessionStorage,
   persistActivatedTabs,
   restoreActivatedTabs,
   ensureHostPermission,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
+import { activatedTabs as activatedTabsStorage } from '@/utils/storage-items';
 
 export default defineBackground(() => {
   // =============================================================================
@@ -57,10 +56,8 @@ export default defineBackground(() => {
   async function getActivatedOriginHash(tabId: number): Promise<string | null> {
     const cached = activatedTabs.get(tabId);
     if (cached) return cached;
-    if (!canUseSessionStorage()) return null;
     try {
-      const result = await browser.storage.session.get({ [ACTIVATED_TABS_KEY]: {} });
-      const stored = result[ACTIVATED_TABS_KEY] as Record<string, string>;
+      const stored = await activatedTabsStorage.getValue();
       const origin = stored?.[String(tabId)];
       if (origin) {
         const normalized = normalizeOriginHash(origin);
@@ -197,12 +194,12 @@ export default defineBackground(() => {
     sender: { id?: string; tab?: { windowId?: number; id?: number; url?: string } },
     sendResponse: (response?: unknown) => void
   ) => {
-    const msg = message as MessageType & { target?: string; settings?: Settings };
+    type Sender = typeof sender;
+    type IncomingMessage = MessageType & { target?: string; settings?: Settings };
+    type Handler = (payload: IncomingMessage, origin: Sender) => Promise<unknown> | void;
+
+    const msg = message as IncomingMessage;
     console.log('[Background] Received message:', msg.type);
-    console.log('[Background] sender.tab:', JSON.stringify(sender.tab));
-    console.log('[Background] sender.tab?.windowId:', sender.tab?.windowId);
-    console.log('[Background] sender.tab?.id:', sender.tab?.id);
-    console.log('[Background] sender.tab?.url:', sender.tab?.url);
 
     // Validate sender is from this extension
     if (!isExtensionSender(sender)) {
@@ -216,60 +213,69 @@ export default defineBackground(() => {
       return false;
     }
 
-    // Handle screenshot capture
-    if (msg.type === 'CAPTURE_SCREENSHOT') {
-      console.log('[Background] Handling CAPTURE_SCREENSHOT');
-      getWindowIdForCapture(sender.tab?.windowId)
-        .then((windowId) => {
-          console.log('[Background] Using windowId for capture:', windowId);
-          return captureVisibleTabScreenshot(windowId);
-        })
-        .then((result) => {
+    const handlers: Partial<Record<IncomingMessage['type'], Handler>> = {
+      CAPTURE_SCREENSHOT: async (_payload, origin) => {
+        console.log('[Background] Handling CAPTURE_SCREENSHOT');
+        try {
+          const windowId = await getWindowIdForCapture(origin.tab?.windowId);
+          const result = await captureVisibleTabScreenshot(windowId);
           console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
-          sendResponse({ type: 'SCREENSHOT_CAPTURED', ...result });
-        })
-        .catch((error) => {
+          return { type: 'SCREENSHOT_CAPTURED', ...result };
+        } catch (error) {
           console.error('[Background] captureScreenshot error:', error);
-          sendResponse({ type: 'SCREENSHOT_CAPTURED', data: '', error: String(error) });
-        });
-      return true; // Keep message channel open for async response
-    }
-
-    // Handle file download
-    if (msg.type === 'DOWNLOAD_FILE') {
-      console.log('[Background] Handling DOWNLOAD_FILE');
-      downloadFile(msg.dataUrl, msg.filename)
-        .then((result) => sendResponse(result))
-        .catch((error) => {
+          return { type: 'SCREENSHOT_CAPTURED', data: '', error: String(error) };
+        }
+      },
+      DOWNLOAD_FILE: async (payload) => {
+        console.log('[Background] Handling DOWNLOAD_FILE');
+        try {
+          const downloadMessage = payload as Extract<IncomingMessage, { type: 'DOWNLOAD_FILE' }>;
+          return await downloadFile(downloadMessage.dataUrl, downloadMessage.filename);
+        } catch (error) {
           console.error('[Background] downloadFile error:', error);
-          sendResponse({ ok: false, error: String(error) });
-        });
-      return true; // Keep message channel open for async response
+          return { ok: false, error: String(error) };
+        }
+      },
+      GET_SETTINGS: async () => {
+        try {
+          const result = await getSettings();
+          return { type: 'SETTINGS_RESPONSE', ...result };
+        } catch (error) {
+          return { type: 'SETTINGS_RESPONSE', settings: DEFAULT_SETTINGS, error: String(error) };
+        }
+      },
+      SAVE_SETTINGS: async (payload) => {
+        try {
+          const saveMessage = payload as Extract<IncomingMessage, { type: 'SAVE_SETTINGS' }>;
+          const result = await saveSettings(saveMessage.settings);
+          return { type: 'SETTINGS_RESPONSE', ...result };
+        } catch (error) {
+          const saveMessage = payload as Extract<IncomingMessage, { type: 'SAVE_SETTINGS' }>;
+          return { type: 'SETTINGS_RESPONSE', settings: saveMessage.settings, error: String(error) };
+        }
+      },
+      UPDATE_BADGE: (payload) => {
+        const badgeMessage = payload as Extract<IncomingMessage, { type: 'UPDATE_BADGE' }>;
+        updateBadge(badgeMessage.count);
+      },
+    };
+
+    const handler = handlers[msg.type];
+    if (!handler) return;
+
+    const result = handler(msg, sender);
+    if (result instanceof Promise) {
+      result.then((response) => {
+        if (response !== undefined) {
+          sendResponse(response);
+        }
+      });
+      return true;
     }
 
-    // Handle get settings
-    if (msg.type === 'GET_SETTINGS') {
-      getSettings()
-        .then((result) => sendResponse({ type: 'SETTINGS_RESPONSE', ...result }))
-        .catch((error) => sendResponse({ type: 'SETTINGS_RESPONSE', settings: DEFAULT_SETTINGS, error: String(error) }));
-      return true; // Keep message channel open for async response
+    if (result !== undefined) {
+      sendResponse(result);
     }
-
-    // Handle save settings
-    if (msg.type === 'SAVE_SETTINGS') {
-      saveSettings(msg.settings as Settings)
-        .then((result) => sendResponse({ type: 'SETTINGS_RESPONSE', ...result }))
-        .catch((error) => sendResponse({ type: 'SETTINGS_RESPONSE', settings: msg.settings, error: String(error) }));
-      return true; // Keep message channel open for async response
-    }
-
-    // Handle badge update (synchronous)
-    if (msg.type === 'UPDATE_BADGE') {
-      updateBadge(msg.count);
-      return;
-    }
-
-    return;
   });
 
   // Initialize badge on install

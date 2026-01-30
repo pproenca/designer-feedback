@@ -1,10 +1,11 @@
 import { useReducer, useRef, useEffect, useMemo } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
+import { Dialog } from '@base-ui/react/dialog';
 import type { Annotation, ExportFormat } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { isRestrictedPage } from '@/utils/screenshot';
-import { IconClose, IconCopy, IconImage } from '../Icons';
-import { classNames } from '@/utils/classNames';
+import { X, Copy, Image } from 'lucide-react';
+import { clsx } from 'clsx';
 import { FormatSelector, type ExportFormatOption } from './FormatSelector';
 import { AnnotationPreview } from './AnnotationPreview';
 import { ExportActions } from './ExportActions';
@@ -57,6 +58,7 @@ interface ExportModalProps {
   annotations: Annotation[];
   onClose: () => void;
   lightMode?: boolean;
+  shadowRoot: ShadowRoot;
 }
 
 type ExportStatus = {
@@ -97,7 +99,7 @@ function exportModalReducer(state: ExportState, action: ExportAction): ExportSta
 // Component
 // =============================================================================
 
-export function ExportModal({ annotations, onClose, lightMode = false }: ExportModalProps) {
+export function ExportModal({ annotations, onClose, lightMode = false, shadowRoot }: ExportModalProps) {
   const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
   const reduceMotion = useReducedMotion() ?? false;
   const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
@@ -116,7 +118,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         id: 'image-notes',
         label: 'Markdown (Clipboard)',
         description: 'Copies a concise markdown report to your clipboard.',
-        icon: <IconCopy size={18} aria-hidden="true" />,
+        icon: <Copy size={18} aria-hidden="true" />,
       },
       {
         id: 'snapshot',
@@ -124,7 +126,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         description: restricted
           ? 'Not available on browser pages (chrome://, about:, etc.)'
           : 'Full-page image with highlights and details sidebar.',
-        icon: <IconImage size={18} aria-hidden="true" />,
+        icon: <Image size={18} aria-hidden="true" />,
         disabled: restricted,
         disabledHint: 'Not available on browser pages',
       },
@@ -133,9 +135,7 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
   );
 
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modalRef = useRef<HTMLDivElement | null>(null);
   const formatOptionsRef = useRef<HTMLDivElement | null>(null);
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Auto-select markdown format on restricted pages
   useEffect(() => {
@@ -151,22 +151,6 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
         clearTimeout(autoCloseTimerRef.current);
         autoCloseTimerRef.current = null;
       }
-    };
-  }, []);
-
-  // Focus management
-  useEffect(() => {
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-    const focusTimer = window.setTimeout(() => {
-      const focusable = modalRef.current?.querySelector<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      focusable?.focus();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-      previouslyFocusedRef.current?.focus();
     };
   }, []);
 
@@ -241,138 +225,103 @@ export function ExportModal({ annotations, onClose, lightMode = false }: ExportM
     }
   };
 
-  // Keyboard handling
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!modalRef.current || !modalRef.current.contains(document.activeElement)) return;
-
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-
-      const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusable || focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const isShift = event.shiftKey;
-
-      if (isShift && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!isShift && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
   return (
-    <AnimatePresence>
-      <m.div
-        className={classNames(
-          'fixed inset-0 flex items-center justify-center z-modal',
-          'bg-white/90 dark:bg-black/80',
-          themeClassName
-        )}
-        variants={overlayVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-      >
-        {/* Overlay dismiss button */}
-        <button
-          className="absolute inset-0 border-0 p-0 m-0 bg-transparent cursor-pointer z-0 focus-visible:ring-2 focus-visible:ring-df-blue/50"
-          type="button"
-          aria-label="Close export dialog"
-          onClick={onClose}
-        />
-
-        {/* Modal */}
-        <m.div
-          className={classNames(
-            'relative z-10 rounded-2xl w-11/12 max-w-100 max-h-[80vh] overflow-hidden overscroll-contain',
-            'flex flex-col font-sans',
-            'bg-white shadow-modal',
-            'dark:bg-df-dark-strong dark:shadow-modal-dark'
-          )}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Export feedback"
-          aria-describedby={statusMessageId}
-          aria-busy={isExporting}
-          ref={modalRef}
-          variants={modalVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-        >
-          {/* Header */}
-          <div
-            className={classNames(
-              'flex items-center justify-between py-4 px-4.5 pb-3',
-              'border-b border-black/8 dark:border-white/8'
-            )}
-          >
-            <h2
-              className={classNames('text-base font-semibold m-0 tracking-normal', 'text-df-ink dark:text-white')}
-            >
-              Export Feedback
-            </h2>
-            <button
-              className={classNames(
-                'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
-                'transition-interactive',
-                'focus-ring',
-                'text-muted-strong hover:bg-black/5 hover:text-df-ink hover:-translate-y-px',
-                'dark:hover:bg-white/8 dark:hover:text-white'
-              )}
-              type="button"
-              aria-label="Close export dialog"
-              onClick={onClose}
-            >
-              <IconClose size={18} />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
-            <FormatSelector
-              options={formatOptions}
-              selectedFormat={selectedFormat}
-              isExporting={isExporting}
-              onFormatSelect={(format) =>
-                dispatch({ type: 'updateState', payload: { selectedFormat: format } })
-              }
-              formatOptionsRef={formatOptionsRef}
-            />
-            <AnnotationPreview annotations={annotations} />
-          </div>
-
-          <ExportActions
-            isExporting={isExporting}
-            exportOutcome={exportOutcome}
-            isSnapshotFormat={isSnapshotFormat}
-            isMarkdownFormat={isMarkdownFormat}
-            isClipboardFormat={isClipboardFormat}
-            statusMessage={statusMessage}
-            statusMessageId={statusMessageId}
-            onCancel={onClose}
-            onExport={handleExport}
+    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal container={shadowRoot}>
+        <AnimatePresence>
+          <Dialog.Backdrop
+            key="df-export-backdrop"
+            render={
+              <m.div
+                className={clsx(
+                  'fixed inset-0 z-modal',
+                  'bg-white/90 dark:bg-black/80',
+                  themeClassName
+                )}
+                variants={overlayVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              />
+            }
           />
-        </m.div>
-      </m.div>
-    </AnimatePresence>
+          <Dialog.Popup
+            key="df-export-popup"
+            render={
+              <m.div
+                className={clsx(
+                  'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+                  'z-modal rounded-2xl w-11/12 max-w-100 max-h-[80vh] overflow-hidden overscroll-contain',
+                  'flex flex-col font-sans',
+                  'bg-white shadow-modal',
+                  'dark:bg-df-dark-strong dark:shadow-modal-dark',
+                  themeClassName
+                )}
+                variants={modalVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              />
+            }
+            aria-describedby={statusMessageId}
+            aria-busy={isExporting}
+          >
+            {/* Header */}
+            <div
+              className={clsx(
+                'flex items-center justify-between py-4 px-4.5 pb-3',
+                'border-b border-black/8 dark:border-white/8'
+              )}
+            >
+              <Dialog.Title
+                className={clsx('text-base font-semibold m-0 tracking-normal', 'text-df-ink dark:text-white')}
+              >
+                Export Feedback
+              </Dialog.Title>
+              <Dialog.Close
+                className={clsx(
+                  'flex items-center justify-center w-7 h-7 border-none rounded-md bg-transparent cursor-pointer',
+                  'transition-interactive',
+                  'focus-ring',
+                  'text-muted-strong hover:bg-black/5 hover:text-df-ink hover:-translate-y-px',
+                  'dark:hover:bg-white/8 dark:hover:text-white'
+                )}
+                aria-label="Close export dialog"
+              >
+                <X size={18} />
+              </Dialog.Close>
+            </div>
+
+            {/* Content */}
+            <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
+              <FormatSelector
+                options={formatOptions}
+                selectedFormat={selectedFormat}
+                isExporting={isExporting}
+                onFormatSelect={(format) =>
+                  dispatch({ type: 'updateState', payload: { selectedFormat: format } })
+                }
+                formatOptionsRef={formatOptionsRef}
+              />
+              <AnnotationPreview annotations={annotations} />
+            </div>
+
+            <ExportActions
+              isExporting={isExporting}
+              exportOutcome={exportOutcome}
+              isSnapshotFormat={isSnapshotFormat}
+              isMarkdownFormat={isMarkdownFormat}
+              isClipboardFormat={isClipboardFormat}
+              statusMessage={statusMessage}
+              statusMessageId={statusMessageId}
+              onCancel={onClose}
+              onExport={handleExport}
+            />
+          </Dialog.Popup>
+        </AnimatePresence>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

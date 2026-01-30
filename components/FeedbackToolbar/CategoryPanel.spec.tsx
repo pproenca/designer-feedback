@@ -1,6 +1,8 @@
 import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
+import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
+import { ToolbarStateProvider, type ToolbarState, useToolbarState } from './ToolbarStateProvider';
 
 // Mock Framer Motion
 vi.mock('framer-motion', () => ({
@@ -14,7 +16,10 @@ vi.mock('framer-motion', () => ({
 }));
 
 describe('CategoryPanel', () => {
+  let observedState: ToolbarState | null = null;
+
   beforeEach(() => {
+    observedState = null;
     vi.clearAllMocks();
   });
 
@@ -26,7 +31,9 @@ describe('CategoryPanel', () => {
     it('renders all four category buttons', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
       render(
-        <CategoryPanel isOpen={true} onCategorySelect={vi.fn()} />
+        <ToolbarStateProvider initialState={{ addMode: 'category' }}>
+          <CategoryPanel />
+        </ToolbarStateProvider>
       );
 
       expect(screen.getByRole('button', { name: /bug/i })).toBeDefined();
@@ -38,7 +45,9 @@ describe('CategoryPanel', () => {
     it('renders nothing when closed', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
       const { container } = render(
-        <CategoryPanel isOpen={false} onCategorySelect={vi.fn()} />
+        <ToolbarStateProvider initialState={{ addMode: 'idle' }}>
+          <CategoryPanel />
+        </ToolbarStateProvider>
       );
 
       expect(container.querySelector('[data-category-panel]')).toBeNull();
@@ -47,47 +56,18 @@ describe('CategoryPanel', () => {
 
   describe('interactions', () => {
     it('calls onCategorySelect with "bug" when bug button is clicked', async () => {
-      const onCategorySelect = vi.fn();
       const { CategoryPanel } = await import('./CategoryPanel');
       render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
+        <ToolbarStateProvider initialState={{ addMode: 'category' }}>
+          <StateObserver onChange={(state) => { observedState = state; }} />
+          <CategoryPanel />
+        </ToolbarStateProvider>
       );
 
       fireEvent.click(screen.getByRole('button', { name: /bug/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('bug');
-    });
-
-    it('calls onCategorySelect with "question" when question button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /question/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('question');
-    });
-
-    it('calls onCategorySelect with "suggestion" when suggestion button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /suggestion/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('suggestion');
-    });
-
-    it('calls onCategorySelect with "accessibility" when accessibility button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /accessibility/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('accessibility');
+      await act(async () => {});
+      expect(observedState?.selectedCategory).toBe('bug');
+      expect(observedState?.addMode).toBe('selecting');
     });
   });
 
@@ -95,7 +75,9 @@ describe('CategoryPanel', () => {
     it('has data-category attribute on each button', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
       const { container } = render(
-        <CategoryPanel isOpen={true} onCategorySelect={vi.fn()} />
+        <ToolbarStateProvider initialState={{ addMode: 'category' }}>
+          <CategoryPanel />
+        </ToolbarStateProvider>
       );
 
       expect(container.querySelector('[data-category="bug"]')).not.toBeNull();
@@ -105,3 +87,13 @@ describe('CategoryPanel', () => {
     });
   });
 });
+
+function StateObserver({ onChange }: { onChange: (state: ToolbarState) => void }) {
+  const state = useToolbarState();
+
+  useEffect(() => {
+    onChange(state);
+  }, [state, onChange]);
+
+  return null;
+}

@@ -6,24 +6,8 @@
  */
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import type { FeedbackCategory } from '@/types';
-import {
-  IconBug,
-  IconLightbulb,
-  IconQuestion,
-  IconAccessibility,
-} from '../Icons';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface CategoryPanelProps {
-  /** Whether the panel is open */
-  isOpen: boolean;
-  /** Callback when a category is selected */
-  onCategorySelect: (category: FeedbackCategory) => void;
-}
+import { Bug, Lightbulb, CircleHelp, Accessibility } from 'lucide-react';
+import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // =============================================================================
 // Animation Variants
@@ -49,7 +33,10 @@ const getVariants = (reduceMotion: boolean) => ({
 // Component
 // =============================================================================
 
-export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) {
+export function CategoryPanel() {
+  const { addMode } = useToolbarState();
+  const { categorySelected } = useToolbarActions();
+  const isOpen = addMode === 'category';
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -67,41 +54,41 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('bug')}
+            onClick={() => categorySelected('bug')}
             data-category="bug"
             aria-label="Bug"
           >
-            <IconBug size={20} aria-hidden="true" />
+            <Bug size={20} aria-hidden="true" />
             <span>Bug</span>
           </button>
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('question')}
+            onClick={() => categorySelected('question')}
             data-category="question"
             aria-label="Question"
           >
-            <IconQuestion size={20} aria-hidden="true" />
+            <CircleHelp size={20} aria-hidden="true" />
             <span>Question</span>
           </button>
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('suggestion')}
+            onClick={() => categorySelected('suggestion')}
             data-category="suggestion"
             aria-label="Suggestion"
           >
-            <IconLightbulb size={20} aria-hidden="true" />
+            <Lightbulb size={20} aria-hidden="true" />
             <span>Suggestion</span>
           </button>
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('accessibility')}
+            onClick={() => categorySelected('accessibility')}
             data-category="accessibility"
             aria-label="Accessibility"
           >
-            <IconAccessibility size={20} aria-hidden="true" />
+            <Accessibility size={20} aria-hidden="true" />
             <span>Accessibility</span>
           </button>
         </m.div>

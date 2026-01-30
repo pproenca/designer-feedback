@@ -9,61 +9,47 @@
  * - AnnotationPopup for creating/viewing annotations
  * - ExportModal for exporting feedback
  *
- * Refactored from a 1265-line monolithic component to ~300 lines.
+ * State management is colocated via ToolbarStateProvider (reducer + context).
  */
 
 import {
-  useState,
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
-  useRef,
   lazy,
   Suspense,
-  startTransition,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
-
+import { useShallow } from 'zustand/react/shallow';
 import { AnnotationPopup } from '../AnnotationPopup';
 import { Toolbar } from './Toolbar';
 import { CategoryPanel } from './CategoryPanel';
 import { SelectionOverlay } from '../SelectionOverlay';
 import { AnnotationLayer } from '../AnnotationLayer';
 import { onUiEvent } from '@/utils/ui-events';
-import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import {
   identifyElement,
   hasFixedPositioning,
 } from '@/utils/element-identification';
 import {
-  loadAnnotations,
-  saveAnnotation,
-  deleteAnnotation,
-  clearAnnotations,
-  getStorageKey,
-  updateBadgeCount,
-} from '@/utils/storage';
-import {
   calculatePopupPosition,
   getPopupDisplayPosition,
 } from '@/utils/annotation-position';
-import { debounce } from '@/utils/timing';
-import { classNames } from '@/utils/classNames';
-import type { Annotation, FeedbackCategory } from '@/types';
-import type { Position } from '@/hooks/useDraggable';
+import { clsx } from 'clsx';
+import type { Annotation } from '@/types';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { toolbarReducer, initialToolbarState } from './context';
+import type { PendingAnnotation } from './context';
+
+// Zustand stores
+import { useAnnotationsStore } from '@/stores/annotations';
+import { ToolbarStateProvider, useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
 // Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
   import('../ExportModal').then((m) => ({ default: m.ExportModal }))
 );
-
-// Performance constants
-const BADGE_DEBOUNCE_MS = 150;
 
 // =============================================================================
 // Types
@@ -79,131 +65,96 @@ interface FeedbackToolbarProps {
 // Component
 // =============================================================================
 
-export function FeedbackToolbar({
+export function FeedbackToolbar(props: FeedbackToolbarProps) {
+  return (
+    <ToolbarStateProvider>
+      <FeedbackToolbarContent {...props} />
+    </ToolbarStateProvider>
+  );
+}
+
+function FeedbackToolbarContent({
   shadowRoot,
   lightMode = false,
   onLightModeChange,
 }: FeedbackToolbarProps) {
-  // State
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
-  const [toolbarState, dispatch] = useReducer(toolbarReducer, initialToolbarState);
-  const [tooltipsReady, setTooltipsReady] = useState(false);
-  const tooltipDelayTimerRef = useRef<number | null>(null);
-
   const {
-    isExpanded,
     addMode,
     selectedCategory,
     pendingAnnotation,
     selectedAnnotationId,
     isExportModalOpen,
-    isEntranceComplete,
     isHidden,
-  } = toolbarState;
+  } = useToolbarState();
 
-  const isSelectingElement = addMode === 'selecting';
-  const isCategoryPanelOpen = addMode === 'category';
+  const {
+    elementSelected,
+    pendingAnnotationCleared,
+    annotationDeselected,
+    exportModalOpened,
+    exportModalClosed,
+    entranceCompleted,
+    uiHidden,
+    uiShown,
+    selectionModeCancelled,
+    categoryPanelClosed,
+  } = useToolbarActions();
 
+  const {
+    annotations,
+    loadAnnotations,
+    annotationCreated,
+    annotationDeleted,
+  } = useAnnotationsStore(
+    useShallow((s) => ({
+      annotations: s.annotations,
+      loadAnnotations: s.loadAnnotations,
+      annotationCreated: s.annotationCreated,
+      annotationDeleted: s.annotationDeleted,
+    }))
+  );
+
+  // Derived state
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
     [annotations, selectedAnnotationId]
   );
-
+  const isSelectingElement = addMode === 'selecting';
+  const isCategoryPanelOpen = addMode === 'category';
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
 
-  // Tooltip warmup
-  const handleTooltipWarmup = useCallback(() => {
-    if (tooltipsReady || tooltipDelayTimerRef.current !== null) return;
-    tooltipDelayTimerRef.current = window.setTimeout(() => {
-      setTooltipsReady(true);
-      tooltipDelayTimerRef.current = null;
-    }, 850);
-  }, [tooltipsReady]);
-
-  useEffect(() => {
-    return () => {
-      if (tooltipDelayTimerRef.current !== null) {
-        clearTimeout(tooltipDelayTimerRef.current);
-      }
-    };
-  }, []);
-
+  // Local state (component-specific)
   // Clear stale selected annotation
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
-      dispatch({ type: 'setSelectedAnnotationId', value: null });
+      annotationDeselected();
     }
-  }, [selectedAnnotationId, selectedAnnotation]);
-
-  // Handle position persistence
-  const handleToolbarPositionChange = useCallback((position: Position) => {
-    saveToolbarPosition(position).catch(console.error);
-  }, []);
-
-  // Debounced badge update
-  const debouncedUpdateBadgeCount = useMemo(
-    () => debounce((count: number) => updateBadgeCount(count), BADGE_DEBOUNCE_MS),
-    []
-  );
-
-  useEffect(() => {
-    return () => debouncedUpdateBadgeCount.cancel();
-  }, [debouncedUpdateBadgeCount]);
-
-  useEffect(() => {
-    debouncedUpdateBadgeCount(annotations.length);
-  }, [annotations.length, debouncedUpdateBadgeCount]);
+  }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
   // Load initial data
   useEffect(() => {
-    let isCancelled = false;
-
-    const loadInitialData = async () => {
-      try {
-        const [position, loaded] = await Promise.all([
-          loadToolbarPosition(),
-          loadAnnotations(),
-        ]);
-        if (!isCancelled) {
-          setSavedToolbarPosition(position);
-          setAnnotations(loaded);
-        }
-      } catch (error) {
-        console.error('Failed to load initial data:', error);
-      }
-    };
-    loadInitialData();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+    loadAnnotations();
+  }, [loadAnnotations]);
 
   // Entrance animation complete
   useEffect(() => {
-    const timer = setTimeout(
-      () => dispatch({ type: 'setEntranceComplete', value: true }),
-      500
-    );
+    const timer = setTimeout(() => entranceCompleted(), 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [entranceCompleted]);
 
   // Listen for external events
   useEffect(() => {
     const handleExportMessage = (message: unknown) => {
       const msg = message as { type?: string };
       if (msg.type === 'TRIGGER_EXPORT') {
-        dispatch({ type: 'setExportModalOpen', value: true });
+        exportModalOpened();
       }
     };
     browser.runtime.onMessage.addListener(handleExportMessage);
 
-    const offHide = onUiEvent('hide-ui', () => dispatch({ type: 'setHidden', value: true }));
-    const offShow = onUiEvent('show-ui', () => dispatch({ type: 'setHidden', value: false }));
-    const offOpen = onUiEvent('open-export', () =>
-      dispatch({ type: 'setExportModalOpen', value: true })
-    );
+    const offHide = onUiEvent('hide-ui', () => uiHidden());
+    const offShow = onUiEvent('show-ui', () => uiShown());
+    const offOpen = onUiEvent('open-export', () => exportModalOpened());
 
     return () => {
       browser.runtime.onMessage.removeListener(handleExportMessage);
@@ -211,7 +162,7 @@ export function FeedbackToolbar({
       offShow();
       offOpen();
     };
-  }, []);
+  }, [exportModalOpened, uiHidden, uiShown]);
 
   // Element selection click handler
   useEffect(() => {
@@ -236,25 +187,22 @@ export function FeedbackToolbar({
 
       const { name, path } = identifyElement(target);
 
-      dispatch({
-        type: 'setPendingAnnotation',
-        value: {
-          x: isFixed ? centerX : centerX + scrollLeft,
-          y: isFixed ? centerY : centerY + scrollTop,
-          element: name,
-          elementPath: path,
-          target,
-          rect,
-          isFixed,
-          scrollX: scrollLeft,
-          scrollY: scrollTop,
-        },
+      elementSelected({
+        x: isFixed ? centerX : centerX + scrollLeft,
+        y: isFixed ? centerY : centerY + scrollTop,
+        element: name,
+        elementPath: path,
+        target,
+        rect,
+        isFixed,
+        scrollX: scrollLeft,
+        scrollY: scrollTop,
       });
     };
 
     document.addEventListener('click', handleAddModeClick, true);
     return () => document.removeEventListener('click', handleAddModeClick, true);
-  }, [isSelectingElement]);
+  }, [isSelectingElement, elementSelected]);
 
   // Body class for crosshair cursor
   useEffect(() => {
@@ -270,7 +218,7 @@ export function FeedbackToolbar({
   type EscapeState = {
     hasSelectedAnnotation: boolean;
     isSelectingElement: boolean;
-    pendingAnnotation: typeof pendingAnnotation;
+    pendingAnnotation: PendingAnnotation | null;
     isCategoryPanelOpen: boolean;
   };
 
@@ -288,30 +236,30 @@ export function FeedbackToolbar({
     () => [
       {
         condition: (s: EscapeState) => s.isCategoryPanelOpen,
-        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+        handler: () => categoryPanelClosed(),
       },
       {
         condition: (s: EscapeState) => s.hasSelectedAnnotation,
-        handler: () => dispatch({ type: 'setSelectedAnnotationId', value: null }),
+        handler: () => annotationDeselected(),
       },
       {
         condition: (s: EscapeState) => Boolean(s.pendingAnnotation),
-        handler: () => dispatch({ type: 'setPendingAnnotation', value: null }),
+        handler: () => pendingAnnotationCleared(),
       },
       {
         condition: (s: EscapeState) => s.isSelectingElement,
-        handler: () => dispatch({ type: 'setAddMode', value: 'idle' }),
+        handler: () => selectionModeCancelled(),
       },
     ],
-    []
+    [categoryPanelClosed, annotationDeselected, pendingAnnotationCleared, selectionModeCancelled]
   );
 
   useEscapeKey(escapeState, escapeHandlers);
 
   // Click outside handler for selected annotation
   const handleClickOutside = useCallback(() => {
-    dispatch({ type: 'setSelectedAnnotationId', value: null });
-  }, []);
+    annotationDeselected();
+  }, [annotationDeselected]);
 
   const clickOutsideSelectors = useMemo(
     () => ['data-annotation-popup', 'data-annotation-marker', 'data-toolbar'],
@@ -346,65 +294,34 @@ export function FeedbackToolbar({
         boundingBox,
       };
 
-      try {
-        await saveAnnotation({ ...newAnnotation, url: getStorageKey() });
-        setAnnotations((current) => [...current, newAnnotation]);
-      } catch (error) {
-        console.error('Failed to save annotation:', error);
-      }
-
-      dispatch({ type: 'setPendingAnnotation', value: null });
+      await annotationCreated(newAnnotation);
+      pendingAnnotationCleared();
     },
-    [pendingAnnotation, selectedCategory]
+    [pendingAnnotation, selectedCategory, annotationCreated, pendingAnnotationCleared]
   );
 
   const handleDeleteAnnotation = useCallback(
     async (id: string) => {
-      try {
-        await deleteAnnotation(id);
-        setAnnotations((current) => current.filter((a) => a.id !== id));
-        if (selectedAnnotationId === id) {
-          dispatch({ type: 'setSelectedAnnotationId', value: null });
-        }
-      } catch (error) {
-        console.error('Failed to delete annotation:', error);
-      }
+      await annotationDeleted(id);
+      annotationDeselected();
     },
-    [selectedAnnotationId]
+    [annotationDeleted, annotationDeselected]
   );
 
-  const handleClearAllAnnotations = useCallback(async () => {
-    try {
-      await clearAnnotations();
-      startTransition(() => {
-        setAnnotations([]);
-        dispatch({ type: 'setSelectedAnnotationId', value: null });
-      });
-    } catch (error) {
-      console.error('Failed to clear annotations:', error);
-    }
-  }, []);
+  const createPopupPosition = useMemo(() => {
+    if (!pendingAnnotation) return null;
+    return calculatePopupPosition({
+      rect: pendingAnnotation.rect,
+      scrollX: pendingAnnotation.scrollX,
+      scrollY: pendingAnnotation.scrollY,
+      isFixed: pendingAnnotation.isFixed,
+    });
+  }, [pendingAnnotation]);
 
-  const handleToggleCategoryPanel = useCallback(() => {
-    if (isSelectingElement) {
-      dispatch({ type: 'setAddMode', value: 'idle' });
-    } else {
-      dispatch({
-        type: 'setAddMode',
-        value: isCategoryPanelOpen ? 'idle' : 'category',
-      });
-    }
-    dispatch({ type: 'setPendingAnnotation', value: null });
-  }, [isSelectingElement, isCategoryPanelOpen]);
-
-  const handleCategorySelect = useCallback((category: FeedbackCategory) => {
-    dispatch({ type: 'setSelectedCategory', value: category });
-    dispatch({ type: 'setAddMode', value: 'selecting' });
-  }, []);
-
-  const handleMarkerClick = useCallback((id: string) => {
-    dispatch({ type: 'setSelectedAnnotationId', value: id });
-  }, []);
+  const viewPopupPosition = useMemo(() => {
+    if (!selectedAnnotation) return null;
+    return getPopupDisplayPosition(selectedAnnotation);
+  }, [selectedAnnotation]);
 
   // Hide all UI during screenshot
   if (isHidden) {
@@ -414,60 +331,39 @@ export function FeedbackToolbar({
   const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={classNames('font-sans df-root', darkModeClassName)}>
+    <div className={clsx('font-sans df-root', darkModeClassName)}>
       {/* Selection overlay for element highlighting */}
       <SelectionOverlay enabled={isSelectingElement} />
 
       {/* Annotation markers */}
-      <AnnotationLayer
-        annotations={annotations}
-        pendingAnnotation={pendingAnnotation}
-        isEntranceComplete={isEntranceComplete}
-        onMarkerClick={handleMarkerClick}
-      />
+      <AnnotationLayer />
 
       {/* Annotation popup - create mode */}
-      {pendingAnnotation ? (() => {
-        const popupPos = calculatePopupPosition({
-          rect: pendingAnnotation.rect,
-          scrollX: pendingAnnotation.scrollX,
-          scrollY: pendingAnnotation.scrollY,
-          isFixed: pendingAnnotation.isFixed,
-        });
-        return (
-          <AnnotationPopup
-            mode="create"
-            element={pendingAnnotation.element}
-            onSubmit={handleAnnotationSubmit}
-            onCancel={() => dispatch({ type: 'setPendingAnnotation', value: null })}
-            lightMode={lightMode}
-            x={popupPos.x}
-            y={popupPos.y}
-            isFixed={popupPos.isFixed}
-          />
-        );
-      })() : null}
+      {pendingAnnotation && createPopupPosition ? (
+        <AnnotationPopup
+          mode="create"
+          element={pendingAnnotation.element}
+          onSubmit={handleAnnotationSubmit}
+          onCancel={() => pendingAnnotationCleared()}
+          x={createPopupPosition.x}
+          y={createPopupPosition.y}
+          isFixed={createPopupPosition.isFixed}
+        />
+      ) : null}
 
       {/* Annotation popup - view mode */}
-      {selectedAnnotation ? (() => {
-        const popupPos = getPopupDisplayPosition(selectedAnnotation);
-        return (
-          <AnnotationPopup
-            mode="view"
-            element={selectedAnnotation.element}
-            annotation={selectedAnnotation}
-            onDelete={() => {
-              handleDeleteAnnotation(selectedAnnotation.id);
-              dispatch({ type: 'setSelectedAnnotationId', value: null });
-            }}
-            onCancel={() => dispatch({ type: 'setSelectedAnnotationId', value: null })}
-            lightMode={lightMode}
-            x={popupPos.x}
-            y={popupPos.y}
-            isFixed={popupPos.isFixed}
-          />
-        );
-      })() : null}
+      {selectedAnnotation && viewPopupPosition ? (
+        <AnnotationPopup
+          mode="view"
+          element={selectedAnnotation.element}
+          annotation={selectedAnnotation}
+          onDelete={() => handleDeleteAnnotation(selectedAnnotation.id)}
+          onCancel={() => annotationDeselected()}
+          x={viewPopupPosition.x}
+          y={viewPopupPosition.y}
+          isFixed={viewPopupPosition.isFixed}
+        />
+      ) : null}
 
       {/* Export Modal */}
       <AnimatePresence>
@@ -475,8 +371,9 @@ export function FeedbackToolbar({
           <Suspense fallback={null}>
             <ExportModal
               annotations={annotations}
-              onClose={() => dispatch({ type: 'setExportModalOpen', value: false })}
+              onClose={() => exportModalClosed()}
               lightMode={lightMode}
+              shadowRoot={shadowRoot}
             />
           </Suspense>
         )}
@@ -484,28 +381,10 @@ export function FeedbackToolbar({
 
       {/* Toolbar */}
       <Toolbar
-        isExpanded={isExpanded}
-        isEntranceComplete={isEntranceComplete}
-        annotationsCount={annotations.length}
-        onExpandedChange={(expanded) => dispatch({ type: 'setExpanded', value: expanded })}
-        onAddClick={handleToggleCategoryPanel}
-        onExportClick={() =>
-          startTransition(() => dispatch({ type: 'setExportModalOpen', value: true }))
-        }
-        onClearClick={handleClearAllAnnotations}
         onThemeToggle={() => onLightModeChange?.(!lightMode)}
-        isSelectingElement={isSelectingElement}
-        isCategoryPanelOpen={isCategoryPanelOpen}
         lightMode={lightMode}
-        tooltipsReady={tooltipsReady}
-        onTooltipWarmup={handleTooltipWarmup}
-        initialPosition={savedToolbarPosition}
-        onPositionChange={handleToolbarPositionChange}
       >
-        <CategoryPanel
-          isOpen={isCategoryPanelOpen}
-          onCategorySelect={handleCategorySelect}
-        />
+        <CategoryPanel />
       </Toolbar>
     </div>,
     shadowRoot

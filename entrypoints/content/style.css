@@ -281,71 +281,77 @@
 }
 
 /* =============================================================================
-   Utility layer
+   Utility layer - Tailwind CSS v4 @utility directives
    ============================================================================= */
 
-@layer utilities {
-  /* ==========================================================================
-     Z-Index Scale
-     ========================================================================== */
+/* Z-Index Scale */
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
 
-  .z-overlay {
-    z-index: var(--z-overlay);
+@utility z-markers {
+  z-index: var(--z-markers);
+}
+
+@utility z-toolbar {
+  z-index: var(--z-toolbar);
+}
+
+@utility z-panel {
+  z-index: var(--z-panel);
+}
+
+@utility z-tooltip {
+  z-index: var(--z-tooltip);
+}
+
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+
+/* Focus Ring - consistent focus-visible outline */
+@utility focus-ring {
+  &:focus-visible {
+    outline-width: 2px;
+    outline-offset: 2px;
+    outline-color: oklch(from var(--color-df-blue) l c h / 0.5);
   }
+}
 
-  .z-markers {
-    z-index: var(--z-markers);
+/* Text Colors - semantic text color variants */
+
+/* Standard muted text (labels, secondary content) */
+@utility text-muted {
+  color: oklch(0 0 0 / 0.6);
+
+  :where(.dark, .dark *) & {
+    color: oklch(1 0 0 / 0.65);
   }
+}
 
-  .z-toolbar {
-    z-index: var(--z-toolbar);
+/* Softer muted text (placeholders, hints) */
+@utility text-muted-soft {
+  color: oklch(0 0 0 / 0.5);
+
+  :where(.dark, .dark *) & {
+    color: oklch(1 0 0 / 0.6);
   }
+}
 
-  .z-panel {
-    z-index: var(--z-panel);
+/* Stronger muted text (tertiary labels) */
+@utility text-muted-strong {
+  color: oklch(0 0 0 / 0.4);
+
+  :where(.dark, .dark *) & {
+    color: oklch(1 0 0 / 0.55);
   }
+}
 
-  .z-tooltip {
-    z-index: var(--z-tooltip);
-  }
+/* Transition Utilities - common interactive patterns */
 
-  .z-modal {
-    z-index: var(--z-modal);
-  }
-
-  /* ==========================================================================
-     Focus Ring - consistent focus-visible outline
-     ========================================================================== */
-
-  .focus-ring {
-    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-df-blue/50;
-  }
-
-  /* ==========================================================================
-     Text Colors - semantic text color variants
-     ========================================================================== */
-
-  /* Standard muted text (labels, secondary content) */
-  .text-muted {
-    @apply text-black/60 dark:text-white/65;
-  }
-
-  /* Softer muted text (placeholders, hints) */
-  .text-muted-soft {
-    @apply text-black/50 dark:text-white/60;
-  }
-
-  /* Stronger muted text (tertiary labels) */
-  .text-muted-strong {
-    @apply text-black/40 dark:text-white/55;
-  }
-
-  /* ==========================================================================
-     Transition Utilities - common interactive patterns
-     ========================================================================== */
-
-  /* Standard interactive transition (bg, color, transform) */
-  .transition-interactive {
-    @apply transition duration-150 ease-out;
-  }
+/* Standard interactive transition (bg, color, transform) */
+@utility transition-interactive {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  transition-duration: 150ms;
 }

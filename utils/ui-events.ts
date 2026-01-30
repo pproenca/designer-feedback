@@ -2,28 +2,33 @@
 // Internal UI Event Bus (content script only)
 // =============================================================================
 
-export type UiEventName = 'hide-ui' | 'show-ui' | 'open-export';
+import mitt from 'mitt';
+
+// Event types for the UI event bus
+type UiEvents = {
+  'hide-ui': void;
+  'show-ui': void;
+  'open-export': void;
+};
+
+// Create typed mitt instance
+const emitter = mitt<UiEvents>();
+
+export type UiEventName = keyof UiEvents;
 export type UiEventHandler = () => void;
 
-const listeners = new Map<UiEventName, Set<UiEventHandler>>();
-
+/**
+ * Subscribe to a UI event
+ * @returns Unsubscribe function
+ */
 export function onUiEvent(event: UiEventName, handler: UiEventHandler): () => void {
-  const existing = listeners.get(event) ?? new Set<UiEventHandler>();
-  existing.add(handler);
-  listeners.set(event, existing);
-
-  return () => {
-    const set = listeners.get(event);
-    if (!set) return;
-    set.delete(handler);
-    if (set.size === 0) {
-      listeners.delete(event);
-    }
-  };
+  emitter.on(event, handler);
+  return () => emitter.off(event, handler);
 }
 
+/**
+ * Emit a UI event to all subscribers
+ */
 export function emitUiEvent(event: UiEventName): void {
-  const set = listeners.get(event);
-  if (!set || set.size === 0) return;
-  set.forEach((handler) => handler());
+  emitter.emit(event);
 }
