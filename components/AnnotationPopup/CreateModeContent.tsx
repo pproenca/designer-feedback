@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState, useCallback, type KeyboardEvent } from 'react';
-import { m, type Variants } from 'framer-motion';
 import { clsx } from 'clsx';
 
 const BUTTON_BASE = [
@@ -27,8 +26,6 @@ interface CreateModeContentProps {
   initialValue?: string;
   submitLabel?: string;
   accentColor?: string;
-  isShakeActive: boolean;
-  shakeVariants: Variants;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }
@@ -40,8 +37,6 @@ export function CreateModeContent({
   initialValue = '',
   submitLabel = 'Add',
   accentColor = 'var(--color-df-blue)',
-  isShakeActive,
-  shakeVariants,
   onSubmit,
   onCancel,
 }: CreateModeContentProps) {
@@ -90,7 +85,7 @@ export function CreateModeContent({
   );
 
   return (
-    <m.div variants={shakeVariants} animate={isShakeActive ? 'shake' : undefined}>
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className={ELEMENT_LABEL}>{element}</span>
@@ -148,6 +143,6 @@ export function CreateModeContent({
           {submitLabel}
         </button>
       </div>
-    </m.div>
+    </div>
   );
 }

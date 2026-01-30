@@ -1,4 +1,3 @@
-import { m, type Variants } from 'framer-motion';
 import type { Annotation } from '@/types';
 import { clsx } from 'clsx';
 
@@ -23,8 +22,6 @@ const ELEMENT_LABEL = clsx(
 interface ViewModeContentProps {
   element: string;
   annotation: Annotation;
-  isShakeActive: boolean;
-  shakeVariants: Variants;
   onClose: () => void;
   onDelete: () => void;
 }
@@ -32,13 +29,11 @@ interface ViewModeContentProps {
 export function ViewModeContent({
   element,
   annotation,
-  isShakeActive,
-  shakeVariants,
   onClose,
   onDelete,
 }: ViewModeContentProps) {
   return (
-    <m.div variants={shakeVariants} animate={isShakeActive ? 'shake' : undefined}>
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className={ELEMENT_LABEL}>{element}</span>
@@ -67,6 +62,6 @@ export function ViewModeContent({
           Delete
         </button>
       </div>
-    </m.div>
+    </div>
   );
 }

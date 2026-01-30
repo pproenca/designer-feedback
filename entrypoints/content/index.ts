@@ -15,6 +15,7 @@ declare global {
 export default defineContentScript({
   matches: [], // Empty - prevents WXT from adding host_permissions; injection via scripting.executeScript() + activeTab
   registration: 'runtime',
+  world: 'ISOLATED',
   cssInjectionMode: 'ui',
 
   main(ctx) {

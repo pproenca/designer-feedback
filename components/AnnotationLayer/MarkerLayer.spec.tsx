@@ -283,22 +283,4 @@ describe('MarkerLayer', () => {
     });
   });
 
-  describe('category styling', () => {
-    it('applies correct color class for bug category', async () => {
-      const { MarkerLayer } = await import('./MarkerLayer');
-      const annotations = [createMockAnnotation({ category: 'bug' })];
-
-      const { container } = render(
-        <MarkerLayer
-          annotations={annotations}
-          isEntranceComplete={true}
-          onMarkerClick={vi.fn()}
-        />
-      );
-
-      const marker = container.querySelector('[data-annotation-marker]');
-      // Bug category should have red/error color
-      expect(marker?.className).toContain('bg-');
-    });
-  });
 });

@@ -7,34 +7,19 @@
 
 import { MarkerLayer } from './MarkerLayer';
 import { PendingMarker } from './PendingMarker';
-import type { Annotation } from '@/types';
-import type { PendingAnnotation } from '@/components/FeedbackToolbar/context';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface AnnotationLayerProps {
-  /** Saved annotations to display */
-  annotations: Annotation[];
-  /** Pending annotation being created */
-  pendingAnnotation: PendingAnnotation | null;
-  /** Whether entrance animation is complete */
-  isEntranceComplete: boolean;
-  /** Callback when a marker is clicked */
-  onMarkerClick: (id: string) => void;
-}
+import { useToolbarStore } from '@/stores/toolbar';
+import { useAnnotationsStore } from '@/stores/annotations';
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function AnnotationLayer({
-  annotations,
-  pendingAnnotation,
-  isEntranceComplete,
-  onMarkerClick,
-}: AnnotationLayerProps) {
+export function AnnotationLayer() {
+  const annotations = useAnnotationsStore((s) => s.annotations);
+  const pendingAnnotation = useToolbarStore((s) => s.pendingAnnotation);
+  const isEntranceComplete = useToolbarStore((s) => s.isEntranceComplete);
+  const annotationSelected = useToolbarStore((s) => s.annotationSelected);
+
   // Calculate pending marker number (next number after existing annotations)
   const pendingMarkerNumber = annotations.length + 1;
 
@@ -43,7 +28,7 @@ export function AnnotationLayer({
       <MarkerLayer
         annotations={annotations}
         isEntranceComplete={isEntranceComplete}
-        onMarkerClick={onMarkerClick}
+        onMarkerClick={annotationSelected}
       />
       <PendingMarker
         pendingAnnotation={pendingAnnotation}

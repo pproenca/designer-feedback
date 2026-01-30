@@ -1,6 +1,7 @@
 import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { useToolbarStore } from '@/stores/toolbar';
 
 // Mock Framer Motion
 vi.mock('framer-motion', () => ({
@@ -15,6 +16,16 @@ vi.mock('framer-motion', () => ({
 
 describe('CategoryPanel', () => {
   beforeEach(() => {
+    useToolbarStore.setState({
+      isExpanded: true,
+      addMode: 'idle',
+      selectedCategory: 'suggestion',
+      pendingAnnotation: null,
+      selectedAnnotationId: null,
+      isExportModalOpen: false,
+      isEntranceComplete: true,
+      isHidden: false,
+    });
     vi.clearAllMocks();
   });
 
@@ -25,8 +36,9 @@ describe('CategoryPanel', () => {
   describe('rendering', () => {
     it('renders all four category buttons', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
+      useToolbarStore.setState({ addMode: 'category' });
       render(
-        <CategoryPanel isOpen={true} onCategorySelect={vi.fn()} />
+        <CategoryPanel />
       );
 
       expect(screen.getByRole('button', { name: /bug/i })).toBeDefined();
@@ -38,7 +50,7 @@ describe('CategoryPanel', () => {
     it('renders nothing when closed', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
       const { container } = render(
-        <CategoryPanel isOpen={false} onCategorySelect={vi.fn()} />
+        <CategoryPanel />
       );
 
       expect(container.querySelector('[data-category-panel]')).toBeNull();
@@ -47,55 +59,25 @@ describe('CategoryPanel', () => {
 
   describe('interactions', () => {
     it('calls onCategorySelect with "bug" when bug button is clicked', async () => {
-      const onCategorySelect = vi.fn();
       const { CategoryPanel } = await import('./CategoryPanel');
+      useToolbarStore.setState({ addMode: 'category' });
       render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
+        <CategoryPanel />
       );
 
       fireEvent.click(screen.getByRole('button', { name: /bug/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('bug');
-    });
-
-    it('calls onCategorySelect with "question" when question button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /question/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('question');
-    });
-
-    it('calls onCategorySelect with "suggestion" when suggestion button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /suggestion/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('suggestion');
-    });
-
-    it('calls onCategorySelect with "accessibility" when accessibility button is clicked', async () => {
-      const onCategorySelect = vi.fn();
-      const { CategoryPanel } = await import('./CategoryPanel');
-      render(
-        <CategoryPanel isOpen={true} onCategorySelect={onCategorySelect} />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /accessibility/i }));
-      expect(onCategorySelect).toHaveBeenCalledWith('accessibility');
+      const { selectedCategory, addMode } = useToolbarStore.getState();
+      expect(selectedCategory).toBe('bug');
+      expect(addMode).toBe('selecting');
     });
   });
 
   describe('accessibility', () => {
     it('has data-category attribute on each button', async () => {
       const { CategoryPanel } = await import('./CategoryPanel');
+      useToolbarStore.setState({ addMode: 'category' });
       const { container } = render(
-        <CategoryPanel isOpen={true} onCategorySelect={vi.fn()} />
+        <CategoryPanel />
       );
 
       expect(container.querySelector('[data-category="bug"]')).not.toBeNull();

@@ -6,24 +6,13 @@
  */
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import type { FeedbackCategory } from '@/types';
 import {
   IconBug,
   IconLightbulb,
   IconQuestion,
   IconAccessibility,
 } from '../Icons';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface CategoryPanelProps {
-  /** Whether the panel is open */
-  isOpen: boolean;
-  /** Callback when a category is selected */
-  onCategorySelect: (category: FeedbackCategory) => void;
-}
+import { useToolbarStore } from '@/stores/toolbar';
 
 // =============================================================================
 // Animation Variants
@@ -49,7 +38,9 @@ const getVariants = (reduceMotion: boolean) => ({
 // Component
 // =============================================================================
 
-export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) {
+export function CategoryPanel() {
+  const isOpen = useToolbarStore((s) => s.addMode === 'category');
+  const categorySelected = useToolbarStore((s) => s.categorySelected);
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -67,7 +58,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('bug')}
+            onClick={() => categorySelected('bug')}
             data-category="bug"
             aria-label="Bug"
           >
@@ -77,7 +68,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('question')}
+            onClick={() => categorySelected('question')}
             data-category="question"
             aria-label="Question"
           >
@@ -87,7 +78,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('suggestion')}
+            onClick={() => categorySelected('suggestion')}
             data-category="suggestion"
             aria-label="Suggestion"
           >
@@ -97,7 +88,7 @@ export function CategoryPanel({ isOpen, onCategorySelect }: CategoryPanelProps) 
           <button
             className="category-panel-item focus-ring"
             type="button"
-            onClick={() => onCategorySelect('accessibility')}
+            onClick={() => categorySelected('accessibility')}
             data-category="accessibility"
             aria-label="Accessibility"
           >

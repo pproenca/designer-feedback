@@ -11,12 +11,37 @@ export function getToolbarPositionKey(): string {
 
 export async function saveToolbarPosition(position: Position): Promise<void> {
   const key = getToolbarPositionKey();
-  await browser.storage.local.set({ [key]: position });
+  const storage =
+    (typeof browser !== 'undefined' && browser.storage?.local
+      ? browser.storage.local
+      : null) ??
+    (typeof chrome !== 'undefined' && chrome.storage?.local
+      ? chrome.storage.local
+      : null);
+  if (!storage) return;
+  try {
+    await storage.set({ [key]: position });
+  } catch (error) {
+    console.warn('Failed to save toolbar position:', error);
+  }
 }
 
 export async function loadToolbarPosition(): Promise<Position | null> {
   const key = getToolbarPositionKey();
-  const result = await browser.storage.local.get({ [key]: null });
-  const position = result[key] as Position | null | undefined;
-  return position ?? null;
+  const storage =
+    (typeof browser !== 'undefined' && browser.storage?.local
+      ? browser.storage.local
+      : null) ??
+    (typeof chrome !== 'undefined' && chrome.storage?.local
+      ? chrome.storage.local
+      : null);
+  if (!storage) return null;
+  try {
+    const result = await storage.get({ [key]: null });
+    const position = (result as Record<string, Position | null | undefined>)[key];
+    return position ?? null;
+  } catch (error) {
+    console.warn('Failed to load toolbar position:', error);
+    return null;
+  }
 }

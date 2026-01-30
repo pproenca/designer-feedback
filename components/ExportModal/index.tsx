@@ -232,6 +232,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
       <Dialog.Portal container={shadowRoot}>
         <AnimatePresence>
           <Dialog.Backdrop
+            key="df-export-backdrop"
             render={
               <m.div
                 className={clsx(
@@ -247,6 +248,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
             }
           />
           <Dialog.Popup
+            key="df-export-popup"
             render={
               <m.div
                 className={clsx(

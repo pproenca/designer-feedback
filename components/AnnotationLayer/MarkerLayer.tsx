@@ -204,7 +204,7 @@ export function MarkerLayer({
       <div className="absolute top-0 left-0 right-0 h-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
         {absoluteMarkers.map(({ annotation, globalIndex }) => (
           <Marker
-            key={annotation.id}
+            key={annotation.id || `annotation-${globalIndex}`}
             annotation={annotation}
             index={globalIndex}
             isEntranceComplete={isEntranceComplete}
@@ -218,7 +218,7 @@ export function MarkerLayer({
       <div className="fixed inset-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
         {fixedMarkers.map(({ annotation, globalIndex }) => (
           <Marker
-            key={annotation.id}
+            key={annotation.id || `annotation-${globalIndex}`}
             annotation={annotation}
             index={globalIndex}
             isEntranceComplete={isEntranceComplete}

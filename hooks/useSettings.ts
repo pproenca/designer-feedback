@@ -50,8 +50,14 @@ export function useSettings() {
       });
     };
 
-    browser.storage.onChanged.addListener(handleStorageChange);
-    return () => browser.storage.onChanged.removeListener(handleStorageChange);
+    const storage =
+      (typeof browser !== 'undefined' ? browser.storage : undefined) ??
+      (typeof chrome !== 'undefined' ? chrome.storage : undefined);
+    if (!storage?.onChanged) {
+      return;
+    }
+    storage.onChanged.addListener(handleStorageChange);
+    return () => storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   const updateSettings = useCallback((next: Partial<Settings>) => {

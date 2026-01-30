@@ -21,7 +21,7 @@ export function AnnotationPreview({ annotations, maxItems = 5 }: AnnotationPrevi
           const config = getCategoryConfig(annotation.category);
           return (
             <div
-              key={annotation.id}
+              key={annotation.id || `preview-${index}`}
               className={clsx(
                 'flex items-center gap-2 text-sm py-1.5 px-2 rounded-lg bg-transparent border-none',
                 'transition-colors duration-150 ease-out',

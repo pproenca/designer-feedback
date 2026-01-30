@@ -8,7 +8,7 @@ import {
   ANNOTATIONS_PREFIX,
   STORAGE_KEY_VERSION,
   getAnnotationsBucketKey,
-} from '@/utils/storage-items';
+} from '@/utils/storage-constants';
 
 const DEFAULT_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -19,6 +19,23 @@ const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
 
 let lastCleanupAt = 0;
 
+function getLocalStorageArea():
+  | typeof browser.storage.local
+  | typeof chrome.storage.local
+  | null {
+  try {
+    if (typeof browser !== 'undefined' && browser.storage?.local) {
+      return browser.storage.local;
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      return chrome.storage.local;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function stripUrl(annotation: Annotation & { url?: string }): Annotation {
   // Avoid persisting page-origin identifiers in storage payloads.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -27,33 +44,74 @@ function stripUrl(annotation: Annotation & { url?: string }): Annotation {
 }
 
 async function getLocal<T>(keys: string | string[] | Record<string, T>): Promise<Record<string, T>> {
-  const result = await browser.storage.local.get(keys);
-  return result as Record<string, T>;
+  const storage = getLocalStorageArea();
+  if (!storage) return {} as Record<string, T>;
+  try {
+    const result = await storage.get(keys);
+    return result as Record<string, T>;
+  } catch (error) {
+    console.warn('Storage access failed (get):', error);
+    return {} as Record<string, T>;
+  }
 }
 
 async function setLocal(values: Record<string, unknown>): Promise<void> {
-  await browser.storage.local.set(values);
+  const storage = getLocalStorageArea();
+  if (!storage) return;
+  try {
+    await storage.set(values);
+  } catch (error) {
+    console.warn('Storage access failed (set):', error);
+  }
 }
 
 async function removeLocal(keys: string | string[]): Promise<void> {
-  await browser.storage.local.remove(keys);
+  const storage = getLocalStorageArea();
+  if (!storage) return;
+  try {
+    await storage.remove(keys);
+  } catch (error) {
+    console.warn('Storage access failed (remove):', error);
+  }
 }
 
 async function getAllLocal(): Promise<Record<string, unknown>> {
-  return await browser.storage.local.get(null);
+  const storage = getLocalStorageArea();
+  if (!storage) return {};
+  try {
+    return await storage.get(null);
+  } catch (error) {
+    console.warn('Storage access failed (get all):', error);
+    return {};
+  }
 }
 
 function normalizeStoredAnnotations(value: unknown): Annotation[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(Boolean) as Annotation[];
+  const seen = new Set<string>();
+  return value
+    .filter(Boolean)
+    .map((raw, index) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const annotation = raw as Annotation;
+      let id = typeof annotation.id === 'string' ? annotation.id.trim() : '';
+      if (!id || seen.has(id)) {
+        id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`;
+      }
+      seen.add(id);
+      return { ...annotation, id };
+    })
+    .filter(Boolean) as Annotation[];
 }
 
 /**
  * Get current storage usage in bytes
  */
 async function getBytesInUse(): Promise<number> {
+  const storage = getLocalStorageArea();
+  if (!storage?.getBytesInUse) return 0;
   try {
-    const bytesInUse = await browser.storage.local.getBytesInUse(null);
+    const bytesInUse = await storage.getBytesInUse(null);
     return bytesInUse;
   } catch (error) {
     console.warn('Failed to get storage usage:', error);

@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { activatedTabs } from './storage-items';
 import {
-  activatedTabs,
   ANNOTATIONS_PREFIX,
   STORAGE_KEY_VERSION,
   getAnnotationsKey,
   getAnnotationsBucketKey,
-} from './storage-items';
+} from './storage-constants';
 
 describe('storage-items', () => {
   beforeEach(() => {
