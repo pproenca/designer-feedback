@@ -19,26 +19,15 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   main(ctx) {
-    console.log('[DF] Content script main() called');
-
     const isEligibleDocument =
       !!document.documentElement &&
       (document.contentType === 'text/html' || document.contentType === 'application/xhtml+xml');
 
-    console.log('[DF] Document check:', {
-      hasDocumentElement: !!document.documentElement,
-      contentType: document.contentType,
-      isEligible: isEligibleDocument,
-      alreadyInjected: window.__designerFeedbackInjected,
-    });
-
     if (!isEligibleDocument || window.__designerFeedbackInjected) {
-      console.log('[DF] Skipping injection - not eligible or already injected');
       return;
     }
 
     window.__designerFeedbackInjected = true;
-    console.log('[DF] Set __designerFeedbackInjected = true');
 
     let uiPromise: Promise<Awaited<ReturnType<typeof mountUI>>> | null = null;
     let uiInstance: Awaited<ReturnType<typeof mountUI>> | null = null;

@@ -41,15 +41,13 @@ function handleDownload(dataUrl: string): { ok: boolean; blobUrl?: string; error
 
 // Listen for messages from the background service worker
 // Note: Using chrome namespace since offscreen documents are Chrome-only and don't have WXT's browser polyfill
-console.log('[Offscreen] Document loaded, registering message listener');
 chrome.runtime.onMessage.addListener(
   (
     message: unknown,
-    sender: chrome.runtime.MessageSender,
+    _sender: chrome.runtime.MessageSender,
     sendResponse: (response: { ok: boolean; blobUrl?: string; error?: string }) => void
   ) => {
     const msg = message as MessageType & { target?: string };
-    console.log('[Offscreen] Received message:', msg.type, 'from:', sender.id);
 
     // Filter messages not targeted at offscreen document
     if (msg.target && msg.target !== MESSAGE_TARGET.OFFSCREEN) {
@@ -58,10 +56,8 @@ chrome.runtime.onMessage.addListener(
 
     // Only handle OFFSCREEN_DOWNLOAD messages
     if (msg.type === OFFSCREEN_MESSAGE_TYPE.DOWNLOAD) {
-      console.log('[Offscreen] Processing OFFSCREEN_DOWNLOAD, dataUrl length:', (msg as { dataUrl?: string }).dataUrl?.length);
       try {
         const result = handleDownload((msg as { dataUrl: string }).dataUrl);
-        console.log('[Offscreen] handleDownload result:', JSON.stringify({ ok: result.ok, hasBlobUrl: !!result.blobUrl, error: result.error }));
         sendResponse(result);
       } catch (error) {
         console.error('[Offscreen] handleDownload error:', error);

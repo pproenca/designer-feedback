@@ -19,13 +19,11 @@ type DownloadResponse = { ok: boolean; error?: string };
  * data URLs to blob URLs for Chrome MV3 compatibility.
  */
 export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
-  console.log('[Export] Sending DOWNLOAD_FILE message', { filename, dataUrlLength: dataUrl.length });
   const response = await sendMessage<DownloadResponse>({
     type: 'DOWNLOAD_FILE',
     filename,
     dataUrl,
   });
-  console.log('[Export] DOWNLOAD_FILE response:', JSON.stringify(response));
   if (!response?.ok) {
     throw new Error(response?.error ?? 'Download failed');
   }

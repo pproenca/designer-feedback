@@ -76,16 +76,13 @@ export type ScreenshotResult = { data: string; error?: string };
  */
 export async function getWindowIdForCapture(senderTabWindowId: number | undefined): Promise<number> {
   if (senderTabWindowId !== undefined) {
-    console.log('[Background] Using sender.tab.windowId:', senderTabWindowId);
     return senderTabWindowId;
   }
 
   // Fallback: query for the active tab in the current window
-  console.log('[Background] sender.tab.windowId is undefined, querying active tab...');
   try {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (activeTab?.windowId !== undefined) {
-      console.log('[Background] Fallback to active tab windowId:', activeTab.windowId, 'tabId:', activeTab.id);
       return activeTab.windowId;
     }
   } catch (error) {
@@ -93,7 +90,6 @@ export async function getWindowIdForCapture(senderTabWindowId: number | undefine
   }
 
   // Last resort: use WINDOW_ID_CURRENT
-  console.log('[Background] Using WINDOW_ID_CURRENT as last resort');
   return browser.windows.WINDOW_ID_CURRENT;
 }
 
@@ -108,7 +104,6 @@ export async function verifyScreenshotPermission(url: string): Promise<boolean> 
     const hasPermission = await browser.permissions.contains({
       origins: [`${origin}/*`],
     });
-    console.log('[Background] Permission check for', url, ':', hasPermission);
     return hasPermission;
   } catch (error) {
     console.error('[Background] Permission check failed:', error);
@@ -120,16 +115,8 @@ export async function verifyScreenshotPermission(url: string): Promise<boolean> 
  * Capture screenshot of the visible tab (background service worker implementation)
  */
 export async function captureVisibleTabScreenshot(windowId: number): Promise<ScreenshotResult> {
-  console.log('[Background] captureScreenshot called with windowId:', windowId);
-  console.log('[Background] WINDOW_ID_CURRENT:', browser.windows.WINDOW_ID_CURRENT);
-  console.log('[Background] windowId === WINDOW_ID_CURRENT:', windowId === browser.windows.WINDOW_ID_CURRENT);
   try {
-    console.log('[Background] Calling captureVisibleTab...');
     const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
-    console.log('[Background] captureVisibleTab result:', {
-      hasData: !!dataUrl,
-      length: dataUrl?.length ?? 0,
-    });
     if (!dataUrl) {
       return { data: '', error: 'captureVisibleTab returned empty' };
     }
@@ -167,18 +154,14 @@ export async function hasOffscreenDocument(): Promise<boolean> {
  * Ensure offscreen document exists for blob URL creation
  */
 export async function setupOffscreenDocument(): Promise<void> {
-  console.log('[Background] setupOffscreenDocument called');
-
   // Check if offscreen document already exists
   const exists = await hasOffscreenDocument();
-  console.log('[Background] Offscreen document exists:', exists);
 
   if (exists) {
     return;
   }
 
   // Create offscreen document for blob URL creation
-  console.log('[Background] Creating offscreen document...');
   await browser.offscreen.createDocument({
     url: OFFSCREEN_DOCUMENT_PATH,
     reasons: [browser.offscreen.Reason.BLOBS],
@@ -186,7 +169,6 @@ export async function setupOffscreenDocument(): Promise<void> {
   });
   // Small delay to ensure script is loaded
   await new Promise((resolve) => setTimeout(resolve, 100));
-  console.log('[Background] Offscreen document created and ready');
 }
 
 // =============================================================================
@@ -202,32 +184,27 @@ export async function downloadFile(
   dataUrl: string,
   filename: string
 ): Promise<DownloadResult> {
-  console.log('[Background] downloadFile called', { filename, dataUrlLength: dataUrl.length });
   try {
     // Create offscreen document for blob URL creation
     await setupOffscreenDocument();
 
     // Send data URL to offscreen document for conversion to blob URL
-    console.log('[Background] Sending OFFSCREEN_DOWNLOAD message...');
     const response = (await browser.runtime.sendMessage({
       type: OFFSCREEN_MESSAGE_TYPE.DOWNLOAD,
       target: MESSAGE_TARGET.OFFSCREEN,
       dataUrl,
     })) as { ok: boolean; blobUrl?: string; error?: string } | undefined;
-    console.log('[Background] OFFSCREEN_DOWNLOAD response:', JSON.stringify(response));
 
     if (!response?.ok || !response?.blobUrl) {
       return { ok: false, error: response?.error ?? 'Blob conversion failed' };
     }
 
     // Download using blob URL (from offscreen document context)
-    console.log('[Background] Starting download with blob URL...');
     const downloadId = await browser.downloads.download({
       url: response.blobUrl,
       filename,
       saveAs: false,
     });
-    console.log('[Background] Download started, id:', downloadId);
 
     if (downloadId === undefined) {
       return { ok: false, error: 'Download failed to start' };

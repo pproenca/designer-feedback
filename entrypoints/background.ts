@@ -199,11 +199,9 @@ export default defineBackground(() => {
     type Handler = (payload: IncomingMessage, origin: Sender) => Promise<unknown> | void;
 
     const msg = message as IncomingMessage;
-    console.log('[Background] Received message:', msg.type);
 
     // Validate sender is from this extension
     if (!isExtensionSender(sender)) {
-      console.log('[Background] Rejecting message from non-extension sender');
       return;
     }
 
@@ -215,11 +213,9 @@ export default defineBackground(() => {
 
     const handlers: Partial<Record<IncomingMessage['type'], Handler>> = {
       CAPTURE_SCREENSHOT: async (_payload, origin) => {
-        console.log('[Background] Handling CAPTURE_SCREENSHOT');
         try {
           const windowId = await getWindowIdForCapture(origin.tab?.windowId);
           const result = await captureVisibleTabScreenshot(windowId);
-          console.log('[Background] captureScreenshot result:', JSON.stringify({ hasData: !!result.data, error: result.error }));
           return { type: 'SCREENSHOT_CAPTURED', ...result };
         } catch (error) {
           console.error('[Background] captureScreenshot error:', error);
@@ -227,7 +223,6 @@ export default defineBackground(() => {
         }
       },
       DOWNLOAD_FILE: async (payload) => {
-        console.log('[Background] Handling DOWNLOAD_FILE');
         try {
           const downloadMessage = payload as Extract<IncomingMessage, { type: 'DOWNLOAD_FILE' }>;
           return await downloadFile(downloadMessage.dataUrl, downloadMessage.filename);

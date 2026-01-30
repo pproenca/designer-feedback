@@ -31,19 +31,11 @@ export function isRestrictedPage(): boolean {
  * Capture the visible tab screenshot via the background service worker
  */
 export async function captureScreenshot(): Promise<string> {
-  console.log('[Screenshot] Sending CAPTURE_SCREENSHOT message');
   const response = (await browser.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' })) as {
     type?: string;
     data?: string;
     error?: string;
   } | undefined;
-  console.log('[Screenshot] Response:', JSON.stringify({
-    responseType: typeof response,
-    type: response?.type,
-    error: response?.error ?? 'not set',
-    hasData: !!response?.data,
-    dataLength: response?.data?.length ?? 0,
-  }));
 
   // Check if response is undefined (no listener responded)
   if (!response) {
