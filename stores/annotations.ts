@@ -31,6 +31,8 @@ export interface AnnotationsActions {
   loadAnnotations: () => Promise<void>;
   /** Create a new annotation and persist to storage */
   annotationCreated: (annotation: Annotation) => Promise<void>;
+  /** Update an existing annotation and persist to storage */
+  annotationUpdated: (id: string, updates: Partial<Annotation>) => Promise<void>;
   /** Delete an annotation by ID and remove from storage */
   annotationDeleted: (id: string) => Promise<void>;
   /** Clear all annotations and remove from storage */
@@ -68,6 +70,22 @@ export const useAnnotationsStore = create<AnnotationsState & AnnotationsActions>
       }));
     } catch (error) {
       console.error('Failed to save annotation:', error);
+    }
+  },
+
+  annotationUpdated: async (id: string, updates: Partial<Annotation>) => {
+    const state = useAnnotationsStore.getState();
+    const annotation = state.annotations.find((a) => a.id === id);
+    if (!annotation) return;
+
+    const updated = { ...annotation, ...updates };
+    try {
+      await saveAnnotation({ ...updated, url: getStorageKey() });
+      set((state) => ({
+        annotations: state.annotations.map((a) => (a.id === id ? updated : a)),
+      }));
+    } catch (error) {
+      console.error('Failed to update annotation:', error);
     }
   },
 

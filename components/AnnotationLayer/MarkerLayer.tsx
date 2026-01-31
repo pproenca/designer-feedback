@@ -8,12 +8,13 @@
  * - Hover tooltips
  */
 
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useMemo } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
 import { clsx } from 'clsx';
 import { getCategoryConfig } from '@/shared/categories';
 import type { Annotation } from '@/types';
+import type { Position } from '@/hooks/useMarkerDrag';
 
 // =============================================================================
 // Types
@@ -26,6 +27,14 @@ export interface MarkerLayerProps {
   isEntranceComplete: boolean;
   /** Callback when a marker is clicked */
   onMarkerClick: (id: string) => void;
+  /** Whether dragging is currently in progress */
+  isDragging?: boolean;
+  /** ID of the annotation currently being dragged */
+  draggedAnnotationId?: string | null;
+  /** Current position during drag */
+  currentDragPosition?: Position | null;
+  /** Get drag handlers for a marker */
+  getMarkerDragHandlers?: (annotation: Annotation) => { onMouseDown: (e: ReactMouseEvent) => void };
 }
 
 // =============================================================================
@@ -114,6 +123,12 @@ interface MarkerProps {
   isEntranceComplete: boolean;
   onMarkerClick: (id: string) => void;
   variants: ReturnType<typeof getVariants>;
+  /** Whether this marker is being dragged */
+  isDragged?: boolean;
+  /** Override position during drag */
+  dragPosition?: Position | null;
+  /** Drag mousedown handler */
+  onDragMouseDown?: (e: ReactMouseEvent) => void;
 }
 
 function Marker({
@@ -122,11 +137,17 @@ function Marker({
   isEntranceComplete,
   onMarkerClick,
   variants,
+  isDragged = false,
+  dragPosition,
+  onDragMouseDown,
 }: MarkerProps) {
   const config = getCategoryConfig(annotation.category);
 
   const handleClick = () => {
-    onMarkerClick(annotation.id);
+    // Don't trigger click handler if we have drag handlers (drag handles its own click)
+    if (!onDragMouseDown) {
+      onMarkerClick(annotation.id);
+    }
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent) => {
@@ -136,33 +157,39 @@ function Marker({
     }
   };
 
+  // Use drag position if being dragged, otherwise use annotation position
+  const displayX = isDragged && dragPosition ? dragPosition.x : annotation.x;
+  const displayY = isDragged && dragPosition ? dragPosition.y : annotation.y;
+
   return (
     <m.div
       initial={!isEntranceComplete ? 'hidden' : false}
       animate="visible"
-      whileHover="hover"
+      whileHover={isDragged ? undefined : 'hover'}
       variants={variants.marker}
       className={clsx(
         'w-5.5 h-5.5 rounded-full flex items-center justify-center',
-        'text-xs font-semibold text-white cursor-pointer select-none',
+        'text-xs font-semibold text-white select-none',
         'shadow-marker -translate-x-1/2 -translate-y-1/2 z-10',
         'hover:z-20',
         annotation.isFixed ? 'fixed' : 'absolute',
-        config.tw.bg
+        config.tw.bg,
+        isDragged ? 'cursor-grabbing z-30' : 'cursor-grab'
       )}
       style={{
-        left: `${annotation.x}px`,
-        top: `${annotation.y}px`,
+        left: `${displayX}px`,
+        top: `${displayY}px`,
       }}
       data-annotation-marker
       onClick={handleClick}
+      onMouseDown={onDragMouseDown}
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
       aria-label={`Annotation ${index + 1} (${config.label})`}
     >
       {index + 1}
-      <MarkerTooltip annotation={annotation} variants={variants.tooltip} />
+      {!isDragged && <MarkerTooltip annotation={annotation} variants={variants.tooltip} />}
     </m.div>
   );
 }
@@ -175,6 +202,10 @@ export function MarkerLayer({
   annotations,
   isEntranceComplete,
   onMarkerClick,
+  isDragging = false,
+  draggedAnnotationId,
+  currentDragPosition,
+  getMarkerDragHandlers,
 }: MarkerLayerProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
@@ -199,34 +230,35 @@ export function MarkerLayer({
     return null;
   }
 
+  const renderMarker = (annotation: Annotation, globalIndex: number) => {
+    const isThisMarkerDragged = isDragging && draggedAnnotationId === annotation.id;
+    const dragHandlers = getMarkerDragHandlers?.(annotation);
+
+    return (
+      <Marker
+        key={annotation.id || `annotation-${globalIndex}`}
+        annotation={annotation}
+        index={globalIndex}
+        isEntranceComplete={isEntranceComplete}
+        onMarkerClick={onMarkerClick}
+        variants={variants}
+        isDragged={isThisMarkerDragged}
+        dragPosition={isThisMarkerDragged ? currentDragPosition : null}
+        onDragMouseDown={dragHandlers?.onMouseDown}
+      />
+    );
+  };
+
   return (
     <>
       {/* Absolute positioned markers container */}
       <div className="absolute top-0 left-0 right-0 h-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
-        {absoluteMarkers.map(({ annotation, globalIndex }) => (
-          <Marker
-            key={annotation.id || `annotation-${globalIndex}`}
-            annotation={annotation}
-            index={globalIndex}
-            isEntranceComplete={isEntranceComplete}
-            onMarkerClick={onMarkerClick}
-            variants={variants}
-          />
-        ))}
+        {absoluteMarkers.map(({ annotation, globalIndex }) => renderMarker(annotation, globalIndex))}
       </div>
 
       {/* Fixed positioned markers container */}
       <div className="fixed inset-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
-        {fixedMarkers.map(({ annotation, globalIndex }) => (
-          <Marker
-            key={annotation.id || `annotation-${globalIndex}`}
-            annotation={annotation}
-            index={globalIndex}
-            isEntranceComplete={isEntranceComplete}
-            onMarkerClick={onMarkerClick}
-            variants={variants}
-          />
-        ))}
+        {fixedMarkers.map(({ annotation, globalIndex }) => renderMarker(annotation, globalIndex))}
       </div>
     </>
   );
