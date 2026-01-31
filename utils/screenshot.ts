@@ -1,6 +1,4 @@
-// =============================================================================
-// Screenshot Utilities
-// =============================================================================
+
 
 import { createPlaceholderScreenshot } from './screenshot/placeholder';
 import { hideStickyElements, restoreHiddenElements } from './screenshot/sticky';
@@ -14,23 +12,16 @@ export type FullPageCaptureResult = {
   error?: string;
 };
 
-/**
- * Check if the current page is a restricted page where screenshots cannot be captured
- * (chrome://, edge://, about:, etc.)
- */
 export function isRestrictedPage(): boolean {
   try {
     const protocol = window.location.protocol;
-    // Only http and https pages can be captured
+
     return protocol !== 'http:' && protocol !== 'https:';
   } catch {
     return true;
   }
 }
 
-/**
- * Capture the visible tab screenshot via the background service worker
- */
 export async function captureScreenshot(): Promise<string> {
   const response = await withTimeout(
     backgroundMessenger.sendMessage('captureScreenshot', undefined)
@@ -39,17 +30,13 @@ export async function captureScreenshot(): Promise<string> {
   if (response.error) {
     throw new Error(response.error);
   }
-  // Check for non-empty data (empty string is falsy but explicit check is clearer)
+
   if (response.data && response.data.length > 0) {
     return response.data;
   }
   throw new Error('Failed to capture screenshot: empty response');
 }
 
-/**
- * Capture full page by scrolling through the document and stitching screenshots.
- * Uses activeTab permission which is granted when user clicks the extension icon.
- */
 export async function captureFullPage(): Promise<FullPageCaptureResult> {
   try {
     return { dataUrl: await captureFullPageFromExtension(), isPlaceholder: false, mode: 'full' };
@@ -119,29 +106,29 @@ async function captureScreenshotWithRetry(retries: number = CAPTURE_RETRY_COUNT)
 }
 
 async function captureFullPageFromExtension(): Promise<string> {
-  // Save original scroll position
+
   const originalScrollY = window.scrollY;
 
-  // Get document dimensions
+
   const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   const dpr = window.devicePixelRatio || 1;
   const maxScrollY = Math.max(0, docHeight - viewportHeight);
 
-  // Calculate number of captures needed
+
   const numCaptures = Math.max(1, Math.ceil(docHeight / viewportHeight));
   const screenshots: string[] = [];
   const scrollPositions: number[] = [];
 
   try {
-    // Capture each viewport section
+
     for (let i = 0; i < numCaptures; i++) {
       const scrollY = Math.min(i * viewportHeight, maxScrollY);
       scrollPositions.push(scrollY);
       window.scrollTo(0, scrollY);
 
-      // Wait for render
+
       await new Promise((resolve) => {
         requestAnimationFrame(() => {
           setTimeout(resolve, 80);
@@ -166,10 +153,10 @@ async function captureFullPageFromExtension(): Promise<string> {
       }
     }
   } finally {
-    // Restore scroll position
+
     window.scrollTo(0, originalScrollY);
   }
 
-  // Stitch screenshots on canvas
+
   return stitchScreenshots(screenshots, viewportWidth, viewportHeight, docHeight, dpr, scrollPositions);
 }

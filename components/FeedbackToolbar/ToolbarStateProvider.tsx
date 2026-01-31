@@ -1,17 +1,8 @@
-/**
- * ToolbarStateProvider
- *
- * Local state container for the feedback toolbar UI.
- * Replaces global Zustand store with a colocated reducer + context.
- */
+
 
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
 import type { FeedbackCategory } from '@/types';
 import type { PendingAnnotation, AddMode } from './context';
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface ToolbarState {
   isExpanded: boolean;
@@ -63,10 +54,6 @@ type ToolbarAction =
   | { type: 'uiShown' }
   | { type: 'toggleCategoryPanel' };
 
-// =============================================================================
-// Initial State
-// =============================================================================
-
 export const initialToolbarState: ToolbarState = {
   isExpanded: true,
   addMode: 'idle',
@@ -77,10 +64,6 @@ export const initialToolbarState: ToolbarState = {
   isEntranceComplete: false,
   isHidden: false,
 };
-
-// =============================================================================
-// Reducer
-// =============================================================================
 
 export function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarState {
   switch (action.type) {
@@ -130,10 +113,6 @@ export function toolbarReducer(state: ToolbarState, action: ToolbarAction): Tool
       return state;
   }
 }
-
-// =============================================================================
-// Context + Provider
-// =============================================================================
 
 const ToolbarStateContext = createContext<ToolbarState | null>(null);
 const ToolbarActionsContext = createContext<ToolbarActions | null>(null);

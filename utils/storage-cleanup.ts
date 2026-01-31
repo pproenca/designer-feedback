@@ -1,7 +1,4 @@
-// =============================================================================
-// Storage Cleanup Utilities
-// Handles cleanup of expired annotations and storage quota monitoring
-// =============================================================================
+
 
 import type { Annotation } from '@/types';
 import { ANNOTATIONS_PREFIX } from '@/utils/storage-constants';
@@ -9,11 +6,10 @@ import { lastCleanupTimestamp } from '@/utils/storage-items';
 import { storage } from 'wxt/utils/storage';
 
 const DEFAULT_RETENTION_DAYS = 7;
-const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
-// Storage quota constants (local storage area has 10MB limit)
-const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB
-const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024;
+const STORAGE_WARNING_THRESHOLD = 0.8;
 
 function normalizeStoredAnnotations(value: unknown): Annotation[] {
   if (!Array.isArray(value)) return [];
@@ -67,9 +63,6 @@ async function getAllLocal(): Promise<Record<string, unknown>> {
   }
 }
 
-/**
- * Get current storage usage in bytes
- */
 async function getBytesInUse(): Promise<number> {
   try {
     const snapshot = await storage.snapshot('local');
@@ -87,9 +80,6 @@ async function getBytesInUse(): Promise<number> {
   }
 }
 
-/**
- * Check storage quota and return status
- */
 export async function checkStorageQuota(): Promise<{
   ok: boolean;
   bytesUsed: number;
@@ -123,9 +113,6 @@ export async function checkStorageQuota(): Promise<{
   };
 }
 
-/**
- * Clean up expired annotations from storage
- */
 export async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
   const all = await getAllLocal();
   const updates: Record<string, Annotation[]> = {};
@@ -158,10 +145,6 @@ export async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
   }
 }
 
-/**
- * Check if cleanup should run and execute if needed
- * Returns true if cleanup was executed
- */
 export async function maybeRunCleanup(): Promise<boolean> {
   const now = Date.now();
   const lastCleanup = await lastCleanupTimestamp.getValue();
@@ -169,7 +152,7 @@ export async function maybeRunCleanup(): Promise<boolean> {
   if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
     await lastCleanupTimestamp.setValue(now);
     const cutoff = now - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-    // Fire-and-forget: don't block annotation loading
+
     cleanupExpiredAnnotations(cutoff).catch((error) => {
       console.warn('Failed to clean expired annotations:', error);
     });
@@ -178,9 +161,6 @@ export async function maybeRunCleanup(): Promise<boolean> {
   return false;
 }
 
-/**
- * Get retention cutoff timestamp
- */
 export function getRetentionCutoff(): number {
   return Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 }

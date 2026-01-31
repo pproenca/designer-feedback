@@ -1,6 +1,4 @@
-// =============================================================================
-// Export Utilities
-// =============================================================================
+
 
 import type { Annotation } from '@/types';
 import { backgroundMessenger, withTimeout } from '@/utils/messaging';
@@ -10,12 +8,6 @@ import { copyToClipboard } from './export/clipboard';
 import { generateNotesMarkdown } from './export/markdown';
 import { createSnapshotImage } from './export/snapshot';
 
-/**
- * Download a data URL as a file via the background service worker.
- * Uses the downloads API which provides better UX than anchor downloads.
- * The background service worker uses an offscreen document to convert
- * data URLs to blob URLs for Chrome MV3 compatibility.
- */
 export async function downloadDataUrl(dataUrl: string, filename: string): Promise<void> {
   const response = await withTimeout(
     backgroundMessenger.sendMessage('downloadFile', { filename, dataUrl })
@@ -28,17 +20,13 @@ export async function downloadDataUrl(dataUrl: string, filename: string): Promis
 const hideExtensionUI = () => emitUiEvent('hide-ui');
 const showExtensionUI = () => emitUiEvent('show-ui');
 
-/**
- * Export full-page snapshot with markers + details sidebar.
- * Uses activeTab permission which is granted when user clicks the extension icon.
- */
 export async function exportAsSnapshotImage(
   annotations: Annotation[]
 ): Promise<{ captureMode: 'full' | 'viewport' | 'placeholder'; error?: string }> {
-  // Hide UI before capture
+
   hideExtensionUI();
 
-  // Small delay to ensure UI is hidden and repaint occurs
+
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   let screenshot: string;
@@ -59,11 +47,7 @@ export async function exportAsSnapshotImage(
   return { captureMode, error: captureError };
 }
 
-/**
- * Export markdown notes to clipboard
- */
 export async function exportAsImageWithNotes(annotations: Annotation[]): Promise<void> {
   const markdown = generateNotesMarkdown(annotations);
   await copyToClipboard(markdown);
 }
-

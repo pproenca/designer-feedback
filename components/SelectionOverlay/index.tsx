@@ -1,32 +1,13 @@
-/**
- * SelectionOverlay - Visual overlay for element selection during annotation mode
- *
- * This component renders:
- * - A highlight box around the hovered element
- * - A tooltip showing the element name
- *
- * Key features:
- * - Uses motion values for smooth position updates without re-renders
- * - AnimatePresence for smooth show/hide transitions
- * - Pointer-events: none to allow clicking through the overlay
- */
+
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useElementSelection } from './useElementSelection';
 import { clsx } from 'clsx';
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface SelectionOverlayProps {
-  /** Whether element selection mode is enabled */
+
   enabled: boolean;
 }
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   highlight: {
@@ -46,10 +27,6 @@ const getVariants = (reduceMotion: boolean) => ({
     },
   },
 });
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function SelectionOverlay({ enabled }: SelectionOverlayProps) {
   const reduceMotion = useReducedMotion() ?? false;

@@ -1,24 +1,14 @@
-// =============================================================================
-// Offscreen Document for Blob URL Creation
-// =============================================================================
-// Chrome MV3 offscreen document with BLOBS reason for converting data URLs
-// to blob URLs that can be used with the downloads API.
-// Note: Uses vanilla message listeners (not @webext-core/messaging) because
-// offscreen documents require target-based routing which the library doesn't support.
+
 
 import { browser, type Browser } from 'wxt/browser';
 import { MESSAGE_TARGET, OFFSCREEN_MESSAGE_TYPE } from '@/utils/offscreen-constants';
 
-/** Message shape for offscreen document communication */
 interface OffscreenMessage {
   type: string;
   target?: string;
   dataUrl?: string;
 }
 
-/**
- * Convert a data URL to a Blob
- */
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(',');
   const mimeMatch = header.match(/:(.*?);/);
@@ -31,15 +21,12 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], { type: mime });
 }
 
-/**
- * Handle download request by converting data URL to blob URL
- */
 function handleDownload(dataUrl: string): { ok: boolean; blobUrl?: string; error?: string } {
   try {
     const blob = dataUrlToBlob(dataUrl);
     const blobUrl = URL.createObjectURL(blob);
 
-    // Schedule cleanup after download completes (60 seconds should be enough)
+
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
 
     return { ok: true, blobUrl };
@@ -48,7 +35,6 @@ function handleDownload(dataUrl: string): { ok: boolean; blobUrl?: string; error
   }
 }
 
-// Listen for messages from the background service worker
 browser.runtime.onMessage.addListener(
   (
     message: unknown,
@@ -57,12 +43,12 @@ browser.runtime.onMessage.addListener(
   ) => {
     const msg = message as OffscreenMessage;
 
-    // Filter messages not targeted at offscreen document
+
     if (msg.target && msg.target !== MESSAGE_TARGET.OFFSCREEN) {
       return false;
     }
 
-    // Only handle OFFSCREEN_DOWNLOAD messages
+
     if (msg.type === OFFSCREEN_MESSAGE_TYPE.DOWNLOAD) {
       try {
         const result = handleDownload(msg.dataUrl ?? '');
@@ -71,10 +57,10 @@ browser.runtime.onMessage.addListener(
         console.error('[Offscreen] handleDownload error:', error);
         sendResponse({ ok: false, error: String(error) });
       }
-      return true; // Keep channel open for async response
+      return true;
     }
 
-    // Don't respond to other messages - let them pass through
+
     return false;
   }
 );

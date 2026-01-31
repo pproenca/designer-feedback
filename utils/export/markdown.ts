@@ -4,7 +4,7 @@ import { getCategoryConfig } from '@/shared/categories';
 export function generateNotesMarkdown(annotations: Annotation[]): string {
   const lines: string[] = [];
 
-  // Header
+
   lines.push('# Feedback Notes');
   lines.push('');
   lines.push(`**Page:** ${document.title}`);
@@ -23,7 +23,7 @@ export function generateNotesMarkdown(annotations: Annotation[]): string {
   lines.push('## Annotations');
   lines.push('');
 
-  // Annotations
+
   annotations.forEach((annotation, index) => {
     const config = getCategoryConfig(annotation.category);
     lines.push(`### ${index + 1}. ${config.label} - ${annotation.element}`);

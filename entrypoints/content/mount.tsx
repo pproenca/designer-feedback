@@ -10,13 +10,10 @@ const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
 
 let globalStyleElement: HTMLStyleElement | null = null;
 
-/**
- * Cleanup handle returned from onMount for structured cleanup in onRemove
- */
 export interface MountCleanupHandle {
-  /** React root for unmounting */
+
   root: ReactDOM.Root;
-  /** App container element for DOM cleanup */
+
   appRoot: HTMLDivElement;
 }
 
@@ -48,9 +45,9 @@ export async function mountUI(ctx: ContentScriptContext) {
   await waitForDomReady();
   ensureGlobalStyles();
 
-  // Use open shadow DOM in E2E tests so Playwright can access elements.
-  // In production, use closed mode to prevent page scripts from accessing extension internals.
-  // Note: isolateEvents is intentionally NOT set - it blocks keyboard events (Escape, Enter).
+
+
+
   const isE2E = import.meta.env.VITE_DF_E2E === '1';
 
   const ui = await createShadowRootUi(ctx, {

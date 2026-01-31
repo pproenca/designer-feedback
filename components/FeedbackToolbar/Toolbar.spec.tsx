@@ -16,6 +16,15 @@ vi.mock('@/utils/storage', () => ({
   updateBadgeCount: vi.fn(),
 }));
 
+// Mock useSettings hook
+const mockUpdateSettings = vi.fn();
+vi.mock('@/hooks/useSettings', () => ({
+  useSettings: vi.fn(() => ({
+    settings: { enabled: true, lightMode: false },
+    updateSettings: mockUpdateSettings,
+  })),
+}));
+
 vi.mock('./toolbar-position', () => ({
   loadToolbarPosition: vi.fn().mockResolvedValue(null),
   saveToolbarPosition: vi.fn(),
@@ -74,11 +83,9 @@ vi.mock('@/hooks/useDraggable', () => ({
 let observedState: ToolbarState | null = null;
 
 async function renderToolbar(props?: {
-  lightMode?: boolean;
-  onThemeToggle?: () => void;
   initialState?: Partial<ToolbarState>;
 }) {
-  const { lightMode = false, onThemeToggle = vi.fn(), initialState } = props ?? {};
+  const { initialState } = props ?? {};
   const utils = render(
     <ToolbarStateProvider
       initialState={{
@@ -94,21 +101,19 @@ async function renderToolbar(props?: {
       }}
     >
       <StateObserver onChange={(state) => { observedState = state; }} />
-      <Toolbar
-        lightMode={lightMode}
-        onThemeToggle={onThemeToggle}
-      />
+      <Toolbar />
     </ToolbarStateProvider>
   );
 
   await act(async () => {});
-  return { ...utils, onThemeToggle };
+  return utils;
 }
 
 describe('Toolbar', () => {
   beforeEach(() => {
     observedState = null;
     useAnnotationsStore.setState({ annotations: [], isLoading: false });
+    mockUpdateSettings.mockClear();
     vi.clearAllMocks();
   });
 
@@ -172,12 +177,11 @@ describe('Toolbar', () => {
     expect(observedState?.selectedAnnotationId).toBeNull();
   });
 
-  it('calls onThemeToggle when theme button is clicked', async () => {
-    const onThemeToggle = vi.fn();
-    await renderToolbar({ onThemeToggle });
+  it('calls updateSettings when theme button is clicked', async () => {
+    await renderToolbar();
 
     fireEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
-    expect(onThemeToggle).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSettings).toHaveBeenCalledWith({ lightMode: true });
   });
 });
 

@@ -1,7 +1,8 @@
 import React, { type HTMLAttributes, type ReactNode } from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { FormatSelector, type ExportFormatOption } from './FormatSelector';
+import { ExportProvider, initialExportState, type ExportState, type ExportAction } from './ExportContext';
 import type { ExportFormat } from '@/types';
 
 // Mock Framer Motion to avoid animation timing issues in tests
@@ -46,13 +47,32 @@ const createOptionsWithDisabled = (): ExportFormatOption[] => [
   },
 ];
 
+interface TestWrapperProps {
+  children: ReactNode;
+  state?: Partial<ExportState>;
+  dispatch?: React.Dispatch<ExportAction>;
+}
+
+function TestWrapper({ children, state, dispatch }: TestWrapperProps) {
+  const mockDispatch = dispatch ?? vi.fn();
+  const mockState: ExportState = {
+    ...initialExportState,
+    ...state,
+  };
+
+  return (
+    <ExportProvider
+      state={mockState}
+      dispatch={mockDispatch}
+      onClose={vi.fn()}
+      handleExport={vi.fn()}
+    >
+      {children}
+    </ExportProvider>
+  );
+}
+
 describe('FormatSelector', () => {
-  let formatOptionsRef: React.RefObject<HTMLDivElement | null>;
-
-  beforeEach(() => {
-    formatOptionsRef = { current: null };
-  });
-
   afterEach(() => {
     cleanup();
   });
@@ -61,13 +81,9 @@ describe('FormatSelector', () => {
     it('renders all format options', () => {
       const options = createMockOptions();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="snapshot"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'snapshot' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       expect(screen.getByText('Snapshot')).toBeInTheDocument();
@@ -77,13 +93,9 @@ describe('FormatSelector', () => {
     it('renders radiogroup with accessible label', () => {
       const options = createMockOptions();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="snapshot"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'snapshot' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       // Base UI uses aria-labelledby, so we find the group by its role
@@ -94,13 +106,9 @@ describe('FormatSelector', () => {
     it('shows selected state with aria-checked', () => {
       const options = createMockOptions();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="image-notes"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'image-notes' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       const radios = screen.getAllByRole('radio');
@@ -113,18 +121,14 @@ describe('FormatSelector', () => {
   });
 
   describe('selection', () => {
-    it('calls onFormatSelect when clicking an option', () => {
-      const onFormatSelect = vi.fn();
+    it('calls dispatch when clicking an option', () => {
+      const mockDispatch = vi.fn();
       const options = createMockOptions();
 
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="snapshot"
-          isExporting={false}
-          onFormatSelect={onFormatSelect}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'snapshot' }} dispatch={mockDispatch}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       // Click on the Markdown label to select it
@@ -132,21 +136,20 @@ describe('FormatSelector', () => {
       act(() => {
         fireEvent.click(markdownLabel!);
       });
-      expect(onFormatSelect).toHaveBeenCalledWith('image-notes');
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'updateState',
+        payload: { selectedFormat: 'image-notes' },
+      });
     });
 
-    it('does not call onFormatSelect when clicking disabled option', () => {
-      const onFormatSelect = vi.fn();
+    it('does not call dispatch when clicking disabled option', () => {
+      const mockDispatch = vi.fn();
       const options = createOptionsWithDisabled();
 
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="image-notes"
-          isExporting={false}
-          onFormatSelect={onFormatSelect}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'image-notes' }} dispatch={mockDispatch}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       // Try to click on the disabled Snapshot label
@@ -154,19 +157,15 @@ describe('FormatSelector', () => {
       act(() => {
         fireEvent.click(snapshotLabel!);
       });
-      expect(onFormatSelect).not.toHaveBeenCalled();
+      expect(mockDispatch).not.toHaveBeenCalled();
     });
 
     it('disables all options when isExporting is true', () => {
       const options = createMockOptions();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="snapshot"
-          isExporting={true}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'snapshot', isExporting: true }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       const radiogroup = screen.getByRole('radiogroup');
@@ -181,13 +180,9 @@ describe('FormatSelector', () => {
     it('has focusable radio items', () => {
       const options = createMockOptions();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="snapshot"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'snapshot' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       const radios = screen.getAllByRole('radio');
@@ -199,13 +194,9 @@ describe('FormatSelector', () => {
     it('marks disabled items as not focusable', () => {
       const options = createOptionsWithDisabled();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="image-notes"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'image-notes' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       const radios = screen.getAllByRole('radio');
@@ -219,13 +210,9 @@ describe('FormatSelector', () => {
     it('shows disabled option with correct attributes', () => {
       const options = createOptionsWithDisabled();
       render(
-        <FormatSelector
-          options={options}
-          selectedFormat="image-notes"
-          isExporting={false}
-          onFormatSelect={vi.fn()}
-          formatOptionsRef={formatOptionsRef}
-        />
+        <TestWrapper state={{ selectedFormat: 'image-notes' }}>
+          <FormatSelector options={options} />
+        </TestWrapper>
       );
 
       const radios = screen.getAllByRole('radio');

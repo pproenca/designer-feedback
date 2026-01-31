@@ -340,7 +340,7 @@ function truncateText(
 ): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
 
-  // Binary search for optimal truncation point - O(log n) vs O(n) linear
+
   let low = 0;
   let high = text.length;
 

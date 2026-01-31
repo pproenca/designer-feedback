@@ -1,5 +1,5 @@
-// CSS must be imported directly in the content script entry point
-// for WXT's cssInjectionMode: 'ui' to work correctly
+
+
 import './style.css';
 import { defineContentScript } from '#imports';
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
@@ -51,7 +51,7 @@ export default defineContentScript({
       await uiPromise;
     }
 
-    // Message handlers using @webext-core/messaging
+
     contentMessenger.onMessage('showToolbar', () => {
       ensureInjected().catch((error) => {
         console.error('Failed to show toolbar:', error);
@@ -88,14 +88,14 @@ export default defineContentScript({
       }
     });
 
-    // Track SPA navigation via wxt:locationchange
+
     let currentUrl = window.location.href;
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       const newUrl = window.location.href;
       const oldUrl = currentUrl;
       currentUrl = newUrl;
 
-      // Only emit if path/search changed (not just hash)
+
       try {
         const oldParsed = new URL(oldUrl);
         const newParsed = new URL(newUrl);
@@ -106,14 +106,14 @@ export default defineContentScript({
           emitUiEvent('location-changed', { newUrl, oldUrl });
         }
       } catch {
-        // If URL parsing fails, emit the event anyway
+
         emitUiEvent('location-changed', { newUrl, oldUrl });
       }
     });
 
     ctx.onInvalidated(() => {
-      // Note: @webext-core/messaging doesn't provide removeListener API
-      // Listeners are cleaned up when the content script context is invalidated
+
+
       uiInstance?.remove();
       uiInstance = null;
       uiPromise = null;

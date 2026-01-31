@@ -1,7 +1,8 @@
-import type { ReactNode, HTMLAttributes, CSSProperties } from 'react';
+import type { ReactNode, HTMLAttributes, CSSProperties, MouseEvent } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { Annotation } from '@/types';
+import { MarkerDragProvider } from './MarkerDragContext';
 
 // Mock Framer Motion - filter out non-DOM props to avoid React warnings
 const filterMotionProps = (props: Record<string, unknown>) => {
@@ -38,6 +39,38 @@ const createMockAnnotation = (overrides: Partial<Annotation> = {}): Annotation =
   ...overrides,
 });
 
+const defaultDragContextValue = {
+  isDragging: false,
+  draggedAnnotationId: null,
+  currentDragPosition: null,
+  getMarkerDragHandlers: () => ({ onMouseDown: vi.fn() }),
+};
+
+function TestWrapper({ children }: { children: ReactNode }) {
+  return (
+    <MarkerDragProvider value={defaultDragContextValue}>
+      {children}
+    </MarkerDragProvider>
+  );
+}
+
+// Wrapper that provides no drag handlers - clicks go directly to onMarkerClick
+const noDragContextValue = {
+  isDragging: false,
+  draggedAnnotationId: null,
+  currentDragPosition: null,
+  // Return handlers without onMouseDown so clicks are handled directly
+  getMarkerDragHandlers: () => ({ onMouseDown: undefined as unknown as (e: MouseEvent) => void }),
+};
+
+function NoDragWrapper({ children }: { children: ReactNode }) {
+  return (
+    <MarkerDragProvider value={noDragContextValue}>
+      {children}
+    </MarkerDragProvider>
+  );
+}
+
 describe('MarkerLayer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,7 +88,8 @@ describe('MarkerLayer', () => {
           annotations={[]}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       expect(container.querySelectorAll('[data-annotation-marker]').length).toBe(0);
@@ -74,7 +108,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       expect(container.querySelectorAll('[data-annotation-marker]').length).toBe(3);
@@ -92,7 +127,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       expect(screen.getByText('1')).toBeDefined();
@@ -112,7 +148,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       // Absolute markers should be in the absolute container
@@ -131,7 +168,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       // Fixed markers should be in the fixed container
@@ -152,7 +190,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       const markers = container.querySelectorAll('[data-annotation-marker]');
@@ -161,7 +200,7 @@ describe('MarkerLayer', () => {
   });
 
   describe('interactions', () => {
-    it('calls onMarkerClick when marker is clicked', async () => {
+    it('calls onMarkerClick when marker is clicked (no drag handlers)', async () => {
       const onMarkerClick = vi.fn();
       const { MarkerLayer } = await import('./MarkerLayer');
       const annotations = [createMockAnnotation({ id: 'test-id' })];
@@ -171,14 +210,15 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={onMarkerClick}
-        />
+        />,
+        { wrapper: NoDragWrapper }
       );
 
       fireEvent.click(screen.getByText('1'));
       expect(onMarkerClick).toHaveBeenCalledWith('test-id');
     });
 
-    it('calls onMarkerClick with correct id for each marker', async () => {
+    it('calls onMarkerClick with correct id for each marker (no drag handlers)', async () => {
       const onMarkerClick = vi.fn();
       const { MarkerLayer } = await import('./MarkerLayer');
       const annotations = [
@@ -191,7 +231,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={onMarkerClick}
-        />
+        />,
+        { wrapper: NoDragWrapper }
       );
 
       fireEvent.click(screen.getByText('2'));
@@ -208,7 +249,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={onMarkerClick}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       const marker = screen.getByText('1');
@@ -226,7 +268,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={onMarkerClick}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       const marker = screen.getByText('1');
@@ -245,7 +288,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       expect(screen.getByRole('button')).toBeDefined();
@@ -260,7 +304,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       const marker = container.querySelector('[data-annotation-marker]');
@@ -276,7 +321,8 @@ describe('MarkerLayer', () => {
           annotations={annotations}
           isEntranceComplete={true}
           onMarkerClick={vi.fn()}
-        />
+        />,
+        { wrapper: TestWrapper }
       );
 
       expect(screen.getByRole('button', { name: /annotation 1.*bug/i })).toBeDefined();

@@ -1,8 +1,4 @@
-/**
- * Toolbar - The main floating toolbar UI component
- *
- * Reads toolbar state from local context and renders controls.
- */
+
 
 import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -12,23 +8,12 @@ import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react'
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
-
-// =============================================================================
-// Types
-// =============================================================================
+import { useSettings } from '@/hooks/useSettings';
 
 export interface ToolbarProps {
-  /** Callback when theme button is clicked */
-  onThemeToggle: () => void;
-  /** Whether light mode is enabled */
-  lightMode: boolean;
-  /** Children to render in add button area (CategoryPanel) */
+
   children?: ReactNode;
 }
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   toolbar: {
@@ -66,15 +51,13 @@ const getVariants = (reduceMotion: boolean) => ({
   },
 });
 
-// =============================================================================
-// Component
-// =============================================================================
+export function Toolbar({ children }: ToolbarProps) {
+  const { settings, updateSettings } = useSettings();
+  const lightMode = settings.lightMode;
 
-export function Toolbar({
-  onThemeToggle,
-  lightMode,
-  children,
-}: ToolbarProps) {
+  const handleThemeToggle = useCallback(() => {
+    updateSettings({ lightMode: !lightMode });
+  }, [lightMode, updateSettings]);
   const { isExpanded, addMode, isEntranceComplete } = useToolbarState();
   const {
     toolbarExpanded,
@@ -357,7 +340,7 @@ export function Toolbar({
               type="button"
               aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
               aria-describedby="tooltip-theme"
-              onClick={onThemeToggle}
+              onClick={handleThemeToggle}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {lightMode ? (
