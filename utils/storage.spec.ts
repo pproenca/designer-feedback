@@ -15,10 +15,10 @@ import {
   loadAnnotations,
   clearAnnotations,
   updateBadgeCount,
-  checkStorageQuota,
   saveAnnotation,
   deleteAnnotation,
 } from './storage';
+import { checkStorageQuota } from './storage-cleanup';
 import { hashString } from './hash';
 
 describe('Storage Quota Validation', () => {
@@ -72,18 +72,19 @@ describe('Storage helpers and flows', () => {
     expect(getStorageKey()).toBe(`v2:${hashString(rawKey)}`);
   });
 
-  it('merges legacy storage keys and normalizes coordinates', async () => {
+  it('loads annotations from hashed storage key', async () => {
     const now = Date.now();
-    const currentKey = `${storagePrefix}https://example.com/page?q=1`;
+    const hashedKey = getStorageKey();
+    const fullKey = `${storagePrefix}${hashedKey}`;
 
-    // Pre-populate storage
+    // Pre-populate storage with hashed key
     await browser.storage.local.set({
-      [currentKey]: [
+      [fullKey]: [
         {
           id: 'a',
-          x: 0.5,
-          y: 0.5,
-          comment: 'new',
+          x: 100,
+          y: 200,
+          comment: 'test',
           category: 'bug',
           element: 'div',
           elementPath: 'div',
@@ -96,18 +97,20 @@ describe('Storage helpers and flows', () => {
     const results = await loadAnnotations();
 
     expect(results).toHaveLength(1);
-    expect(results[0]?.x).toBe(510);
+    expect(results[0]?.x).toBe(100);
+    expect(results[0]?.comment).toBe('test');
   });
 
-  it('counts only non-expired annotations', async () => {
+  it('counts only non-expired annotations (7 day retention)', async () => {
     vi.useFakeTimers();
     const now = new Date('2026-01-28T12:00:00Z');
     vi.setSystemTime(now);
 
-    const currentKey = `${storagePrefix}https://example.com/page?q=1`;
+    const hashedKey = getStorageKey();
+    const fullKey = `${storagePrefix}${hashedKey}`;
 
     await browser.storage.local.set({
-      [currentKey]: [
+      [fullKey]: [
         {
           id: 'fresh',
           x: 10,
@@ -127,27 +130,29 @@ describe('Storage helpers and flows', () => {
           category: 'bug',
           element: 'div',
           elementPath: 'div',
-          timestamp: now.getTime() - 31 * 24 * 60 * 60 * 1000,
+          // 8 days ago (beyond 7 day retention)
+          timestamp: now.getTime() - 8 * 24 * 60 * 60 * 1000,
           isFixed: false,
         },
       ],
     });
 
-    const count = await getAnnotationCount('https://example.com/page?q=1');
+    const count = await getAnnotationCount(hashedKey);
     expect(count).toBe(1);
     vi.useRealTimers();
   });
 
-  it('clears annotations for all storage keys', async () => {
-    const currentKey = `${storagePrefix}https://example.com/page?q=1`;
+  it('clears annotations for current URL', async () => {
+    const hashedKey = getStorageKey();
+    const fullKey = `${storagePrefix}${hashedKey}`;
     await browser.storage.local.set({
-      [currentKey]: [{ id: 'test', x: 0, y: 0, comment: 'test', category: 'bug' }],
+      [fullKey]: [{ id: 'test', x: 0, y: 0, comment: 'test', category: 'bug' }],
     });
 
     await clearAnnotations();
 
-    const result = await browser.storage.local.get(currentKey);
-    expect(result[currentKey]).toBeUndefined();
+    const result = await browser.storage.local.get(fullKey);
+    expect(result[fullKey]).toBeUndefined();
   });
 
   it('sends badge update message', () => {

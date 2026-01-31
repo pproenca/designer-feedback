@@ -8,25 +8,13 @@ import { ANNOTATIONS_PREFIX } from '@/utils/storage-constants';
 import { lastCleanupTimestamp } from '@/utils/storage-items';
 import { storage } from 'wxt/utils/storage';
 
-const DEFAULT_RETENTION_DAYS = 30;
+const DEFAULT_RETENTION_DAYS = 7;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 // Storage quota constants (local storage area has 10MB limit)
 const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB
 const STORAGE_WARNING_THRESHOLD = 0.8; // Warn at 80% capacity
 
-/**
- * Strip URL field from annotation before storage
- */
-function stripUrl(annotation: Annotation & { url?: string }): Annotation {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { url, ...rest } = annotation;
-  return rest as Annotation;
-}
-
-/**
- * Normalize stored annotations, fixing duplicates and invalid data
- */
 function normalizeStoredAnnotations(value: unknown): Annotation[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -158,7 +146,7 @@ export async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
       return;
     }
     if (filtered.length !== items.length) {
-      updates[key] = filtered.map(stripUrl);
+      updates[key] = filtered;
     }
   });
 

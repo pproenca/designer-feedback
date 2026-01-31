@@ -3,22 +3,20 @@
 // =============================================================================
 
 import type { Annotation } from '@/types';
-import { getAnnotationsBucketKey } from '@/utils/storage-constants';
+import { getAnnotationsBucketKey, STORAGE_KEY_VERSION } from '@/utils/storage-constants';
+import { hashString } from '@/utils/hash';
 import { storage } from 'wxt/utils/storage';
 import { backgroundMessenger } from '@/utils/messaging';
-import {
-  maybeRunCleanup,
-  getRetentionCutoff,
-} from '@/utils/storage-cleanup';
-import {
-  getStorageKeysForCurrentUrl,
-  isKnownStorageKey,
-  normalizeCoordinates,
-} from '@/utils/storage-migration';
+import { maybeRunCleanup, getRetentionCutoff } from '@/utils/storage-cleanup';
 
-// Re-export for API compatibility
-export { checkStorageQuota } from '@/utils/storage-cleanup';
-export { getStorageKey } from '@/utils/storage-migration';
+/**
+ * Get the hashed storage key for the current URL
+ */
+export function getStorageKey(): string {
+  const origin = window.location.origin === 'null' ? '' : window.location.origin;
+  const raw = `${origin}${window.location.pathname}${window.location.search}`;
+  return `${STORAGE_KEY_VERSION}:${hashString(raw)}`;
+}
 
 function stripUrl(annotation: Annotation & { url?: string }): Annotation {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -116,58 +114,31 @@ export async function loadAnnotations(): Promise<Annotation[]> {
     console.warn('Failed to run cleanup:', error);
   });
 
-  const keys = getStorageKeysForCurrentUrl();
-  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
-  const merged = new Map<string, Annotation>();
+  const key = getStorageKey();
+  const annotations = await loadAnnotationsForKey(key);
 
-  results.flat().forEach((annotation) => {
-    if (annotation.timestamp <= cutoff) return;
-    const normalized = normalizeCoordinates(annotation);
-    merged.set(annotation.id, normalized);
-  });
-
-  const mergedAnnotations = Array.from(merged.values());
-
-  // Consolidate legacy keys to primary key
-  const [primaryKey, ...legacyKeys] = keys;
-  const legacyHasData = results.slice(1).some((value) => Array.isArray(value) && value.length > 0);
-
-  if (legacyHasData) {
-    try {
-      await saveAnnotationsForKey(primaryKey, mergedAnnotations);
-      await removeLocal(legacyKeys);
-    } catch (error) {
-      console.warn('Failed to migrate legacy annotation keys:', error);
-    }
-  }
-
-  return mergedAnnotations;
+  return annotations.filter((annotation) => annotation.timestamp > cutoff);
 }
 
 /**
  * Delete a single annotation
  */
 export async function deleteAnnotation(id: string): Promise<void> {
-  const keys = getStorageKeysForCurrentUrl();
-  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
-  const updates: Promise<void>[] = [];
+  const key = getStorageKey();
+  const annotations = await loadAnnotationsForKey(key);
+  const filtered = annotations.filter((annotation) => annotation.id !== id);
 
-  results.forEach((annotations, index) => {
-    const filtered = annotations.filter((annotation) => annotation.id !== id);
-    if (filtered.length !== annotations.length) {
-      updates.push(saveAnnotationsForKey(keys[index], filtered));
-    }
-  });
-
-  await Promise.all(updates);
+  if (filtered.length !== annotations.length) {
+    await saveAnnotationsForKey(key, filtered);
+  }
 }
 
 /**
  * Clear all annotations for the current URL
  */
 export async function clearAnnotations(): Promise<void> {
-  const keys = getStorageKeysForCurrentUrl();
-  await Promise.all(keys.map((key) => clearAnnotationsForKey(key)));
+  const key = getStorageKey();
+  await clearAnnotationsForKey(key);
 }
 
 /**
@@ -175,19 +146,9 @@ export async function clearAnnotations(): Promise<void> {
  */
 export async function getAnnotationCount(url: string): Promise<number> {
   const cutoff = getRetentionCutoff();
-  const keys = isKnownStorageKey(url) ? getStorageKeysForCurrentUrl() : [url];
-  const results = await Promise.all(keys.map((key) => loadAnnotationsForKey(key)));
-  const seen = new Set<string>();
-  let count = 0;
+  const annotations = await loadAnnotationsForKey(url);
 
-  results.flat().forEach((annotation) => {
-    if (annotation.timestamp <= cutoff) return;
-    if (seen.has(annotation.id)) return;
-    seen.add(annotation.id);
-    count += 1;
-  });
-
-  return count;
+  return annotations.filter((annotation) => annotation.timestamp > cutoff).length;
 }
 
 /**
