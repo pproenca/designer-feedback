@@ -3,9 +3,10 @@
 // =============================================================================
 // Chrome MV3 offscreen document with BLOBS reason for converting data URLs
 // to blob URLs that can be used with the downloads API.
-// Note: Offscreen documents use vanilla Chrome API (not @webext-core/messaging)
-// because they require target-based routing which the library doesn't support.
+// Note: Uses vanilla message listeners (not @webext-core/messaging) because
+// offscreen documents require target-based routing which the library doesn't support.
 
+import { browser, type Browser } from 'wxt/browser';
 import { MESSAGE_TARGET, OFFSCREEN_MESSAGE_TYPE } from '@/utils/offscreen-constants';
 
 /** Message shape for offscreen document communication */
@@ -48,11 +49,10 @@ function handleDownload(dataUrl: string): { ok: boolean; blobUrl?: string; error
 }
 
 // Listen for messages from the background service worker
-// Note: Using chrome namespace since offscreen documents are Chrome-only and don't have WXT's browser polyfill
-chrome.runtime.onMessage.addListener(
+browser.runtime.onMessage.addListener(
   (
     message: unknown,
-    _sender: chrome.runtime.MessageSender,
+    _sender: Browser.runtime.MessageSender,
     sendResponse: (response: { ok: boolean; blobUrl?: string; error?: string }) => void
   ) => {
     const msg = message as OffscreenMessage;

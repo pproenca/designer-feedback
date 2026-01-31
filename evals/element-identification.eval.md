@@ -12,7 +12,7 @@ Tests that element names display correctly in annotation popup using MCP chrome-
 
 ## Test Steps
 1. Use `mcp__chrome-devtools__new_page` to open https://example.com
-2. Activate extension via test-activate.html:
+2. Activate extension via test-activate:
    `chrome-extension://{extensionId}/test-activate.html?target=https://example.com`
 3. Navigate to https://example.com
 4. Start annotation flow:
