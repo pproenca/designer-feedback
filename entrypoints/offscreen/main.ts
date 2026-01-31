@@ -3,9 +3,18 @@
 // =============================================================================
 // Chrome MV3 offscreen document with BLOBS reason for converting data URLs
 // to blob URLs that can be used with the downloads API.
+// Note: Uses vanilla message listeners (not @webext-core/messaging) because
+// offscreen documents require target-based routing which the library doesn't support.
 
-import type { MessageType } from '@/types';
+import { browser, type Browser } from 'wxt/browser';
 import { MESSAGE_TARGET, OFFSCREEN_MESSAGE_TYPE } from '@/utils/offscreen-constants';
+
+/** Message shape for offscreen document communication */
+interface OffscreenMessage {
+  type: string;
+  target?: string;
+  dataUrl?: string;
+}
 
 /**
  * Convert a data URL to a Blob
@@ -40,14 +49,13 @@ function handleDownload(dataUrl: string): { ok: boolean; blobUrl?: string; error
 }
 
 // Listen for messages from the background service worker
-// Note: Using chrome namespace since offscreen documents are Chrome-only and don't have WXT's browser polyfill
-chrome.runtime.onMessage.addListener(
+browser.runtime.onMessage.addListener(
   (
     message: unknown,
-    _sender: chrome.runtime.MessageSender,
+    _sender: Browser.runtime.MessageSender,
     sendResponse: (response: { ok: boolean; blobUrl?: string; error?: string }) => void
   ) => {
-    const msg = message as MessageType & { target?: string };
+    const msg = message as OffscreenMessage;
 
     // Filter messages not targeted at offscreen document
     if (msg.target && msg.target !== MESSAGE_TARGET.OFFSCREEN) {
@@ -57,7 +65,7 @@ chrome.runtime.onMessage.addListener(
     // Only handle OFFSCREEN_DOWNLOAD messages
     if (msg.type === OFFSCREEN_MESSAGE_TYPE.DOWNLOAD) {
       try {
-        const result = handleDownload((msg as { dataUrl: string }).dataUrl);
+        const result = handleDownload(msg.dataUrl ?? '');
         sendResponse(result);
       } catch (error) {
         console.error('[Offscreen] handleDownload error:', error);

@@ -3,7 +3,6 @@
 // =============================================================================
 
 import { defineBackground } from '#imports';
-import type { MessageType, Settings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import {
   // URL utilities
@@ -30,6 +29,7 @@ import {
   getContentScriptFiles,
 } from '@/utils/background-helpers';
 import { activatedTabs as activatedTabsStorage } from '@/utils/storage-items';
+import { backgroundMessenger, contentMessenger } from '@/utils/messaging';
 
 export default defineBackground(() => {
   // =============================================================================
@@ -93,7 +93,7 @@ export default defineBackground(() => {
   }
 
   async function sendShowToolbar(tabId: number): Promise<void> {
-    await browser.tabs.sendMessage(tabId, { type: 'SHOW_TOOLBAR' });
+    await contentMessenger.sendMessage('showToolbar', undefined, tabId);
   }
 
   async function sendShowToolbarWithRetry(tabId: number): Promise<void> {
@@ -186,91 +186,62 @@ export default defineBackground(() => {
   });
 
   // =============================================================================
-  // Message Handler
+  // Message Handlers (using @webext-core/messaging)
   // =============================================================================
 
-  browser.runtime.onMessage.addListener((
-    message: unknown,
-    sender: { id?: string; tab?: { windowId?: number; id?: number; url?: string } },
-    sendResponse: (response?: unknown) => void
-  ) => {
-    type Sender = typeof sender;
-    type IncomingMessage = MessageType & { target?: string; settings?: Settings };
-    type Handler = (payload: IncomingMessage, origin: Sender) => Promise<unknown> | void;
+  backgroundMessenger.onMessage('captureScreenshot', async ({ sender }) => {
+    if (!isExtensionSender(sender)) {
+      throw new Error('Invalid sender');
+    }
+    try {
+      const windowId = await getWindowIdForCapture(sender.tab?.windowId);
+      const result = await captureVisibleTabScreenshot(windowId);
+      return result;
+    } catch (error) {
+      console.error('[Background] captureScreenshot error:', error);
+      return { data: '', error: String(error) };
+    }
+  });
 
-    const msg = message as IncomingMessage;
+  backgroundMessenger.onMessage('downloadFile', async ({ data, sender }) => {
+    if (!isExtensionSender(sender)) {
+      throw new Error('Invalid sender');
+    }
+    try {
+      return await downloadFile(data.dataUrl, data.filename);
+    } catch (error) {
+      console.error('[Background] downloadFile error:', error);
+      return { ok: false, error: String(error) };
+    }
+  });
 
-    // Validate sender is from this extension
+  backgroundMessenger.onMessage('getSettings', async ({ sender }) => {
+    if (!isExtensionSender(sender)) {
+      throw new Error('Invalid sender');
+    }
+    try {
+      return await getSettings();
+    } catch (error) {
+      return { settings: DEFAULT_SETTINGS, error: String(error) };
+    }
+  });
+
+  backgroundMessenger.onMessage('saveSettings', async ({ data: settings, sender }) => {
+    if (!isExtensionSender(sender)) {
+      throw new Error('Invalid sender');
+    }
+    try {
+      return await saveSettings(settings);
+    } catch (error) {
+      return { settings, error: String(error) };
+    }
+  });
+
+  backgroundMessenger.onMessage('updateBadge', ({ data: count, sender }) => {
     if (!isExtensionSender(sender)) {
       return;
     }
-
-    // Skip messages targeted at other contexts (e.g., offscreen document)
-    // Return false to allow other listeners to handle the message
-    if (msg.target && msg.target !== 'background') {
-      return false;
-    }
-
-    const handlers: Partial<Record<IncomingMessage['type'], Handler>> = {
-      CAPTURE_SCREENSHOT: async (_payload, origin) => {
-        try {
-          const windowId = await getWindowIdForCapture(origin.tab?.windowId);
-          const result = await captureVisibleTabScreenshot(windowId);
-          return { type: 'SCREENSHOT_CAPTURED', ...result };
-        } catch (error) {
-          console.error('[Background] captureScreenshot error:', error);
-          return { type: 'SCREENSHOT_CAPTURED', data: '', error: String(error) };
-        }
-      },
-      DOWNLOAD_FILE: async (payload) => {
-        try {
-          const downloadMessage = payload as Extract<IncomingMessage, { type: 'DOWNLOAD_FILE' }>;
-          return await downloadFile(downloadMessage.dataUrl, downloadMessage.filename);
-        } catch (error) {
-          console.error('[Background] downloadFile error:', error);
-          return { ok: false, error: String(error) };
-        }
-      },
-      GET_SETTINGS: async () => {
-        try {
-          const result = await getSettings();
-          return { type: 'SETTINGS_RESPONSE', ...result };
-        } catch (error) {
-          return { type: 'SETTINGS_RESPONSE', settings: DEFAULT_SETTINGS, error: String(error) };
-        }
-      },
-      SAVE_SETTINGS: async (payload) => {
-        try {
-          const saveMessage = payload as Extract<IncomingMessage, { type: 'SAVE_SETTINGS' }>;
-          const result = await saveSettings(saveMessage.settings);
-          return { type: 'SETTINGS_RESPONSE', ...result };
-        } catch (error) {
-          const saveMessage = payload as Extract<IncomingMessage, { type: 'SAVE_SETTINGS' }>;
-          return { type: 'SETTINGS_RESPONSE', settings: saveMessage.settings, error: String(error) };
-        }
-      },
-      UPDATE_BADGE: (payload) => {
-        const badgeMessage = payload as Extract<IncomingMessage, { type: 'UPDATE_BADGE' }>;
-        updateBadge(badgeMessage.count);
-      },
-    };
-
-    const handler = handlers[msg.type];
-    if (!handler) return;
-
-    const result = handler(msg, sender);
-    if (result instanceof Promise) {
-      result.then((response) => {
-        if (response !== undefined) {
-          sendResponse(response);
-        }
-      });
-      return true;
-    }
-
-    if (result !== undefined) {
-      sendResponse(result);
-    }
+    updateBadge(count);
   });
 
   // Initialize badge on install

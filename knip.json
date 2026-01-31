@@ -18,11 +18,8 @@
   "ignoreDependencies": [
     "@tailwindcss/postcss",
     "@wxt-dev/module-react",
-    "@vitejs/plugin-react"
-  ],
-  "ignoreBinaries": [
-    "open",
-    "tsx"
+    "@vitejs/plugin-react",
+    "tailwindcss"
   ],
   "vitest": {
     "entry": [

@@ -72,8 +72,9 @@ describe('Background Helpers', () => {
         expect(isInjectableUrl('chrome://newtab')).toBe(false);
       });
 
-      it('returns false for chrome-extension:// URLs', () => {
+      it('returns false for extension URLs', () => {
         expect(isInjectableUrl('chrome-extension://abc123/popup.html')).toBe(false);
+        expect(isInjectableUrl('moz-extension://abc123/popup.html')).toBe(false);
       });
 
       it('returns false for about: URLs', () => {

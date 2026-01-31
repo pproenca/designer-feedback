@@ -5,6 +5,7 @@ import { defineContentScript } from '#imports';
 import { getAnnotationCount, getStorageKey } from '@/utils/storage';
 import { emitUiEvent } from '@/utils/ui-events';
 import { mountUI } from './mount';
+import { contentMessenger } from '@/utils/messaging';
 
 declare global {
   interface Window {
@@ -50,53 +51,69 @@ export default defineContentScript({
       await uiPromise;
     }
 
-    // Message handler - must return true for async responses, false/undefined for unhandled
-    // Using synchronous function to properly handle messaging protocol
-    type MessageSender = { tab?: { id?: number }; frameId?: number; id?: string };
-    const messageHandler = (
-      message: unknown,
-      _sender: MessageSender,
-      sendResponse: (response?: unknown) => void
-    ): boolean | void => {
-      const msg = message as { type?: string };
+    // Message handlers using @webext-core/messaging
+    contentMessenger.onMessage('showToolbar', () => {
+      ensureInjected().catch((error) => {
+        console.error('Failed to show toolbar:', error);
+      });
+    });
 
-      // Only handle messages meant for content script
-      // Return nothing for unhandled messages so other listeners (offscreen doc) can respond
-      if (msg.type === 'SHOW_TOOLBAR') {
-        ensureInjected().catch((error) => {
-          console.error('Failed to show toolbar:', error);
+    contentMessenger.onMessage('getAnnotationCount', async ({ data: url }) => {
+      try {
+        const targetUrl = url ?? getStorageKey();
+        const count = await getAnnotationCount(targetUrl);
+        return { count };
+      } catch {
+        return { count: 0 };
+      }
+    });
+
+    contentMessenger.onMessage('triggerExport', () => {
+      ensureInjected()
+        .then(() => {
+          ctx.setTimeout(() => {
+            emitUiEvent('open-export');
+          }, 0);
+        })
+        .catch((error) => {
+          console.error('Failed to trigger export:', error);
         });
-        return; // No response needed, don't keep channel open
+    });
+
+    contentMessenger.onMessage('toggleToolbar', ({ data: enabled }) => {
+      if (enabled) {
+        ensureInjected().catch((error) => {
+          console.error('Failed to toggle toolbar:', error);
+        });
       }
+    });
 
-      if (msg.type === 'GET_ANNOTATION_COUNT') {
-        const url = getStorageKey();
-        getAnnotationCount(url)
-          .then((count) => sendResponse({ count }))
-          .catch(() => sendResponse({ count: 0 }));
-        return true; // Keep channel open for async response
+    // Track SPA navigation via wxt:locationchange
+    let currentUrl = window.location.href;
+    ctx.addEventListener(window, 'wxt:locationchange', () => {
+      const newUrl = window.location.href;
+      const oldUrl = currentUrl;
+      currentUrl = newUrl;
+
+      // Only emit if path/search changed (not just hash)
+      try {
+        const oldParsed = new URL(oldUrl);
+        const newParsed = new URL(newUrl);
+        const oldKey = oldParsed.origin + oldParsed.pathname + oldParsed.search;
+        const newKey = newParsed.origin + newParsed.pathname + newParsed.search;
+
+        if (oldKey !== newKey) {
+          emitUiEvent('location-changed', { newUrl, oldUrl });
+        }
+      } catch {
+        // If URL parsing fails, emit the event anyway
+        emitUiEvent('location-changed', { newUrl, oldUrl });
       }
+    });
 
-      if (msg.type === 'TRIGGER_EXPORT') {
-        ensureInjected()
-          .then(() => {
-            window.setTimeout(() => {
-              emitUiEvent('open-export');
-            }, 0);
-          })
-          .catch((error) => {
-            console.error('Failed to trigger export:', error);
-          });
-        return; // No response needed
-      }
-
-      // Don't return anything for messages we don't handle
-      // This allows other listeners (like offscreen document) to respond
-    };
-
-    browser.runtime.onMessage.addListener(messageHandler);
     ctx.onInvalidated(() => {
-      browser.runtime.onMessage.removeListener(messageHandler);
+      // Note: @webext-core/messaging doesn't provide removeListener API
+      // Listeners are cleaned up when the content script context is invalidated
       uiInstance?.remove();
       uiInstance = null;
       uiPromise = null;

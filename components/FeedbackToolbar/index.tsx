@@ -142,27 +142,23 @@ function FeedbackToolbarContent({
     return () => clearTimeout(timer);
   }, [entranceCompleted]);
 
-  // Listen for external events
+  // Listen for external events (UI events emitted from content script handlers)
   useEffect(() => {
-    const handleExportMessage = (message: unknown) => {
-      const msg = message as { type?: string };
-      if (msg.type === 'TRIGGER_EXPORT') {
-        exportModalOpened();
-      }
-    };
-    browser.runtime.onMessage.addListener(handleExportMessage);
-
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
+    const offLocation = onUiEvent('location-changed', () => {
+      annotationDeselected(); // Close any open popup
+      loadAnnotations(); // Reload for new URL
+    });
 
     return () => {
-      browser.runtime.onMessage.removeListener(handleExportMessage);
       offHide();
       offShow();
       offOpen();
+      offLocation();
     };
-  }, [exportModalOpened, uiHidden, uiShown]);
+  }, [annotationDeselected, exportModalOpened, loadAnnotations, uiHidden, uiShown]);
 
   // Element selection click handler
   useEffect(() => {
@@ -182,14 +178,14 @@ function FeedbackToolbarContent({
       const scrollTop = window.scrollY;
       const scrollLeft = window.scrollX;
       const isFixed = hasFixedPositioning(target);
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const clickX = e.clientX;
+      const clickY = e.clientY;
 
       const { name, path } = identifyElement(target);
 
       elementSelected({
-        x: isFixed ? centerX : centerX + scrollLeft,
-        y: isFixed ? centerY : centerY + scrollTop,
+        x: isFixed ? clickX : clickX + scrollLeft,
+        y: isFixed ? clickY : clickY + scrollTop,
         element: name,
         elementPath: path,
         target,

@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+
+// Mock backgroundMessenger and withTimeout
+const mockSendMessage = vi.fn();
+vi.mock('@/utils/messaging', () => ({
+  backgroundMessenger: {
+    sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+  },
+  withTimeout: <T>(promise: Promise<T>) => promise,
+}));
+
 import { downloadDataUrl, exportAsImageWithNotes } from './export';
 
 const mockAnnotations = [
@@ -22,6 +32,7 @@ describe('export utilities', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     fakeBrowser.reset();
+    mockSendMessage.mockReset();
   });
 
   afterEach(() => {
@@ -29,25 +40,22 @@ describe('export utilities', () => {
   });
 
   it('downloads file via background service worker', async () => {
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: true } as unknown as void);
+    mockSendMessage.mockResolvedValue({ ok: true });
 
     await downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt');
 
-    // Data URLs are passed to background, which handles blob conversion via offscreen document
-    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
-      type: 'DOWNLOAD_FILE',
+    expect(mockSendMessage).toHaveBeenCalledWith('downloadFile', {
       filename: 'test.txt',
       dataUrl: 'data:text/plain;base64,SGVsbG8=',
     });
-    spy.mockRestore();
   });
 
   it('throws error when background download fails', async () => {
-    const spy = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ok: false, error: 'nope' } as unknown as void);
+    mockSendMessage.mockResolvedValue({ ok: false, error: 'nope' });
 
-    await expect(downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt')).rejects.toThrow('nope');
-
-    spy.mockRestore();
+    await expect(downloadDataUrl('data:text/plain;base64,SGVsbG8=', 'test.txt')).rejects.toThrow(
+      'nope'
+    );
   });
 
   it('falls back to execCommand copy when clipboard API is unavailable', async () => {

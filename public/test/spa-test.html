@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPA Navigation Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ddd;
+    }
+    .nav button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border: 1px solid #007bff;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+    }
+    .nav button:hover {
+      background: #0056b3;
+    }
+    .status {
+      background: #f5f5f5;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      font-family: monospace;
+    }
+    .content {
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 200px;
+    }
+    h1 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>SPA Navigation Test Page</h1>
+
+  <div class="nav">
+    <button id="nav-home" data-path="/">Home</button>
+    <button id="nav-page1" data-path="/page1">Page 1</button>
+    <button id="nav-page2" data-path="/page2">Page 2</button>
+    <button id="nav-hash" data-hash="#section1">Hash Only</button>
+  </div>
+
+  <div class="status">
+    <strong>Current URL:</strong> <span id="current-url"></span><br>
+    <strong>Navigation Count:</strong> <span id="nav-count">0</span>
+  </div>
+
+  <div class="content" id="content">
+    <h2 id="page-title">Home Page</h2>
+    <p id="page-description">This is the home page. Use the navigation buttons above to simulate SPA navigation using the History API.</p>
+  </div>
+
+  <script>
+    let navCount = 0;
+
+    const pages = {
+      '/': {
+        title: 'Home Page',
+        description: 'This is the home page. Use the navigation buttons above to simulate SPA navigation using the History API.'
+      },
+      '/page1': {
+        title: 'Page 1',
+        description: 'This is Page 1. Annotations created here should be specific to this URL path.'
+      },
+      '/page2': {
+        title: 'Page 2',
+        description: 'This is Page 2. Navigating between pages should trigger location change events.'
+      }
+    };
+
+    function updateUI() {
+      document.getElementById('current-url').textContent = window.location.href;
+      document.getElementById('nav-count').textContent = navCount;
+
+      const path = window.location.pathname;
+      const pageData = pages[path] || pages['/'];
+      document.getElementById('page-title').textContent = pageData.title;
+      document.getElementById('page-description').textContent = pageData.description;
+    }
+
+    function navigate(path) {
+      navCount++;
+      window.history.pushState({ path }, '', path);
+      updateUI();
+    }
+
+    function navigateHash(hash) {
+      navCount++;
+      window.history.pushState({}, '', hash);
+      updateUI();
+    }
+
+    // Handle popstate for back/forward navigation
+    window.addEventListener('popstate', () => {
+      navCount++;
+      updateUI();
+    });
+
+    // Set up navigation buttons
+    document.getElementById('nav-home').addEventListener('click', () => navigate('/'));
+    document.getElementById('nav-page1').addEventListener('click', () => navigate('/page1'));
+    document.getElementById('nav-page2').addEventListener('click', () => navigate('/page2'));
+    document.getElementById('nav-hash').addEventListener('click', () => navigateHash('#section1'));
+
+    // Initial update
+    updateUI();
+  </script>
+</body>
+</html>

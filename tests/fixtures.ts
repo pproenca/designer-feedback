@@ -54,7 +54,7 @@ async function activateToolbar(page: Page, context: BrowserContext, extensionId:
 
   const activationPage = await context.newPage();
   await activationPage.goto(
-    `chrome-extension://${extensionId}/test-activate.html?target=${encodeURIComponent(targetUrl)}`
+    `${extensionId}/test-activate.html?target=${encodeURIComponent(targetUrl)}`
   );
   await activationPage.waitForLoadState('domcontentloaded');
 
@@ -67,8 +67,6 @@ async function activateToolbar(page: Page, context: BrowserContext, extensionId:
     const diagnostics = await activationPage.evaluate(() => ({
       status: window.__dfActivateStatus,
       debug: window.__dfActivateDebug,
-      hasChrome: Boolean(window.chrome),
-      hasScripting: Boolean(window.chrome?.scripting),
       url: window.location.href,
     }));
     throw new Error(`Activation timed out: ${JSON.stringify(diagnostics)}`);
@@ -197,8 +195,9 @@ export const test = base.extend<{
     if (!serviceWorker) {
       serviceWorker = await context.waitForEvent('serviceworker');
     }
-    const extensionId = serviceWorker.url().split('/')[2];
-    await use(extensionId);
+    // Extract origin (e.g., "chrome-extension://abc123" or "moz-extension://abc123")
+    const url = new URL(serviceWorker.url());
+    await use(url.origin);
   },
   helpers: async ({ page, context, extensionId }, use) => {
     await use({

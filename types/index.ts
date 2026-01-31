@@ -39,19 +39,3 @@ export type Settings = {
 };
 
 export type ExportFormat = 'image-notes' | 'snapshot';
-
-// Message types for content <-> background communication
-export type MessageType =
-  | { type: 'CAPTURE_SCREENSHOT' }
-  | { type: 'SCREENSHOT_CAPTURED'; data: string; error?: string }
-  | { type: 'DOWNLOAD_FILE'; filename: string; dataUrl: string }
-  | { type: 'OFFSCREEN_DOWNLOAD'; dataUrl: string }
-  | { type: 'GET_SETTINGS' }
-  | { type: 'SETTINGS_RESPONSE'; settings: Settings; error?: string }
-  | { type: 'SAVE_SETTINGS'; settings: Settings }
-  | { type: 'GET_ANNOTATION_COUNT'; url?: string }
-  | { type: 'ANNOTATION_COUNT_RESPONSE'; count: number }
-  | { type: 'UPDATE_BADGE'; count: number }
-  | { type: 'TRIGGER_EXPORT' }
-  | { type: 'TOGGLE_TOOLBAR'; enabled: boolean }
-  | { type: 'SHOW_TOOLBAR' };
