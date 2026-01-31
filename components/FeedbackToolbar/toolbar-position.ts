@@ -1,28 +1,40 @@
 // Toolbar position persistence utilities
-// Saves toolbar position per-origin to WXT storage (local)
+// Saves toolbar position per-origin using WXT storage defineItem
 
 import type { Position } from '@/hooks/useDraggable';
-import { storage } from 'wxt/utils/storage';
+import { toolbarPositions } from '@/utils/storage-items';
 
-const STORAGE_KEY_PREFIX = 'designer-feedback:toolbar-position:';
-
-export function getToolbarPositionKey(): string {
-  return `${STORAGE_KEY_PREFIX}${window.location.origin}`;
+/**
+ * Get the origin key for current page
+ */
+function getOriginKey(): string {
+  return window.location.origin;
 }
 
+/**
+ * Save toolbar position for the current origin
+ */
 export async function saveToolbarPosition(position: Position): Promise<void> {
-  const key = getToolbarPositionKey();
+  const origin = getOriginKey();
   try {
-    await storage.setItem(`local:${key}`, position);
+    const positions = await toolbarPositions.getValue();
+    await toolbarPositions.setValue({
+      ...positions,
+      [origin]: position,
+    });
   } catch (error) {
     console.warn('Failed to save toolbar position:', error);
   }
 }
 
+/**
+ * Load toolbar position for the current origin
+ */
 export async function loadToolbarPosition(): Promise<Position | null> {
-  const key = getToolbarPositionKey();
+  const origin = getOriginKey();
   try {
-    return await storage.getItem<Position | null>(`local:${key}`, { fallback: null });
+    const positions = await toolbarPositions.getValue();
+    return positions[origin] ?? null;
   } catch (error) {
     console.warn('Failed to load toolbar position:', error);
     return null;

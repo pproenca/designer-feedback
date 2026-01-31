@@ -147,13 +147,18 @@ function FeedbackToolbarContent({
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
+    const offLocation = onUiEvent('location-changed', () => {
+      annotationDeselected(); // Close any open popup
+      loadAnnotations(); // Reload for new URL
+    });
 
     return () => {
       offHide();
       offShow();
       offOpen();
+      offLocation();
     };
-  }, [exportModalOpened, uiHidden, uiShown]);
+  }, [annotationDeselected, exportModalOpened, loadAnnotations, uiHidden, uiShown]);
 
   // Element selection click handler
   useEffect(() => {

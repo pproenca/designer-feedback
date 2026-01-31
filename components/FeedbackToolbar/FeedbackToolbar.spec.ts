@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { toolbarPositions } from '@/utils/storage-items';
 
 describe('Toolbar position persistence', () => {
-  const STORAGE_KEY = 'designer-feedback:toolbar-position:';
-
   beforeEach(() => {
     vi.clearAllMocks();
     fakeBrowser.reset();
@@ -14,35 +13,49 @@ describe('Toolbar position persistence', () => {
     });
   });
 
-  describe('getToolbarPositionKey', () => {
-    it('should generate per-origin storage key', async () => {
-      // Import the function dynamically to pick up the mocked location
-      const { getToolbarPositionKey } = await import('./toolbar-position');
-      const key = getToolbarPositionKey();
-      expect(key).toBe(`${STORAGE_KEY}https://example.com`);
-    });
-  });
-
   describe('saveToolbarPosition', () => {
-    it('should save position to browser.storage.local', async () => {
+    it('should save position to consolidated positions object', async () => {
       const { saveToolbarPosition } = await import('./toolbar-position');
       const position = { x: 100, y: 200 };
 
       await saveToolbarPosition(position);
 
-      // Verify the storage was called
-      const result = await browser.storage.local.get(`${STORAGE_KEY}https://example.com`);
-      expect(result[`${STORAGE_KEY}https://example.com`]).toEqual(position);
+      // Verify using the defineItem's getValue
+      const positions = await toolbarPositions.getValue();
+      expect(positions).toEqual({
+        'https://example.com': position,
+      });
+    });
+
+    it('should preserve positions for other origins', async () => {
+      // Pre-populate storage with existing positions using setValue
+      await toolbarPositions.setValue({
+        'https://other.com': { x: 50, y: 50 },
+      });
+
+      const { saveToolbarPosition } = await import('./toolbar-position');
+      const position = { x: 100, y: 200 };
+
+      await saveToolbarPosition(position);
+
+      // Verify both positions are preserved
+      const positions = await toolbarPositions.getValue();
+      expect(positions).toEqual({
+        'https://other.com': { x: 50, y: 50 },
+        'https://example.com': position,
+      });
     });
   });
 
   describe('loadToolbarPosition', () => {
-    it('should load position from browser.storage.local', async () => {
+    it('should load position for current origin', async () => {
       const savedPosition = { x: 150, y: 250 };
-      const key = `${STORAGE_KEY}https://example.com`;
 
-      // Pre-populate storage with saved position
-      await browser.storage.local.set({ [key]: savedPosition });
+      // Pre-populate storage with saved positions
+      await toolbarPositions.setValue({
+        'https://example.com': savedPosition,
+        'https://other.com': { x: 50, y: 50 },
+      });
 
       const { loadToolbarPosition } = await import('./toolbar-position');
       const position = await loadToolbarPosition();
@@ -51,6 +64,18 @@ describe('Toolbar position persistence', () => {
     });
 
     it('should return null when no saved position exists', async () => {
+      const { loadToolbarPosition } = await import('./toolbar-position');
+      const position = await loadToolbarPosition();
+
+      expect(position).toBeNull();
+    });
+
+    it('should return null when origin not in positions map', async () => {
+      // Pre-populate storage with positions for other origins
+      await toolbarPositions.setValue({
+        'https://other.com': { x: 50, y: 50 },
+      });
+
       const { loadToolbarPosition } = await import('./toolbar-position');
       const position = await loadToolbarPosition();
 

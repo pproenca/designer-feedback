@@ -71,7 +71,7 @@ export default defineContentScript({
     contentMessenger.onMessage('triggerExport', () => {
       ensureInjected()
         .then(() => {
-          window.setTimeout(() => {
+          ctx.setTimeout(() => {
             emitUiEvent('open-export');
           }, 0);
         })
@@ -85,6 +85,29 @@ export default defineContentScript({
         ensureInjected().catch((error) => {
           console.error('Failed to toggle toolbar:', error);
         });
+      }
+    });
+
+    // Track SPA navigation via wxt:locationchange
+    let currentUrl = window.location.href;
+    ctx.addEventListener(window, 'wxt:locationchange', () => {
+      const newUrl = window.location.href;
+      const oldUrl = currentUrl;
+      currentUrl = newUrl;
+
+      // Only emit if path/search changed (not just hash)
+      try {
+        const oldParsed = new URL(oldUrl);
+        const newParsed = new URL(newUrl);
+        const oldKey = oldParsed.origin + oldParsed.pathname + oldParsed.search;
+        const newKey = newParsed.origin + newParsed.pathname + newParsed.search;
+
+        if (oldKey !== newKey) {
+          emitUiEvent('location-changed', { newUrl, oldUrl });
+        }
+      } catch {
+        // If URL parsing fails, emit the event anyway
+        emitUiEvent('location-changed', { newUrl, oldUrl });
       }
     });
 
