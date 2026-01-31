@@ -1,8 +1,9 @@
-import { useState, type ReactNode, type RefObject } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
 import type { ExportFormat } from '@/types';
 import { clsx } from 'clsx';
+import { useExportState, useExportActions } from './ExportContext';
 
 export type ExportFormatOption = {
   id: ExportFormat;
@@ -15,24 +16,16 @@ export type ExportFormatOption = {
 
 interface FormatSelectorProps {
   options: ExportFormatOption[];
-  selectedFormat: ExportFormat;
-  isExporting: boolean;
-  onFormatSelect: (format: ExportFormat) => void;
-  formatOptionsRef: RefObject<HTMLDivElement | null>;
 }
 
-export function FormatSelector({
-  options,
-  selectedFormat,
-  isExporting,
-  onFormatSelect,
-  formatOptionsRef,
-}: FormatSelectorProps) {
+export function FormatSelector({ options }: FormatSelectorProps) {
+  const { selectedFormat, isExporting } = useExportState();
+  const { dispatch, formatOptionsRef } = useExportActions();
   // Track input method to disable animations for keyboard navigation (Emil's strategy-keyboard-no-animate)
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
 
   const handleValueChange = (value: string) => {
-    onFormatSelect(value as ExportFormat);
+    dispatch({ type: 'updateState', payload: { selectedFormat: value as ExportFormat } });
   };
 
   return (

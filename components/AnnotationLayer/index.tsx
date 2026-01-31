@@ -5,10 +5,11 @@
  * to render all annotation markers on the page with drag-to-reposition support.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { MarkerLayer } from './MarkerLayer';
 import { PendingMarker } from './PendingMarker';
 import { DragHighlight } from './DragHighlight';
+import { MarkerDragProvider } from './MarkerDragContext';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from '@/components/FeedbackToolbar/ToolbarStateProvider';
 import { useMarkerDrag } from '@/hooks/useMarkerDrag';
@@ -53,20 +54,29 @@ export function AnnotationLayer() {
     disabled: isDragDisabled,
   });
 
+  // Memoize context value to prevent unnecessary re-renders
+  const dragContextValue = useMemo(
+    () => ({
+      isDragging,
+      draggedAnnotationId,
+      currentDragPosition,
+      getMarkerDragHandlers: getMarkerHandlers,
+    }),
+    [isDragging, draggedAnnotationId, currentDragPosition, getMarkerHandlers]
+  );
+
   // Calculate pending marker number (next number after existing annotations)
   const pendingMarkerNumber = annotations.length + 1;
 
   return (
     <>
-      <MarkerLayer
-        annotations={annotations}
-        isEntranceComplete={isEntranceComplete}
-        onMarkerClick={annotationSelected}
-        isDragging={isDragging}
-        draggedAnnotationId={draggedAnnotationId}
-        currentDragPosition={currentDragPosition}
-        getMarkerDragHandlers={getMarkerHandlers}
-      />
+      <MarkerDragProvider value={dragContextValue}>
+        <MarkerLayer
+          annotations={annotations}
+          isEntranceComplete={isEntranceComplete}
+          onMarkerClick={annotationSelected}
+        />
+      </MarkerDragProvider>
       <PendingMarker
         pendingAnnotation={pendingAnnotation}
         markerNumber={pendingMarkerNumber}

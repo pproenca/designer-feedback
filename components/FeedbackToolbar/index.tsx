@@ -40,6 +40,7 @@ import { clsx } from 'clsx';
 import type { Annotation } from '@/types';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useSettings } from '@/hooks/useSettings';
 import type { PendingAnnotation } from './context';
 
 // Zustand stores
@@ -57,8 +58,6 @@ const ExportModal = lazy(() =>
 
 interface FeedbackToolbarProps {
   shadowRoot: ShadowRoot;
-  lightMode?: boolean;
-  onLightModeChange?: (lightMode: boolean) => void;
 }
 
 // =============================================================================
@@ -73,11 +72,9 @@ export function FeedbackToolbar(props: FeedbackToolbarProps) {
   );
 }
 
-function FeedbackToolbarContent({
-  shadowRoot,
-  lightMode = false,
-  onLightModeChange,
-}: FeedbackToolbarProps) {
+function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
+  const { settings } = useSettings();
+  const lightMode = settings.lightMode;
   const {
     addMode,
     selectedCategory,
@@ -368,7 +365,6 @@ function FeedbackToolbarContent({
             <ExportModal
               annotations={annotations}
               onClose={() => exportModalClosed()}
-              lightMode={lightMode}
               shadowRoot={shadowRoot}
             />
           </Suspense>
@@ -376,10 +372,7 @@ function FeedbackToolbarContent({
       </AnimatePresence>
 
       {/* Toolbar */}
-      <Toolbar
-        onThemeToggle={() => onLightModeChange?.(!lightMode)}
-        lightMode={lightMode}
-      >
+      <Toolbar>
         <CategoryPanel />
       </Toolbar>
     </div>,

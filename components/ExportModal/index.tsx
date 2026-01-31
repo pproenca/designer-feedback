@@ -1,7 +1,7 @@
-import { useReducer, useRef, useEffect, useMemo } from 'react';
+import { useReducer, useRef, useEffect, useMemo, useCallback } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import { Dialog } from '@base-ui/react/dialog';
-import type { Annotation, ExportFormat } from '@/types';
+import type { Annotation } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
 import { isRestrictedPage } from '@/utils/screenshot';
 import { X, Copy, Image } from 'lucide-react';
@@ -9,6 +9,8 @@ import { clsx } from 'clsx';
 import { FormatSelector, type ExportFormatOption } from './FormatSelector';
 import { AnnotationPreview } from './AnnotationPreview';
 import { ExportActions } from './ExportActions';
+import { ExportProvider, exportReducer, initialExportState } from './ExportContext';
+import { useSettings } from '@/hooks/useSettings';
 
 // =============================================================================
 // Framer Motion Variants (Emil Kowalski standards)
@@ -57,57 +59,21 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
 interface ExportModalProps {
   annotations: Annotation[];
   onClose: () => void;
-  lightMode?: boolean;
   shadowRoot: ShadowRoot;
-}
-
-type ExportStatus = {
-  type: 'success' | 'warning' | 'error' | 'info';
-  text: string;
-};
-
-type ExportState = {
-  selectedFormat: ExportFormat;
-  isExporting: boolean;
-  exportOutcome: 'copied' | 'downloaded' | null;
-  statusMessage: ExportStatus | null;
-};
-
-type ExportAction =
-  | { type: 'updateState'; payload: Partial<ExportState> }
-  | { type: 'resetStatus' };
-
-const initialExportModalState: ExportState = {
-  selectedFormat: 'snapshot',
-  isExporting: false,
-  exportOutcome: null,
-  statusMessage: null,
-};
-
-function exportModalReducer(state: ExportState, action: ExportAction): ExportState {
-  switch (action.type) {
-    case 'updateState':
-      return { ...state, ...action.payload };
-    case 'resetStatus':
-      return { ...state, statusMessage: null, exportOutcome: null };
-    default:
-      return state;
-  }
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function ExportModal({ annotations, onClose, lightMode = false, shadowRoot }: ExportModalProps) {
-  const [state, dispatch] = useReducer(exportModalReducer, initialExportModalState);
+export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalProps) {
+  const { settings } = useSettings();
+  const lightMode = settings.lightMode;
+  const [state, dispatch] = useReducer(exportReducer, initialExportState);
   const reduceMotion = useReducedMotion() ?? false;
   const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
   const modalVariants = useMemo(() => getModalVariants(reduceMotion), [reduceMotion]);
-  const { isExporting, exportOutcome, statusMessage, selectedFormat } = state;
-  const isMarkdownFormat = selectedFormat === 'image-notes';
-  const isSnapshotFormat = selectedFormat === 'snapshot';
-  const isClipboardFormat = isMarkdownFormat;
+  const { isExporting, statusMessage, selectedFormat } = state;
   const themeClassName = lightMode ? '' : 'dark';
 
   const restricted = isRestrictedPage();
@@ -135,7 +101,6 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
   );
 
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const formatOptionsRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-select markdown format on restricted pages
   useEffect(() => {
@@ -160,7 +125,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
     return 'Export failed. Please try again.';
   };
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     if (autoCloseTimerRef.current !== null) {
       clearTimeout(autoCloseTimerRef.current);
       autoCloseTimerRef.current = null;
@@ -223,7 +188,7 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
     } finally {
       dispatch({ type: 'updateState', payload: { isExporting: false } });
     }
-  };
+  }, [annotations, onClose, selectedFormat]);
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
@@ -294,31 +259,20 @@ export function ExportModal({ annotations, onClose, lightMode = false, shadowRoo
               </Dialog.Close>
             </div>
 
-            {/* Content */}
-            <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
-              <FormatSelector
-                options={formatOptions}
-                selectedFormat={selectedFormat}
-                isExporting={isExporting}
-                onFormatSelect={(format) =>
-                  dispatch({ type: 'updateState', payload: { selectedFormat: format } })
-                }
-                formatOptionsRef={formatOptionsRef}
-              />
-              <AnnotationPreview annotations={annotations} />
-            </div>
+            {/* Content - wrapped with ExportProvider for child components */}
+            <ExportProvider
+              state={state}
+              dispatch={dispatch}
+              onClose={onClose}
+              handleExport={handleExport}
+            >
+              <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
+                <FormatSelector options={formatOptions} />
+                <AnnotationPreview annotations={annotations} />
+              </div>
 
-            <ExportActions
-              isExporting={isExporting}
-              exportOutcome={exportOutcome}
-              isSnapshotFormat={isSnapshotFormat}
-              isMarkdownFormat={isMarkdownFormat}
-              isClipboardFormat={isClipboardFormat}
-              statusMessage={statusMessage}
-              statusMessageId={statusMessageId}
-              onCancel={onClose}
-              onExport={handleExport}
-            />
+              <ExportActions />
+            </ExportProvider>
           </Dialog.Popup>
         </AnimatePresence>
       </Dialog.Portal>

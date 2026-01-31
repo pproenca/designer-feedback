@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
 import { clsx } from 'clsx';
 import { getCategoryConfig } from '@/shared/categories';
+import { useMarkerDragContext } from './MarkerDragContext';
 import type { Annotation } from '@/types';
 import type { Position } from '@/hooks/useMarkerDrag';
 
@@ -27,14 +28,6 @@ export interface MarkerLayerProps {
   isEntranceComplete: boolean;
   /** Callback when a marker is clicked */
   onMarkerClick: (id: string) => void;
-  /** Whether dragging is currently in progress */
-  isDragging?: boolean;
-  /** ID of the annotation currently being dragged */
-  draggedAnnotationId?: string | null;
-  /** Current position during drag */
-  currentDragPosition?: Position | null;
-  /** Get drag handlers for a marker */
-  getMarkerDragHandlers?: (annotation: Annotation) => { onMouseDown: (e: ReactMouseEvent) => void };
 }
 
 // =============================================================================
@@ -202,11 +195,14 @@ export function MarkerLayer({
   annotations,
   isEntranceComplete,
   onMarkerClick,
-  isDragging = false,
-  draggedAnnotationId,
-  currentDragPosition,
-  getMarkerDragHandlers,
 }: MarkerLayerProps) {
+  const {
+    isDragging,
+    draggedAnnotationId,
+    currentDragPosition,
+    getMarkerDragHandlers,
+  } = useMarkerDragContext();
+
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -232,7 +228,7 @@ export function MarkerLayer({
 
   const renderMarker = (annotation: Annotation, globalIndex: number) => {
     const isThisMarkerDragged = isDragging && draggedAnnotationId === annotation.id;
-    const dragHandlers = getMarkerDragHandlers?.(annotation);
+    const dragHandlers = getMarkerDragHandlers(annotation);
 
     return (
       <Marker

@@ -12,16 +12,13 @@ import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react'
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
+import { useSettings } from '@/hooks/useSettings';
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export interface ToolbarProps {
-  /** Callback when theme button is clicked */
-  onThemeToggle: () => void;
-  /** Whether light mode is enabled */
-  lightMode: boolean;
   /** Children to render in add button area (CategoryPanel) */
   children?: ReactNode;
 }
@@ -70,11 +67,13 @@ const getVariants = (reduceMotion: boolean) => ({
 // Component
 // =============================================================================
 
-export function Toolbar({
-  onThemeToggle,
-  lightMode,
-  children,
-}: ToolbarProps) {
+export function Toolbar({ children }: ToolbarProps) {
+  const { settings, updateSettings } = useSettings();
+  const lightMode = settings.lightMode;
+
+  const handleThemeToggle = useCallback(() => {
+    updateSettings({ lightMode: !lightMode });
+  }, [lightMode, updateSettings]);
   const { isExpanded, addMode, isEntranceComplete } = useToolbarState();
   const {
     toolbarExpanded,
@@ -357,7 +356,7 @@ export function Toolbar({
               type="button"
               aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
               aria-describedby="tooltip-theme"
-              onClick={onThemeToggle}
+              onClick={handleThemeToggle}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {lightMode ? (
