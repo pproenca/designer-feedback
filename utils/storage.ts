@@ -1,6 +1,4 @@
-// =============================================================================
-// Extension Storage Utilities (WXT storage local area)
-// =============================================================================
+
 
 import type { Annotation } from '@/types';
 import { getAnnotationsBucketKey, STORAGE_KEY_VERSION } from '@/utils/storage-constants';
@@ -9,9 +7,6 @@ import { storage } from 'wxt/utils/storage';
 import { backgroundMessenger } from '@/utils/messaging';
 import { maybeRunCleanup, getRetentionCutoff } from '@/utils/storage-cleanup';
 
-/**
- * Get the hashed storage key for the current URL
- */
 export function getStorageKey(): string {
   const origin = window.location.origin === 'null' ? '' : window.location.origin;
   const raw = `${origin}${window.location.pathname}${window.location.search}`;
@@ -19,7 +14,7 @@ export function getStorageKey(): string {
 }
 
 function stripUrl(annotation: Annotation & { url?: string }): Annotation {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit
   const { url, ...rest } = annotation;
   return rest as Annotation;
 }
@@ -92,9 +87,6 @@ async function clearAnnotationsForKey(urlKey: string): Promise<void> {
   await removeLocal(bucketKey);
 }
 
-/**
- * Save an annotation to extension storage
- */
 export async function saveAnnotation(annotation: Annotation & { url: string }): Promise<void> {
   const urlKey = annotation.url;
   const existing = await loadAnnotationsForKey(urlKey);
@@ -103,13 +95,10 @@ export async function saveAnnotation(annotation: Annotation & { url: string }): 
   await saveAnnotationsForKey(urlKey, next);
 }
 
-/**
- * Load all annotations for the current URL
- */
 export async function loadAnnotations(): Promise<Annotation[]> {
   const cutoff = getRetentionCutoff();
 
-  // Trigger cleanup if needed (fire-and-forget)
+
   maybeRunCleanup().catch((error) => {
     console.warn('Failed to run cleanup:', error);
   });
@@ -120,9 +109,6 @@ export async function loadAnnotations(): Promise<Annotation[]> {
   return annotations.filter((annotation) => annotation.timestamp > cutoff);
 }
 
-/**
- * Delete a single annotation
- */
 export async function deleteAnnotation(id: string): Promise<void> {
   const key = getStorageKey();
   const annotations = await loadAnnotationsForKey(key);
@@ -133,17 +119,11 @@ export async function deleteAnnotation(id: string): Promise<void> {
   }
 }
 
-/**
- * Clear all annotations for the current URL
- */
 export async function clearAnnotations(): Promise<void> {
   const key = getStorageKey();
   await clearAnnotationsForKey(key);
 }
 
-/**
- * Get annotation count for a specific URL
- */
 export async function getAnnotationCount(url: string): Promise<number> {
   const cutoff = getRetentionCutoff();
   const annotations = await loadAnnotationsForKey(url);
@@ -151,9 +131,6 @@ export async function getAnnotationCount(url: string): Promise<number> {
   return annotations.filter((annotation) => annotation.timestamp > cutoff).length;
 }
 
-/**
- * Update badge count via background script
- */
 export function updateBadgeCount(count: number): void {
   backgroundMessenger.sendMessage('updateBadge', count);
 }

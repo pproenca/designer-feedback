@@ -1,16 +1,7 @@
-/**
- * ExportContext - Context for export modal state
- *
- * Eliminates prop drilling of export state to FormatSelector and ExportActions.
- * Provides state, dispatch, and derived values via context.
- */
+
 
 import { createContext, useContext, useRef, type ReactNode, type Dispatch, type RefObject } from 'react';
 import type { ExportFormat } from '@/types';
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type ExportStatus = {
   type: 'success' | 'warning' | 'error' | 'info';
@@ -28,20 +19,12 @@ export type ExportAction =
   | { type: 'updateState'; payload: Partial<ExportState> }
   | { type: 'resetStatus' };
 
-// =============================================================================
-// Initial State
-// =============================================================================
-
 export const initialExportState: ExportState = {
   selectedFormat: 'snapshot',
   isExporting: false,
   exportOutcome: null,
   statusMessage: null,
 };
-
-// =============================================================================
-// Reducer
-// =============================================================================
 
 export function exportReducer(state: ExportState, action: ExportAction): ExportState {
   switch (action.type) {
@@ -54,38 +37,26 @@ export function exportReducer(state: ExportState, action: ExportAction): ExportS
   }
 }
 
-// =============================================================================
-// Context Types
-// =============================================================================
-
 interface ExportContextValue {
-  // State
+
   state: ExportState;
   dispatch: Dispatch<ExportAction>;
 
-  // Derived values
+
   isMarkdownFormat: boolean;
   isSnapshotFormat: boolean;
   isClipboardFormat: boolean;
   statusMessageId: string | undefined;
 
-  // Refs
+
   formatOptionsRef: RefObject<HTMLDivElement | null>;
 
-  // Callbacks
+
   onClose: () => void;
   handleExport: () => Promise<void>;
 }
 
-// =============================================================================
-// Context
-// =============================================================================
-
 const ExportContext = createContext<ExportContextValue | null>(null);
-
-// =============================================================================
-// Provider
-// =============================================================================
 
 interface ExportProviderProps {
   children: ReactNode;
@@ -125,10 +96,6 @@ export function ExportProvider({
   return <ExportContext.Provider value={value}>{children}</ExportContext.Provider>;
 }
 
-// =============================================================================
-// Hooks
-// =============================================================================
-
 export function useExportContext(): ExportContextValue {
   const context = useContext(ExportContext);
   if (!context) {
@@ -137,7 +104,6 @@ export function useExportContext(): ExportContextValue {
   return context;
 }
 
-/** Access just the state values */
 export function useExportState() {
   const { state, isMarkdownFormat, isSnapshotFormat, isClipboardFormat, statusMessageId } =
     useExportContext();
@@ -150,7 +116,6 @@ export function useExportState() {
   };
 }
 
-/** Access dispatch and callbacks */
 export function useExportActions() {
   const { dispatch, onClose, handleExport, formatOptionsRef } = useExportContext();
   return { dispatch, onClose, handleExport, formatOptionsRef };

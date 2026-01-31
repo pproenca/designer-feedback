@@ -1,14 +1,6 @@
-// =============================================================================
-// Test Activation Page
-// =============================================================================
-// This page is used by E2E tests to activate the Designer Feedback toolbar
-// on a target tab. It reads the target URL from the query string and:
-// 1. Finds the tab matching the target URL
-// 2. Injects the content script into that tab
-// 3. Sends a showToolbar message to display the toolbar
+
 
 import { browser } from 'wxt/browser';
-// Window augmentation types are defined in tests/types.ts
 
 async function activate(): Promise<void> {
   window.__dfActivateStatus = 'pending';
@@ -54,7 +46,7 @@ async function activate(): Promise<void> {
       return;
     }
 
-    // Check if the flag was set
+
     const [flagCheckResult] = await browser.scripting.executeScript({
       target: { tabId: targetTab.id },
       func: () => ({
@@ -64,7 +56,7 @@ async function activate(): Promise<void> {
     });
     window.__dfActivateDebug.flagCheck = flagCheckResult?.result;
 
-    // @webext-core/messaging expects messages with id, type, data, and timestamp fields
+
     const sendShowToolbar = async (): Promise<boolean> => {
       try {
         await browser.tabs.sendMessage(targetTab.id!, {

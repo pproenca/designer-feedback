@@ -28,7 +28,7 @@ export function CreateModeContent({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoFocusTimerRef = useRef<number | null>(null);
 
-  // Focus textarea on mount
+
   useEffect(() => {
     autoFocusTimerRef.current = window.setTimeout(() => {
       const textarea = textareaRef.current;

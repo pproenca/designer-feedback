@@ -1,16 +1,4 @@
-/**
- * FeedbackToolbar - Composition root for the annotation toolbar
- *
- * This is the main entry point that composes:
- * - Toolbar UI component
- * - CategoryPanel for annotation type selection
- * - SelectionOverlay for element highlighting
- * - AnnotationLayer for markers
- * - AnnotationPopup for creating/viewing annotations
- * - ExportModal for exporting feedback
- *
- * State management is colocated via ToolbarStateProvider (reducer + context).
- */
+
 
 import {
   useCallback,
@@ -43,26 +31,16 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useSettings } from '@/hooks/useSettings';
 import type { PendingAnnotation } from './context';
 
-// Zustand stores
 import { useAnnotationsStore } from '@/stores/annotations';
 import { ToolbarStateProvider, useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 
-// Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
   import('../ExportModal').then((m) => ({ default: m.ExportModal }))
 );
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface FeedbackToolbarProps {
   shadowRoot: ShadowRoot;
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function FeedbackToolbar(props: FeedbackToolbarProps) {
   return (
@@ -111,7 +89,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
     }))
   );
 
-  // Derived state
+
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
     [annotations, selectedAnnotationId]
@@ -120,33 +98,33 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
   const isCategoryPanelOpen = addMode === 'category';
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
 
-  // Local state (component-specific)
-  // Clear stale selected annotation
+
+
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
       annotationDeselected();
     }
   }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
-  // Load initial data
+
   useEffect(() => {
     loadAnnotations();
   }, [loadAnnotations]);
 
-  // Entrance animation complete
+
   useEffect(() => {
     const timer = setTimeout(() => entranceCompleted(), 500);
     return () => clearTimeout(timer);
   }, [entranceCompleted]);
 
-  // Listen for external events (UI events emitted from content script handlers)
+
   useEffect(() => {
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
     const offLocation = onUiEvent('location-changed', () => {
-      annotationDeselected(); // Close any open popup
-      loadAnnotations(); // Reload for new URL
+      annotationDeselected();
+      loadAnnotations();
     });
 
     return () => {
@@ -157,7 +135,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
     };
   }, [annotationDeselected, exportModalOpened, loadAnnotations, uiHidden, uiShown]);
 
-  // Element selection click handler
+
   useEffect(() => {
     if (!isSelectingElement) return undefined;
 
@@ -197,7 +175,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
     return () => document.removeEventListener('click', handleAddModeClick, true);
   }, [isSelectingElement, elementSelected]);
 
-  // Body class for crosshair cursor
+
   useEffect(() => {
     if (isSelectingElement) {
       document.body.classList.add('designer-feedback-add-mode');
@@ -207,7 +185,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
     return () => document.body.classList.remove('designer-feedback-add-mode');
   }, [isSelectingElement]);
 
-  // Escape key handler - closes panels/selections in priority order
+
   type EscapeState = {
     hasSelectedAnnotation: boolean;
     isSelectingElement: boolean;
@@ -249,7 +227,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
 
   useEscapeKey(escapeState, escapeHandlers);
 
-  // Click outside handler for selected annotation
+
   const handleClickOutside = useCallback(() => {
     annotationDeselected();
   }, [annotationDeselected]);
@@ -261,7 +239,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
 
   useClickOutside(Boolean(selectedAnnotation), clickOutsideSelectors, handleClickOutside);
 
-  // Handlers
+
   const handleAnnotationSubmit = useCallback(
     async (comment: string) => {
       if (!pendingAnnotation) return;
@@ -316,7 +294,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
     return getPopupDisplayPosition(selectedAnnotation);
   }, [selectedAnnotation]);
 
-  // Hide all UI during screenshot
+
   if (isHidden) {
     return null;
   }

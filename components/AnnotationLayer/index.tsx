@@ -1,9 +1,4 @@
-/**
- * AnnotationLayer - Container for rendering annotation markers
- *
- * This component composes MarkerLayer, PendingMarker, and DragHighlight
- * to render all annotation markers on the page with drag-to-reposition support.
- */
+
 
 import { useCallback, useMemo } from 'react';
 import { MarkerLayer } from './MarkerLayer';
@@ -15,17 +10,13 @@ import { useToolbarActions, useToolbarState } from '@/components/FeedbackToolbar
 import { useMarkerDrag } from '@/hooks/useMarkerDrag';
 import type { Position } from '@/hooks/useMarkerDrag';
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export function AnnotationLayer() {
   const annotations = useAnnotationsStore((s) => s.annotations);
   const annotationUpdated = useAnnotationsStore((s) => s.annotationUpdated);
   const { pendingAnnotation, isEntranceComplete, selectedAnnotationId } = useToolbarState();
   const { annotationSelected } = useToolbarActions();
 
-  // Disable dragging when popup is open (an annotation is selected)
+
   const isDragDisabled = selectedAnnotationId !== null;
 
   const handleDragEnd = useCallback(
@@ -54,7 +45,7 @@ export function AnnotationLayer() {
     disabled: isDragDisabled,
   });
 
-  // Memoize context value to prevent unnecessary re-renders
+
   const dragContextValue = useMemo(
     () => ({
       isDragging,
@@ -65,7 +56,7 @@ export function AnnotationLayer() {
     [isDragging, draggedAnnotationId, currentDragPosition, getMarkerHandlers]
   );
 
-  // Calculate pending marker number (next number after existing annotations)
+
   const pendingMarkerNumber = annotations.length + 1;
 
   return (

@@ -1,28 +1,26 @@
-// =============================================================================
-// Background Service Worker
-// =============================================================================
+
 
 import { defineBackground } from '#imports';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import {
-  // URL utilities
+
   isInjectableUrl,
   getOrigin,
   getOriginHash,
   normalizeOriginHash,
-  // Screenshot
+
   captureVisibleTabScreenshot,
   getWindowIdForCapture,
-  // Download
+
   downloadFile,
-  // Settings
+
   getSettings,
   saveSettings,
-  // Badge
+
   updateBadge,
-  // Security
+
   isExtensionSender,
-  // Tab tracking
+
   persistActivatedTabs,
   restoreActivatedTabs,
   ensureHostPermission,
@@ -32,13 +30,13 @@ import { activatedTabs as activatedTabsStorage } from '@/utils/storage-items';
 import { backgroundMessenger, contentMessenger } from '@/utils/messaging';
 
 export default defineBackground(() => {
-  // =============================================================================
-  // Tab Tracking State (scoped to service worker lifecycle)
-  // =============================================================================
 
-  const activatedTabs = new Map<number, string>(); // tabId -> origin hash
 
-  // Restore activated tabs on service worker startup
+
+
+  const activatedTabs = new Map<number, string>();
+
+
   restoreActivatedTabs(activatedTabs)
     .then((changed) => {
       if (changed) {
@@ -49,9 +47,9 @@ export default defineBackground(() => {
       console.warn('Failed to restore activated tabs:', error);
     });
 
-  // =============================================================================
-  // Tab Tracking Helpers (use shared state)
-  // =============================================================================
+
+
+
 
   async function getActivatedOriginHash(tabId: number): Promise<string | null> {
     const cached = activatedTabs.get(tabId);
@@ -80,9 +78,9 @@ export default defineBackground(() => {
     persistActivatedTabs(activatedTabs);
   }
 
-  // =============================================================================
-  // Content Script Injection
-  // =============================================================================
+
+
+
 
   async function injectContentScripts(tabId: number): Promise<boolean> {
     if (!browser.scripting?.executeScript) return false;
@@ -105,13 +103,10 @@ export default defineBackground(() => {
     }
   }
 
-  /**
-   * Show toolbar on the given tab.
-   * Injects content scripts on-demand when needed.
-   */
+
   async function showToolbar(tabId: number): Promise<boolean> {
     try {
-      // Tell content script to show toolbar
+
       await sendShowToolbarWithRetry(tabId);
       return true;
     } catch (error) {
@@ -125,20 +120,20 @@ export default defineBackground(() => {
         console.error('Failed to show toolbar after injection:', retryError);
         return false;
       }
-      // Content script might not be ready yet, or page doesn't support it
+
       console.error('Failed to show toolbar:', error);
     }
     return false;
   }
 
-  // =============================================================================
-  // Icon Click Handler (1-Click Activation)
-  // =============================================================================
+
+
+
 
   browser.action.onClicked.addListener(async (tab) => {
     if (!tab.id || !tab.url) return;
 
-    // Only inject on http/https pages
+
     if (!isInjectableUrl(tab.url)) {
       return;
     }
@@ -154,9 +149,9 @@ export default defineBackground(() => {
     }
   });
 
-  // =============================================================================
-  // Same-Origin Navigation Persistence
-  // =============================================================================
+
+
+
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== 'complete' || !tab.url) return;
@@ -168,26 +163,26 @@ export default defineBackground(() => {
       const currentOrigin = getOrigin(url);
       const currentOriginHash = getOriginHash(currentOrigin);
       if (currentOriginHash === previousOriginHash) {
-        // Same origin - re-inject
+
         const shown = await showToolbar(tabId);
         if (!shown) {
           clearActivatedTab(tabId);
         }
       } else {
-        // Different origin - clear tracking
+
         clearActivatedTab(tabId);
       }
     })();
   });
 
-  // Clean up on tab close
+
   browser.tabs.onRemoved.addListener((tabId) => {
     clearActivatedTab(tabId);
   });
 
-  // =============================================================================
-  // Message Handlers (using @webext-core/messaging)
-  // =============================================================================
+
+
+
 
   backgroundMessenger.onMessage('captureScreenshot', async ({ sender }) => {
     if (!isExtensionSender(sender)) {
@@ -244,7 +239,7 @@ export default defineBackground(() => {
     updateBadge(count);
   });
 
-  // Initialize badge on install
+
   browser.runtime.onInstalled.addListener(() => {
     updateBadge(0);
   });

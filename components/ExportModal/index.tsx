@@ -12,11 +12,6 @@ import { ExportActions } from './ExportActions';
 import { ExportProvider, exportReducer, initialExportState } from './ExportContext';
 import { useSettings } from '@/hooks/useSettings';
 
-// =============================================================================
-// Framer Motion Variants (Emil Kowalski standards)
-// =============================================================================
-
-// Emil's iOS-style curves for smooth, natural motion
 const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
 
@@ -52,19 +47,11 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
   },
 });
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface ExportModalProps {
   annotations: Annotation[];
   onClose: () => void;
   shadowRoot: ShadowRoot;
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalProps) {
   const { settings } = useSettings();
@@ -102,14 +89,14 @@ export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalPro
 
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-select markdown format on restricted pages
+
   useEffect(() => {
     if (restricted && selectedFormat === 'snapshot') {
       dispatch({ type: 'updateState', payload: { selectedFormat: 'image-notes' } });
     }
   }, [restricted, selectedFormat]);
 
-  // Cleanup timer on unmount
+
   useEffect(() => {
     return () => {
       if (autoCloseTimerRef.current !== null) {

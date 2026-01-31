@@ -1,6 +1,4 @@
-/**
- * Shared button styles for AnnotationPopup components
- */
+
 
 import { clsx } from 'clsx';
 

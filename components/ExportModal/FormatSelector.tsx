@@ -21,7 +21,7 @@ interface FormatSelectorProps {
 export function FormatSelector({ options }: FormatSelectorProps) {
   const { selectedFormat, isExporting } = useExportState();
   const { dispatch, formatOptionsRef } = useExportActions();
-  // Track input method to disable animations for keyboard navigation (Emil's strategy-keyboard-no-animate)
+
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
 
   const handleValueChange = (value: string) => {

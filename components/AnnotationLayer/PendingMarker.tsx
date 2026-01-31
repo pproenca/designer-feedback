@@ -1,28 +1,15 @@
-/**
- * PendingMarker - Temporary marker shown during annotation creation
- *
- * This component renders the marker that appears after clicking
- * an element but before the annotation is submitted.
- */
+
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { clsx } from 'clsx';
 import type { PendingAnnotation } from '@/components/FeedbackToolbar/context';
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface PendingMarkerProps {
-  /** The pending annotation data, or null if none */
+
   pendingAnnotation: PendingAnnotation | null;
-  /** The marker number to display */
+
   markerNumber: number;
 }
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   marker: {
@@ -37,10 +24,6 @@ const getVariants = (reduceMotion: boolean) => ({
   },
 });
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export function PendingMarker({ pendingAnnotation, markerNumber }: PendingMarkerProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
@@ -51,9 +34,9 @@ export function PendingMarker({ pendingAnnotation, markerNumber }: PendingMarker
 
   const { x, y, rect, isFixed } = pendingAnnotation;
 
-  // Calculate display position
-  // For fixed elements, use rect-relative position
-  // For absolute elements, use stored coordinates
+
+
+
   const displayY = isFixed ? rect.top + rect.height / 2 : y;
 
   return (

@@ -9,10 +9,6 @@ import { usePopupPosition } from './usePopupPosition';
 import { ViewModeContent } from './ViewModeContent';
 import { CreateModeContent } from './CreateModeContent';
 
-// =============================================================================
-// Framer Motion Variants
-// =============================================================================
-
 const getPopupVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
@@ -40,10 +36,6 @@ const getPopupVariants = (reduceMotion: boolean): Variants => ({
   },
 });
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface AnnotationPopupProps {
   mode?: 'create' | 'view';
   element: string;
@@ -60,10 +52,6 @@ interface AnnotationPopupProps {
   isFixed: boolean;
   accentColor?: string;
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function AnnotationPopup({
   mode = 'create',

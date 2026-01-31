@@ -1,8 +1,4 @@
-/**
- * Toolbar - The main floating toolbar UI component
- *
- * Reads toolbar state from local context and renders controls.
- */
+
 
 import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -14,18 +10,10 @@ import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
 import { useSettings } from '@/hooks/useSettings';
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface ToolbarProps {
-  /** Children to render in add button area (CategoryPanel) */
+
   children?: ReactNode;
 }
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   toolbar: {
@@ -62,10 +50,6 @@ const getVariants = (reduceMotion: boolean) => ({
     },
   },
 });
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function Toolbar({ children }: ToolbarProps) {
   const { settings, updateSettings } = useSettings();

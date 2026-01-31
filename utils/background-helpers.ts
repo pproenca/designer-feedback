@@ -1,7 +1,4 @@
-// =============================================================================
-// Background Service Worker Helper Functions
-// Extracted for testability - these pure/semi-pure functions can be unit tested
-// =============================================================================
+
 
 import type { Settings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
@@ -17,20 +14,10 @@ import {
   OFFSCREEN_MESSAGE_TYPE,
 } from '@/utils/offscreen-constants';
 
-// =============================================================================
-// URL Utilities
-// =============================================================================
-
-/**
- * Check if a URL is injectable (http/https only)
- */
 export function isInjectableUrl(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
-/**
- * Get origin from URL
- */
 export function getOrigin(url: string): string {
   try {
     return new URL(url).origin;
@@ -39,23 +26,14 @@ export function getOrigin(url: string): string {
   }
 }
 
-/**
- * Get hash of origin string for comparison
- */
 export function getOriginHash(origin: string): string {
   return hashString(origin);
 }
 
-/**
- * Get origin pattern for permissions API
- */
 export function getOriginPattern(origin: string): string {
   return `${origin}/*`;
 }
 
-/**
- * Normalize an origin hash - if it's a full URL, hash it; otherwise return as-is
- */
 export function normalizeOriginHash(value: string): string {
   if (value.includes('://')) {
     return hashString(value);
@@ -63,23 +41,14 @@ export function normalizeOriginHash(value: string): string {
   return value;
 }
 
-// =============================================================================
-// Screenshot Capture
-// =============================================================================
-
 export type ScreenshotResult = { data: string; error?: string };
 
-/**
- * Get windowId for screenshot capture, with fallback to active tab query
- * @param senderTabWindowId - windowId from sender.tab (may be undefined)
- * @returns windowId to use for captureVisibleTab
- */
 export async function getWindowIdForCapture(senderTabWindowId: number | undefined): Promise<number> {
   if (senderTabWindowId !== undefined) {
     return senderTabWindowId;
   }
 
-  // Fallback: query for the active tab in the current window
+
   try {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (activeTab?.windowId !== undefined) {
@@ -89,15 +58,10 @@ export async function getWindowIdForCapture(senderTabWindowId: number | undefine
     console.warn('[Background] Failed to query active tab:', error);
   }
 
-  // Last resort: use WINDOW_ID_CURRENT
+
   return browser.windows.WINDOW_ID_CURRENT;
 }
 
-/**
- * Verify screenshot permission for a URL
- * @param url - The URL to check permission for
- * @returns true if permission is granted, false otherwise
- */
 export async function verifyScreenshotPermission(url: string): Promise<boolean> {
   try {
     const origin = new URL(url).origin;
@@ -111,9 +75,6 @@ export async function verifyScreenshotPermission(url: string): Promise<boolean> 
   }
 }
 
-/**
- * Capture screenshot of the visible tab (background service worker implementation)
- */
 export async function captureVisibleTabScreenshot(windowId: number): Promise<ScreenshotResult> {
   try {
     const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
@@ -127,68 +88,50 @@ export async function captureVisibleTabScreenshot(windowId: number): Promise<Scr
   }
 }
 
-// =============================================================================
-// Offscreen Document Management
-// =============================================================================
-
-/**
- * Check if an offscreen document already exists
- * Uses getContexts API with fallback for older Chrome versions
- */
 export async function hasOffscreenDocument(): Promise<boolean> {
   try {
-    // Use browser.runtime.getContexts to check for existing offscreen document
+
     const existingContexts = await browser.runtime.getContexts({
       contextTypes: [browser.runtime.ContextType.OFFSCREEN_DOCUMENT],
       documentUrls: [browser.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)],
     });
     return existingContexts.length > 0;
   } catch {
-    // Fallback for older Chrome versions that don't support getContexts
-    // This can happen in Chrome < 116
+
+
     return false;
   }
 }
 
-/**
- * Ensure offscreen document exists for blob URL creation
- */
 export async function setupOffscreenDocument(): Promise<void> {
-  // Check if offscreen document already exists
+
   const exists = await hasOffscreenDocument();
 
   if (exists) {
     return;
   }
 
-  // Create offscreen document for blob URL creation
+
   await browser.offscreen.createDocument({
     url: OFFSCREEN_DOCUMENT_PATH,
     reasons: [browser.offscreen.Reason.BLOBS],
     justification: 'Convert data URL to blob URL for downloading screenshots',
   });
-  // Small delay to ensure script is loaded
+
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
-// =============================================================================
-// File Download
-// =============================================================================
-
 export type DownloadResult = { ok: boolean; downloadId?: number; error?: string };
 
-/**
- * Download a file from a data URL using offscreen document for blob conversion
- */
 export async function downloadFile(
   dataUrl: string,
   filename: string
 ): Promise<DownloadResult> {
   try {
-    // Create offscreen document for blob URL creation
+
     await setupOffscreenDocument();
 
-    // Send data URL to offscreen document for conversion to blob URL
+
     const response = (await browser.runtime.sendMessage({
       type: OFFSCREEN_MESSAGE_TYPE.DOWNLOAD,
       target: MESSAGE_TARGET.OFFSCREEN,
@@ -199,7 +142,7 @@ export async function downloadFile(
       return { ok: false, error: response?.error ?? 'Blob conversion failed' };
     }
 
-    // Download using blob URL (from offscreen document context)
+
     const downloadId = await browser.downloads.download({
       url: response.blobUrl,
       filename,
@@ -217,15 +160,8 @@ export async function downloadFile(
   }
 }
 
-// =============================================================================
-// Settings Management
-// =============================================================================
-
 export type SettingsResult = { settings: Settings; error?: string };
 
-/**
- * Get settings from sync storage
- */
 export async function getSettings(): Promise<SettingsResult> {
   try {
     const [enabled, lightMode] = await Promise.all([
@@ -239,9 +175,6 @@ export async function getSettings(): Promise<SettingsResult> {
   }
 }
 
-/**
- * Save settings to sync storage
- */
 export async function saveSettings(settings: Settings): Promise<SettingsResult> {
   try {
     await Promise.all([
@@ -255,13 +188,6 @@ export async function saveSettings(settings: Settings): Promise<SettingsResult> 
   }
 }
 
-// =============================================================================
-// Badge Management
-// =============================================================================
-
-/**
- * Update the extension badge
- */
 export function updateBadge(count: number): void {
   if (count > 0) {
     browser.action.setBadgeText({ text: String(count) });
@@ -271,24 +197,10 @@ export function updateBadge(count: number): void {
   }
 }
 
-// =============================================================================
-// Security
-// =============================================================================
-
-/**
- * Check if a message sender is from this extension
- */
 export function isExtensionSender(sender: { id?: string }): boolean {
   return sender.id === browser.runtime.id;
 }
 
-// =============================================================================
-// Tab Tracking
-// =============================================================================
-
-/**
- * Persist activated tabs to session storage
- */
 export function persistActivatedTabs(activatedTabs: Map<number, string>): void {
   const payload: Record<string, string> = {};
   activatedTabs.forEach((origin, tabId) => {
@@ -299,9 +211,6 @@ export function persistActivatedTabs(activatedTabs: Map<number, string>): void {
   });
 }
 
-/**
- * Restore activated tabs from session storage
- */
 export async function restoreActivatedTabs(
   activatedTabs: Map<number, string>
 ): Promise<boolean> {
@@ -333,9 +242,6 @@ export async function restoreActivatedTabs(
   }
 }
 
-/**
- * Check if manifest has optional host permissions
- */
 export function hasOptionalHostPermissions(): boolean {
   try {
     const manifest = browser.runtime.getManifest() as { optional_host_permissions?: string[] };
@@ -346,9 +252,6 @@ export function hasOptionalHostPermissions(): boolean {
   }
 }
 
-/**
- * Ensure host permission is granted for an origin
- */
 export async function ensureHostPermission(origin: string): Promise<boolean> {
   if (!origin) return false;
   if (!hasOptionalHostPermissions()) return false;
@@ -370,9 +273,6 @@ export async function ensureHostPermission(origin: string): Promise<boolean> {
   }
 }
 
-/**
- * Get content script files from manifest
- */
 export function getContentScriptFiles(): string[] {
   const manifest = browser.runtime.getManifest();
   const scripts = manifest.content_scripts ?? [];
@@ -381,6 +281,6 @@ export function getContentScriptFiles(): string[] {
   if (uniqueFiles.length > 0) {
     return uniqueFiles;
   }
-  // Fallback for programmatic-only injection (no manifest content_scripts)
+
   return ['content-scripts/content.js'];
 }

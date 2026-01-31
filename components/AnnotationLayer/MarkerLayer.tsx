@@ -1,12 +1,4 @@
-/**
- * MarkerLayer - Renders annotation markers on the page
- *
- * This component handles:
- * - Rendering markers for both fixed and absolute positioned annotations
- * - Separating markers into fixed and absolute containers
- * - Click and keyboard interactions
- * - Hover tooltips
- */
+
 
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useMemo } from 'react';
@@ -17,22 +9,14 @@ import { useMarkerDragContext } from './MarkerDragContext';
 import type { Annotation } from '@/types';
 import type { Position } from '@/hooks/useMarkerDrag';
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface MarkerLayerProps {
-  /** Array of annotations to render */
+
   annotations: Annotation[];
-  /** Whether entrance animation is complete */
+
   isEntranceComplete: boolean;
-  /** Callback when a marker is clicked */
+
   onMarkerClick: (id: string) => void;
 }
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   marker: {
@@ -59,10 +43,6 @@ const getVariants = (reduceMotion: boolean) => ({
     },
   },
 });
-
-// =============================================================================
-// Helper Component - Marker Tooltip
-// =============================================================================
 
 interface MarkerTooltipProps {
   annotation: Annotation;
@@ -106,21 +86,17 @@ function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
   );
 }
 
-// =============================================================================
-// Helper Component - Single Marker
-// =============================================================================
-
 interface MarkerProps {
   annotation: Annotation;
   index: number;
   isEntranceComplete: boolean;
   onMarkerClick: (id: string) => void;
   variants: ReturnType<typeof getVariants>;
-  /** Whether this marker is being dragged */
+
   isDragged?: boolean;
-  /** Override position during drag */
+
   dragPosition?: Position | null;
-  /** Drag mousedown handler */
+
   onDragMouseDown?: (e: ReactMouseEvent) => void;
 }
 
@@ -137,7 +113,7 @@ function Marker({
   const config = getCategoryConfig(annotation.category);
 
   const handleClick = () => {
-    // Don't trigger click handler if we have drag handlers (drag handles its own click)
+
     if (!onDragMouseDown) {
       onMarkerClick(annotation.id);
     }
@@ -150,7 +126,7 @@ function Marker({
     }
   };
 
-  // Use drag position if being dragged, otherwise use annotation position
+
   const displayX = isDragged && dragPosition ? dragPosition.x : annotation.x;
   const displayY = isDragged && dragPosition ? dragPosition.y : annotation.y;
 
@@ -187,10 +163,6 @@ function Marker({
   );
 }
 
-// =============================================================================
-// Main Component
-// =============================================================================
-
 export function MarkerLayer({
   annotations,
   isEntranceComplete,
@@ -206,7 +178,7 @@ export function MarkerLayer({
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
-  // Separate annotations into fixed and absolute
+
   const { absoluteMarkers, fixedMarkers } = useMemo(() => {
     const absolute: Array<{ annotation: Annotation; globalIndex: number }> = [];
     const fixed: Array<{ annotation: Annotation; globalIndex: number }> = [];

@@ -1,17 +1,8 @@
-/**
- * CategoryPanel - Category selection dropdown for annotations
- *
- * This component renders the category selection panel that appears
- * when the user clicks the add annotation button.
- */
+
 
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Bug, Lightbulb, CircleHelp, Accessibility } from 'lucide-react';
 import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
-
-// =============================================================================
-// Animation Variants
-// =============================================================================
 
 const getVariants = (reduceMotion: boolean) => ({
   panel: {
@@ -28,10 +19,6 @@ const getVariants = (reduceMotion: boolean) => ({
     },
   },
 });
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function CategoryPanel() {
   const { addMode } = useToolbarState();
