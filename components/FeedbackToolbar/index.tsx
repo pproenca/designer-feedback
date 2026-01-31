@@ -178,14 +178,14 @@ function FeedbackToolbarContent({
       const scrollTop = window.scrollY;
       const scrollLeft = window.scrollX;
       const isFixed = hasFixedPositioning(target);
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const clickX = e.clientX;
+      const clickY = e.clientY;
 
       const { name, path } = identifyElement(target);
 
       elementSelected({
-        x: isFixed ? centerX : centerX + scrollLeft,
-        y: isFixed ? centerY : centerY + scrollTop,
+        x: isFixed ? clickX : clickX + scrollLeft,
+        y: isFixed ? clickY : clickY + scrollTop,
         element: name,
         elementPath: path,
         target,
