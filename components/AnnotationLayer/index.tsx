@@ -13,7 +13,7 @@ import type { Position } from '@/hooks/useMarkerDrag';
 export function AnnotationLayer() {
   const annotations = useAnnotationsStore((s) => s.annotations);
   const annotationUpdated = useAnnotationsStore((s) => s.annotationUpdated);
-  const { pendingAnnotation, isEntranceComplete, selectedAnnotationId } = useToolbarState();
+  const { pendingAnnotation, isEntranceComplete, selectedAnnotationId, selectedCategory } = useToolbarState();
   const { annotationSelected } = useToolbarActions();
 
 
@@ -71,6 +71,7 @@ export function AnnotationLayer() {
       <PendingMarker
         pendingAnnotation={pendingAnnotation}
         markerNumber={pendingMarkerNumber}
+        category={selectedCategory}
       />
       <DragHighlight
         annotation={draggedAnnotation}

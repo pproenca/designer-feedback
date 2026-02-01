@@ -3,12 +3,13 @@
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { clsx } from 'clsx';
 import type { PendingAnnotation } from '@/components/FeedbackToolbar/context';
+import type { FeedbackCategory } from '@/types';
+import { getCategoryConfig } from '@/shared/categories';
 
 export interface PendingMarkerProps {
-
   pendingAnnotation: PendingAnnotation | null;
-
   markerNumber: number;
+  category: FeedbackCategory;
 }
 
 const getVariants = (reduceMotion: boolean) => ({
@@ -24,9 +25,10 @@ const getVariants = (reduceMotion: boolean) => ({
   },
 });
 
-export function PendingMarker({ pendingAnnotation, markerNumber }: PendingMarkerProps) {
+export function PendingMarker({ pendingAnnotation, markerNumber, category }: PendingMarkerProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
+  const categoryConfig = getCategoryConfig(category);
 
   if (!pendingAnnotation) {
     return null;
@@ -49,7 +51,7 @@ export function PendingMarker({ pendingAnnotation, markerNumber }: PendingMarker
         className={clsx(
           'w-5.5 h-5.5 rounded-full flex items-center justify-center',
           'text-xs font-semibold text-white select-none',
-          'shadow-marker -translate-x-1/2 -translate-y-1/2 bg-df-blue'
+          `shadow-marker -translate-x-1/2 -translate-y-1/2 ${categoryConfig.tw.bg}`
         )}
         style={{
           left: `${x}px`,
