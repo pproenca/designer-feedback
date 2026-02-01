@@ -12,10 +12,9 @@ import {
   isRestrictedPage,
   isActiveTabRequiredError,
 } from '@/utils/dom/screenshot';
-import {X, Copy, Image} from 'lucide-react';
+import {X} from 'lucide-react';
 import {clsx} from 'clsx';
 import {FormatSelector, type ExportFormatOption} from './FormatSelector';
-import {AnnotationPreview} from './AnnotationPreview';
 import {ExportActions} from './ExportActions';
 import {
   ExportProvider,
@@ -102,19 +101,17 @@ export function ExportModal({
     () => [
       {
         id: 'image-notes',
-        label: 'Markdown (Clipboard)',
-        description: 'Copies a concise markdown report to your clipboard.',
-        icon: <Copy size={18} aria-hidden="true" />,
+        label: 'Copy Notes',
+        description: 'Copies a Markdown summary to your clipboard.',
       },
       {
         id: 'snapshot',
-        label: 'Snapshot (Download)',
+        label: 'Download Snapshot',
         description: restricted
-          ? 'Not available on browser pages (chrome://, about:, etc.)'
-          : 'Full-page image with highlights and details sidebar.',
-        icon: <Image size={18} aria-hidden="true" />,
+          ? 'Unavailable on browser pages (chrome://, about:, etc.)'
+          : 'Saves a full-page image with highlights and sidebar.',
         disabled: restricted,
-        disabledHint: 'Not available on browser pages',
+        disabledHint: 'Unavailable on browser pages',
       },
     ],
     [restricted]
@@ -183,7 +180,7 @@ export function ExportModal({
           await exportAsImageWithNotes(annotations);
           pendingToast = {
             type: 'success',
-            message: 'Markdown copied to clipboard.',
+            message: 'Copied to clipboard.',
           };
           onClose();
         }
@@ -327,7 +324,6 @@ export function ExportModal({
             >
               <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
                 <FormatSelector options={formatOptions} />
-                <AnnotationPreview annotations={annotations} />
               </div>
 
               <ExportActions />

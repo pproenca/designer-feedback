@@ -6,6 +6,7 @@ test.describe('Annotation Workflow', () => {
     ({browserName}) => browserName === 'firefox',
     'Playwright extension support is Chromium-only'
   );
+
   test.beforeEach(async ({page, helpers, toolbarPage}) => {
     await page.goto('https://example.com', {waitUntil: 'domcontentloaded'});
     await helpers.activateToolbar();

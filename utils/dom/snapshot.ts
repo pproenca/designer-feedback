@@ -193,7 +193,7 @@ function drawSidebarPanel(
   const indexGap = 12 * scale;
   const categoryLineHeight = 12 * scale;
   const elementLineHeight = 16 * scale;
-  const commentLineHeight = 16 * scale;
+  const commentLineHeight = 18 * scale;
 
   ctx.save();
   ctx.textBaseline = 'top';
@@ -223,18 +223,43 @@ function drawSidebarPanel(
     const config = getCategoryConfig(annotation.category);
 
     ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+    const baseContentHeight =
+      categoryLineHeight + 6 * scale + elementLineHeight + 4 * scale;
+    const minCardHeight =
+      cardPaddingY * 2 + Math.max(indexSize, baseContentHeight);
+
+    if (cursorY + minCardHeight > maxY) {
+      const remaining = annotations.length - i;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(`… and ${remaining} more`, cardX, cursorY);
+      ctx.restore();
+      break;
+    }
+
     let commentLines = wrapText(ctx, annotation.comment, textWidth);
-    if (commentLines.length > 2) {
-      commentLines = commentLines.slice(0, 2);
-      commentLines[1] = truncateText(ctx, `${commentLines[1]}…`, textWidth);
+    const maxContentHeight = maxY - cursorY - cardPaddingY * 2;
+    const maxCommentLines = Math.max(
+      0,
+      Math.floor((maxContentHeight - baseContentHeight) / commentLineHeight)
+    );
+
+    if (maxCommentLines === 0) {
+      commentLines = [];
+    } else if (commentLines.length > maxCommentLines) {
+      commentLines = commentLines.slice(0, maxCommentLines);
+      const lastIndex = commentLines.length - 1;
+      commentLines[lastIndex] = truncateText(
+        ctx,
+        `${commentLines[lastIndex]}…`,
+        textWidth
+      );
     }
 
     const contentHeight =
-      categoryLineHeight +
-      6 * scale +
-      elementLineHeight +
-      4 * scale +
-      commentLines.length * commentLineHeight;
+      baseContentHeight + commentLines.length * commentLineHeight;
     const cardHeight = cardPaddingY * 2 + Math.max(indexSize, contentHeight);
 
     if (cursorY + cardHeight > maxY) {
@@ -313,8 +338,8 @@ function drawSidebarPanel(
 
     textY += elementLineHeight + 4 * scale;
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.76)';
+    ctx.font = `500 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
     commentLines.forEach(line => {
       ctx.fillText(line, textX, textY);
@@ -354,22 +379,67 @@ function wrapText(
   maxWidth: number
 ): string[] {
   if (!text) return [''];
-  const words = text.split(/\s+/);
   const lines: string[] = [];
-  let currentLine = '';
+  const paragraphs = text.split(/\r?\n/);
 
-  words.forEach(word => {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width <= maxWidth) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
+  paragraphs.forEach((paragraph, index) => {
+    if (!paragraph.trim()) {
+      lines.push('');
+      return;
     }
+
+    const words = paragraph.split(/\s+/);
+    let currentLine = '';
+
+    words.forEach(word => {
+      if (!word) return;
+      if (ctx.measureText(word).width > maxWidth) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        const segments = breakLongWord(ctx, word, maxWidth);
+        segments.slice(0, -1).forEach(segment => lines.push(segment));
+        currentLine = segments[segments.length - 1] ?? '';
+        return;
+      }
+
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    });
+
+    if (currentLine) lines.push(currentLine);
+    if (index < paragraphs.length - 1) lines.push('');
   });
 
-  if (currentLine) lines.push(currentLine);
   return lines;
+}
+
+function breakLongWord(
+  ctx: CanvasRenderingContext2D,
+  word: string,
+  maxWidth: number
+): string[] {
+  const segments: string[] = [];
+  let current = '';
+
+  for (const char of word) {
+    const testSegment = current + char;
+    if (ctx.measureText(testSegment).width <= maxWidth || !current) {
+      current = testSegment;
+    } else {
+      segments.push(current);
+      current = char;
+    }
+  }
+
+  if (current) segments.push(current);
+  return segments;
 }
 
 function truncateText(

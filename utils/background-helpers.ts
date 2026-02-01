@@ -54,9 +54,10 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], {type: mime});
 }
 
-function createDownloadUrl(
-  dataUrl: string
-): {url: string; revoke?: () => void} {
+function createDownloadUrl(dataUrl: string): {
+  url: string;
+  revoke?: () => void;
+} {
   if (typeof URL?.createObjectURL !== 'function') {
     return {url: dataUrl};
   }
@@ -154,10 +155,7 @@ export async function downloadFile(
   let downloadUrl: string | null = null;
   try {
     if (typeof URL?.createObjectURL !== 'function') {
-      const offscreenResult = await downloadFileViaOffscreen(
-        dataUrl,
-        filename
-      );
+      const offscreenResult = await downloadFileViaOffscreen(dataUrl, filename);
       if (offscreenResult?.ok) {
         return offscreenResult;
       }
