@@ -31,8 +31,7 @@ npx playwright test tests/extension.spec.ts   # Single E2E test (requires build 
 ```
 designer-feedback/
 ├── entrypoints/
-│   ├── background.ts      # Service worker - icon click, tab tracking, message routing
-│   ├── offscreen/         # Offscreen document for downloads
+│   ├── background.ts      # Service worker - icon click, capture, message routing
 │   └── content/           # Content script - toolbar, markers, element selection
 │       ├── index.ts       # Entry point, message handlers, injection guard
 │       ├── App.tsx        # React app root

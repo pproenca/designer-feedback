@@ -3,9 +3,6 @@ import type {Browser} from 'wxt/browser';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
   isInjectableUrl,
-  getOrigin,
-  getOriginHash,
-  normalizeOriginHash,
   captureVisibleTabScreenshot,
   getWindowIdForCapture,
   downloadFile,
@@ -13,59 +10,14 @@ import {
   saveSettings,
   updateBadge,
   isExtensionSender,
-  persistActivatedTabs,
-  restoreActivatedTabs,
-  hasOptionalHostPermissions,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
-import {activatedTabs as activatedTabsStorage} from '@/utils/storage-items';
 import {backgroundMessenger, contentMessenger} from '@/utils/messaging';
 
 export default defineBackground(() => {
-  const activatedTabs = new Map<number, string>();
   const pendingCaptureTabs = new Map<number, number>();
   const pendingCaptureTtlMs = 120000;
-  const allowTabPersistence = hasOptionalHostPermissions();
   const contextMenuId = 'df-export-snapshot';
-
-  if (allowTabPersistence) {
-    restoreActivatedTabs(activatedTabs)
-      .then(changed => {
-        if (changed) {
-          persistActivatedTabs(activatedTabs);
-        }
-      })
-      .catch(error => {
-        console.warn('Failed to restore activated tabs:', error);
-      });
-  }
-
-  async function getActivatedOriginHash(tabId: number): Promise<string | null> {
-    const cached = activatedTabs.get(tabId);
-    if (cached) return cached;
-    try {
-      const stored = await activatedTabsStorage.getValue();
-      const origin = stored?.[String(tabId)];
-      if (origin) {
-        const normalized = normalizeOriginHash(origin);
-        activatedTabs.set(tabId, normalized);
-        return normalized;
-      }
-    } catch (error) {
-      console.warn('Failed to read activated tab origin:', error);
-    }
-    return null;
-  }
-
-  function setActivatedTab(tabId: number, originHash: string): void {
-    activatedTabs.set(tabId, originHash);
-    persistActivatedTabs(activatedTabs);
-  }
-
-  function clearActivatedTab(tabId: number): void {
-    activatedTabs.delete(tabId);
-    persistActivatedTabs(activatedTabs);
-  }
 
   function markPendingCapture(tabId: number): void {
     pendingCaptureTabs.set(tabId, Date.now());
@@ -168,13 +120,7 @@ export default defineBackground(() => {
     if (!tab?.id || !tab.url) return;
     if (!isInjectableUrl(tab.url)) return;
 
-    const shown = await showToolbar(tab.id);
-
-    if (allowTabPersistence && shown) {
-      const origin = getOrigin(tab.url);
-      const originHash = getOriginHash(origin);
-      setActivatedTab(tab.id, originHash);
-    }
+    await showToolbar(tab.id);
 
     if (hasPendingCapture(tab.id)) {
       const resumed = await sendResumeExportWithRetry(tab.id);
@@ -188,32 +134,7 @@ export default defineBackground(() => {
     await handleUserInvocation(tab);
   });
 
-  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status !== 'complete' || !tab.url) return;
-    clearPendingCapture(tabId);
-    if (!allowTabPersistence) return;
-    const url = tab.url;
-    void (async () => {
-      const previousOriginHash = await getActivatedOriginHash(tabId);
-      if (!previousOriginHash) return;
-
-      const currentOrigin = getOrigin(url);
-      const currentOriginHash = getOriginHash(currentOrigin);
-      if (currentOriginHash === previousOriginHash) {
-        const shown = await showToolbar(tabId);
-        if (!shown) {
-          clearActivatedTab(tabId);
-        }
-      } else {
-        clearActivatedTab(tabId);
-      }
-    })();
-  });
-
   browser.tabs.onRemoved.addListener(tabId => {
-    if (allowTabPersistence) {
-      clearActivatedTab(tabId);
-    }
     clearPendingCapture(tabId);
   });
 

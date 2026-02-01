@@ -1,20 +1,8 @@
 import {browser} from 'wxt/browser';
-import {hashString} from '@/utils/hash';
-import {activatedTabs} from '@/utils/storage-items';
-
-type ActivationMode = 'auto' | 'gesture';
 
 interface TargetInfo {
   targetOrigin: string;
   targetUrl: string;
-}
-
-function getOriginPattern(origin: string): string {
-  return `${origin}/*`;
-}
-
-function getOriginHash(origin: string): string {
-  return hashString(origin);
 }
 
 function getTargetInfo(params: URLSearchParams): TargetInfo {
@@ -31,68 +19,15 @@ function getTargetInfo(params: URLSearchParams): TargetInfo {
   }
 }
 
-async function persistActivatedTab(
-  tabId: number,
-  origin: string
-): Promise<void> {
-  const stored = await activatedTabs.getValue();
-  await activatedTabs.setValue({
-    ...stored,
-    [String(tabId)]: getOriginHash(origin),
-  });
-}
-
-async function requestHostPermission(origin: string): Promise<boolean> {
-  if (!origin) {
-    return false;
-  }
-  if (!browser.permissions?.contains || !browser.permissions?.request) {
-    return false;
-  }
-
-  const pattern = getOriginPattern(origin);
-  try {
-    const granted = await browser.permissions.contains({origins: [pattern]});
-    if (granted) {
-      return true;
-    }
-  } catch {
-    // Continue to request permission.
-  }
-
-  try {
-    const granted = await browser.permissions.request({origins: [pattern]});
-    return Boolean(granted);
-  } catch {
-    return false;
-  }
-}
-
-async function activate(
-  mode: ActivationMode,
-  targetInfo: TargetInfo
-): Promise<void> {
+async function activate(targetInfo: TargetInfo): Promise<void> {
   window.__dfActivateStatus = 'pending';
   const debug: Record<string, unknown> = {
-    mode,
+    mode: 'auto',
     targetOrigin: targetInfo.targetOrigin,
     targetUrl: targetInfo.targetUrl,
   };
 
   try {
-    if (mode === 'gesture') {
-      debug.permissionOrigin = getOriginPattern(targetInfo.targetOrigin);
-      const permissionGranted = await requestHostPermission(
-        targetInfo.targetOrigin
-      );
-      debug.permissionGranted = permissionGranted;
-      if (!permissionGranted) {
-        window.__dfActivateDebug = debug;
-        window.__dfActivateStatus = 'error:permission-denied';
-        return;
-      }
-    }
-
     const tabs = await browser.tabs.query({});
     debug.tabs = tabs.map(tab => tab.url || '');
 
@@ -164,15 +99,6 @@ async function activate(
     }
 
     debug.toolbarShown = shown;
-    if (shown && targetInfo.targetOrigin) {
-      try {
-        await persistActivatedTab(targetTab.id, targetInfo.targetOrigin);
-        debug.persistedActivatedTab = true;
-      } catch (error: unknown) {
-        debug.persistedActivatedTab = false;
-        debug.persistActivatedTabError = String(error);
-      }
-    }
 
     window.__dfActivateDebug = debug;
     window.__dfActivateStatus = 'done';
@@ -185,28 +111,5 @@ async function activate(
 }
 
 const params = new URLSearchParams(window.location.search);
-const mode = params.get('mode') === 'gesture' ? 'gesture' : 'auto';
 const targetInfo = getTargetInfo(params);
-
-if (mode === 'gesture') {
-  window.__dfActivateStatus = 'waiting-for-gesture';
-  const button = document.createElement('button');
-  button.dataset.activate = 'true';
-  button.textContent = 'Activate toolbar';
-  button.style.display = 'flex';
-  button.style.alignItems = 'center';
-  button.style.justifyContent = 'center';
-  button.style.height = '100vh';
-  button.style.width = '100vw';
-  button.style.margin = '0';
-  button.style.border = '0';
-  button.style.background = '#111827';
-  button.style.color = '#f9fafb';
-  button.style.fontSize = '18px';
-  button.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-  button.addEventListener('click', () => void activate(mode, targetInfo));
-  document.body.style.margin = '0';
-  document.body.appendChild(button);
-} else {
-  void activate(mode, targetInfo);
-}
+void activate(targetInfo);

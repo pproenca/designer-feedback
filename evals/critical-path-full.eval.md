@@ -12,8 +12,8 @@ Complete end-to-end user journey test using MCP chrome-devtools.
 
 ## Full User Journey
 1. Use `mcp__chrome-devtools__new_page` to open https://example.com
-2. Activate extension via test-activate:
-   `chrome-extension://{extensionId}/test-activate.html?target=https://example.com`
+2. Activate extension via test-activate (extensionBaseUrl = protocol + extension id):
+   `{extensionBaseUrl}/test-activate.html?target=https://example.com`
 3. Navigate to https://example.com
 4. Take snapshot - verify toolbar visible [data-toolbar]
 5. Click add button

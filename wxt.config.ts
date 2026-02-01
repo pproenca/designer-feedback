@@ -16,7 +16,6 @@ export default defineConfig({
       'downloads',
       'activeTab',
       'scripting',
-      'offscreen',
       'contextMenus',
     ],
     commands: {

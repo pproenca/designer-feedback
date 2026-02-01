@@ -30,8 +30,8 @@ async function createTestExtensionDir(workerIndex: number): Promise<string> {
   );
   await fs.promises.cp(extensionPath, tempDir, {recursive: true});
 
-  // For testing, we can opt into broad host permissions for scripting.
-  // In production, optional host permissions are granted via user gesture.
+  // For test automation, we inject broad host permissions so scripting can run
+  // without activeTab user gestures. Production builds omit host permissions.
   const manifestPath = path.join(tempDir, 'manifest.json');
   const manifest = JSON.parse(
     await fs.promises.readFile(manifestPath, 'utf-8')

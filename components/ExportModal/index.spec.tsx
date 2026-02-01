@@ -33,6 +33,7 @@ vi.mock('@/utils/export', () => ({
 
 vi.mock('@/utils/dom/screenshot', () => ({
   isRestrictedPage: vi.fn().mockReturnValue(false),
+  isActiveTabRequiredError: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('@/hooks/useSettings', () => ({

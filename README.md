@@ -45,9 +45,9 @@ See `docs/privacy.html` for the full policy.
 ## permissions
 
 - `storage` to save annotations and settings locally.
-- `tabs` to read the current tab URL and title for export metadata.
+- `tabs` to capture the visible tab during snapshot exports.
 - `activeTab` and `scripting` to inject the toolbar and capture screenshots on demand.
-- `downloads` and `offscreen` to generate and save exports to your device.
+- `downloads` to save snapshot exports to your device.
 - `contextMenus` to expose a right-click “Export feedback snapshot” shortcut.
 
 ## installation

@@ -123,7 +123,6 @@ export default [
   {
     files: [
       'entrypoints/background.ts',
-      'entrypoints/offscreen/**/*.{ts,tsx}',
       'entrypoints/test-activate/**/*.{ts,tsx}',
     ],
     rules: {
