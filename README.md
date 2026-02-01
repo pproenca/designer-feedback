@@ -46,8 +46,9 @@ See `docs/privacy.html` for the full policy.
 
 - `storage` to save annotations and settings locally.
 - `tabs` to read the current tab URL and title for export metadata.
-- `activeTab` to capture screenshots when exporting from the popup.
-- `optional_host_permissions` for `http` and `https`, requested only when you allow specific sites or all sites.
+- `activeTab` and `scripting` to inject the toolbar and capture screenshots on demand.
+- `downloads` and `offscreen` to generate and save exports to your device.
+- `contextMenus` to expose a right-click “Export feedback snapshot” shortcut.
 
 ## installation
 

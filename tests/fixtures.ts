@@ -30,13 +30,18 @@ async function createTestExtensionDir(workerIndex: number): Promise<string> {
   );
   await fs.promises.cp(extensionPath, tempDir, {recursive: true});
 
-  // For testing, we need to add host_permissions so the scripting API works
-  // In production, activeTab grants these permissions when user clicks the icon
+  // For testing, we can opt into broad host permissions for scripting.
+  // In production, optional host permissions are granted via user gesture.
   const manifestPath = path.join(tempDir, 'manifest.json');
   const manifest = JSON.parse(
     await fs.promises.readFile(manifestPath, 'utf-8')
   );
-  manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  const permissionsMode = process.env.E2E_HOST_PERMISSIONS ?? 'broad';
+  if (permissionsMode === 'broad') {
+    manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  } else {
+    delete manifest.host_permissions;
+  }
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
   return tempDir;
 }

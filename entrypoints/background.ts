@@ -1,4 +1,5 @@
 import {defineBackground} from '#imports';
+import type {Browser} from 'wxt/browser';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
   isInjectableUrl,
@@ -14,7 +15,7 @@ import {
   isExtensionSender,
   persistActivatedTabs,
   restoreActivatedTabs,
-  ensureHostPermission,
+  hasOptionalHostPermissions,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
 import {activatedTabs as activatedTabsStorage} from '@/utils/storage-items';
@@ -22,16 +23,22 @@ import {backgroundMessenger, contentMessenger} from '@/utils/messaging';
 
 export default defineBackground(() => {
   const activatedTabs = new Map<number, string>();
+  const pendingCaptureTabs = new Map<number, number>();
+  const pendingCaptureTtlMs = 120000;
+  const allowTabPersistence = hasOptionalHostPermissions();
+  const contextMenuId = 'df-export-snapshot';
 
-  restoreActivatedTabs(activatedTabs)
-    .then(changed => {
-      if (changed) {
-        persistActivatedTabs(activatedTabs);
-      }
-    })
-    .catch(error => {
-      console.warn('Failed to restore activated tabs:', error);
-    });
+  if (allowTabPersistence) {
+    restoreActivatedTabs(activatedTabs)
+      .then(changed => {
+        if (changed) {
+          persistActivatedTabs(activatedTabs);
+        }
+      })
+      .catch(error => {
+        console.warn('Failed to restore activated tabs:', error);
+      });
+  }
 
   async function getActivatedOriginHash(tabId: number): Promise<string | null> {
     const cached = activatedTabs.get(tabId);
@@ -58,6 +65,24 @@ export default defineBackground(() => {
   function clearActivatedTab(tabId: number): void {
     activatedTabs.delete(tabId);
     persistActivatedTabs(activatedTabs);
+  }
+
+  function markPendingCapture(tabId: number): void {
+    pendingCaptureTabs.set(tabId, Date.now());
+  }
+
+  function hasPendingCapture(tabId: number): boolean {
+    const startedAt = pendingCaptureTabs.get(tabId);
+    if (!startedAt) return false;
+    if (Date.now() - startedAt > pendingCaptureTtlMs) {
+      pendingCaptureTabs.delete(tabId);
+      return false;
+    }
+    return true;
+  }
+
+  function clearPendingCapture(tabId: number): void {
+    pendingCaptureTabs.delete(tabId);
   }
 
   async function injectContentScripts(tabId: number): Promise<boolean> {
@@ -102,26 +127,71 @@ export default defineBackground(() => {
     return false;
   }
 
-  browser.action.onClicked.addListener(async tab => {
-    if (!tab.id || !tab.url) return;
+  async function sendResumeExport(tabId: number): Promise<void> {
+    await contentMessenger.sendMessage('resumeExport', undefined, tabId);
+  }
 
-    if (!isInjectableUrl(tab.url)) {
-      return;
+  async function sendResumeExportWithRetry(tabId: number): Promise<boolean> {
+    try {
+      await sendResumeExport(tabId);
+      return true;
+    } catch {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 80));
+        await sendResumeExport(tabId);
+        return true;
+      } catch {
+        return false;
+      }
     }
+  }
 
-    const origin = getOrigin(tab.url);
-    const originHash = getOriginHash(origin);
-    const canPersist = await ensureHostPermission(origin);
+  function isActiveTabPermissionError(error: string): boolean {
+    const normalized = error.toLowerCase();
+    if (
+      normalized.includes('max_capture_visible_tab_calls_per_second') ||
+      normalized.includes('rate') ||
+      normalized.includes('quota')
+    ) {
+      return false;
+    }
+    return (
+      normalized.includes('activetab') ||
+      normalized.includes('not allowed to access') ||
+      normalized.includes('cannot access contents of the page') ||
+      normalized.includes('permission') ||
+      normalized.includes('missing host permission')
+    );
+  }
+
+  async function handleUserInvocation(tab: Browser.tabs.Tab | undefined) {
+    if (!tab?.id || !tab.url) return;
+    if (!isInjectableUrl(tab.url)) return;
+
     const shown = await showToolbar(tab.id);
-    if (shown && canPersist) {
+
+    if (allowTabPersistence && shown) {
+      const origin = getOrigin(tab.url);
+      const originHash = getOriginHash(origin);
       setActivatedTab(tab.id, originHash);
-    } else {
-      clearActivatedTab(tab.id);
     }
+
+    if (hasPendingCapture(tab.id)) {
+      const resumed = await sendResumeExportWithRetry(tab.id);
+      if (resumed) {
+        clearPendingCapture(tab.id);
+      }
+    }
+  }
+
+  browser.action.onClicked.addListener(async tab => {
+    await handleUserInvocation(tab);
   });
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== 'complete' || !tab.url) return;
+    clearPendingCapture(tabId);
+    if (!allowTabPersistence) return;
     const url = tab.url;
     void (async () => {
       const previousOriginHash = await getActivatedOriginHash(tabId);
@@ -141,7 +211,10 @@ export default defineBackground(() => {
   });
 
   browser.tabs.onRemoved.addListener(tabId => {
-    clearActivatedTab(tabId);
+    if (allowTabPersistence) {
+      clearActivatedTab(tabId);
+    }
+    clearPendingCapture(tabId);
   });
 
   backgroundMessenger.onMessage('captureScreenshot', async ({sender}) => {
@@ -151,6 +224,14 @@ export default defineBackground(() => {
     try {
       const windowId = await getWindowIdForCapture(sender.tab?.windowId);
       const result = await captureVisibleTabScreenshot(windowId);
+      if (result.error && sender.tab?.id) {
+        if (isActiveTabPermissionError(result.error)) {
+          markPendingCapture(sender.tab.id);
+          return {...result, errorCode: 'activeTab-required' as const};
+        }
+      } else if (sender.tab?.id) {
+        clearPendingCapture(sender.tab.id);
+      }
       return result;
     } catch (error) {
       console.error('[Background] captureScreenshot error:', error);
@@ -204,5 +285,19 @@ export default defineBackground(() => {
 
   browser.runtime.onInstalled.addListener(() => {
     updateBadge(0);
+    try {
+      browser.contextMenus?.create({
+        id: contextMenuId,
+        title: 'Export feedback snapshot',
+        contexts: ['page', 'selection', 'image', 'link'],
+      });
+    } catch (error) {
+      console.warn('Failed to create context menu:', error);
+    }
+  });
+
+  browser.contextMenus?.onClicked.addListener((info, tab) => {
+    if (info.menuItemId !== contextMenuId) return;
+    void handleUserInvocation(tab);
   });
 });

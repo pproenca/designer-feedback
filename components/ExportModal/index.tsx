@@ -6,9 +6,12 @@ import {
   type Variants,
 } from 'framer-motion';
 import {Dialog} from '@base-ui/react/dialog';
-import type {Annotation} from '@/types';
+import type {Annotation, ExportFormat} from '@/types';
 import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
-import {isRestrictedPage} from '@/utils/dom/screenshot';
+import {
+  isRestrictedPage,
+  isActiveTabRequiredError,
+} from '@/utils/dom/screenshot';
 import {X, Copy, Image} from 'lucide-react';
 import {clsx} from 'clsx';
 import {FormatSelector, type ExportFormatOption} from './FormatSelector';
@@ -62,6 +65,9 @@ interface ExportModalProps {
   onClose: () => void;
   onCaptureChange?: (isCapturing: boolean) => void;
   shadowRoot: ShadowRoot;
+  autoStartFormat?: ExportFormat;
+  onAutoStartConsumed?: () => void;
+  onPermissionRequired?: (format: ExportFormat) => void;
 }
 
 export function ExportModal({
@@ -69,6 +75,9 @@ export function ExportModal({
   onClose,
   onCaptureChange,
   shadowRoot,
+  autoStartFormat,
+  onAutoStartConsumed,
+  onPermissionRequired,
 }: ExportModalProps) {
   const {settings} = useSettings();
   const lightMode = settings.lightMode;
@@ -131,77 +140,103 @@ export function ExportModal({
     await new Promise(resolve => setTimeout(resolve, dialogCloseDelayMs));
   }, [dialogCloseDelayMs]);
 
-  const handleExport = useCallback(async () => {
-    dispatch({
-      type: 'updateState',
-      payload: {
-        isExporting: true,
-        exportOutcome: null,
-        statusMessage: {
-          type: 'info',
-          text:
-            selectedFormat === 'snapshot'
-              ? 'Capturing full page…'
-              : 'Preparing export…',
+  const runExport = useCallback(
+    async (overrideFormat?: ExportFormat) => {
+      const format = overrideFormat ?? selectedFormat;
+      dispatch({
+        type: 'updateState',
+        payload: {
+          isExporting: true,
+          exportOutcome: null,
+          selectedFormat: format,
+          statusMessage: {
+            type: 'info',
+            text:
+              format === 'snapshot'
+                ? 'Capturing full page…'
+                : 'Preparing export…',
+          },
         },
-      },
-    });
-    let captureActive = false;
-    let pendingToast: ToastInput | null = null;
-    try {
-      if (selectedFormat === 'snapshot') {
-        await closeDialogForCapture();
-        captureActive = true;
-        onCaptureChange?.(true);
-        await new Promise(resolve => setTimeout(resolve, captureDelayMs));
-        const result = await exportAsSnapshotImage(annotations);
-        pendingToast =
-          result.captureMode === 'full'
-            ? {type: 'success', message: 'Snapshot downloaded.'}
-            : {
-                type: 'error',
-                message:
-                  result.captureMode === 'viewport'
-                    ? 'Snapshot captured, but only the visible area was saved.'
-                    : 'Snapshot failed. The screenshot was unavailable.',
-              };
+      });
+      let captureActive = false;
+      let pendingToast: ToastInput | null = null;
+      try {
+        if (format === 'snapshot') {
+          await closeDialogForCapture();
+          captureActive = true;
+          onCaptureChange?.(true);
+          await new Promise(resolve => setTimeout(resolve, captureDelayMs));
+          const result = await exportAsSnapshotImage(annotations);
+          pendingToast =
+            result.captureMode === 'full'
+              ? {type: 'success', message: 'Snapshot downloaded.'}
+              : {
+                  type: 'error',
+                  message:
+                    result.captureMode === 'viewport'
+                      ? 'Snapshot captured, but only the visible area was saved.'
+                      : 'Snapshot failed. The screenshot was unavailable.',
+                };
+          onClose();
+          return;
+        } else {
+          await exportAsImageWithNotes(annotations);
+          pendingToast = {
+            type: 'success',
+            message: 'Markdown copied to clipboard.',
+          };
+          onClose();
+        }
+      } catch (error) {
+        if (isActiveTabRequiredError(error) && format === 'snapshot') {
+          onPermissionRequired?.(format);
+          pendingToast = {
+            type: 'warning',
+            message:
+              'Click the extension icon (or use the keyboard shortcut) to allow capture.',
+          };
+          onClose();
+          return;
+        }
+        console.error('Export failed:', error);
+        pendingToast = {type: 'error', message: getReadableError(error)};
         onClose();
-        return;
-      } else {
-        await exportAsImageWithNotes(annotations);
-        pendingToast = {
-          type: 'success',
-          message: 'Markdown copied to clipboard.',
-        };
-        onClose();
+      } finally {
+        if (captureActive) {
+          onCaptureChange?.(false);
+        }
+        if (pendingToast) {
+          const toast = pendingToast;
+          window.setTimeout(
+            () => pushToast(toast),
+            captureActive ? toastDelayMs : 0
+          );
+        }
+        dispatch({type: 'updateState', payload: {isExporting: false}});
       }
-    } catch (error) {
-      console.error('Export failed:', error);
-      pendingToast = {type: 'error', message: getReadableError(error)};
-      onClose();
-    } finally {
-      if (captureActive) {
-        onCaptureChange?.(false);
-      }
-      if (pendingToast) {
-        const toast = pendingToast;
-        window.setTimeout(
-          () => pushToast(toast),
-          captureActive ? toastDelayMs : 0
-        );
-      }
-      dispatch({type: 'updateState', payload: {isExporting: false}});
-    }
-  }, [
-    annotations,
-    captureDelayMs,
-    closeDialogForCapture,
-    onCaptureChange,
-    onClose,
-    pushToast,
-    selectedFormat,
-    toastDelayMs,
-  ]);
+    },
+    [
+      annotations,
+      captureDelayMs,
+      closeDialogForCapture,
+      onCaptureChange,
+      onClose,
+      onPermissionRequired,
+      pushToast,
+      selectedFormat,
+      toastDelayMs,
+    ]
+  );
+
+  const handleExport = useCallback(async () => {
+    await runExport();
+  }, [runExport]);
+
+  useEffect(() => {
+    if (!autoStartFormat) return;
+    onAutoStartConsumed?.();
+    void runExport(autoStartFormat);
+  }, [autoStartFormat, onAutoStartConsumed, runExport]);
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 

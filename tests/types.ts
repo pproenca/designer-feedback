@@ -4,11 +4,19 @@
  */
 
 export interface DfActivateDebug {
+  mode?: 'auto' | 'gesture';
+  targetOrigin?: string;
+  targetUrl?: string;
+  permissionOrigin?: string;
+  permissionGranted?: boolean;
   tabs?: string[];
   scriptFiles?: string[];
   injectionResult?: unknown;
   injectionError?: string;
   flagCheck?: unknown;
+  toolbarShown?: boolean;
+  persistedActivatedTab?: boolean;
+  persistActivatedTabError?: string;
   error?: string;
 }
 

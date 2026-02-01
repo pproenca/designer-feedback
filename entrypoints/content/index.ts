@@ -78,6 +78,18 @@ export default defineContentScript({
         });
     });
 
+    contentMessenger.onMessage('resumeExport', () => {
+      ensureInjected()
+        .then(() => {
+          ctx.setTimeout(() => {
+            emitUiEvent('resume-export');
+          }, 0);
+        })
+        .catch(error => {
+          console.error('Failed to resume export:', error);
+        });
+    });
+
     contentMessenger.onMessage('toggleToolbar', ({data: enabled}) => {
       if (enabled) {
         ensureInjected().catch(error => {
