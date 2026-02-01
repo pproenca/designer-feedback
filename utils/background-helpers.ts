@@ -34,7 +34,7 @@ export async function captureVisibleTabScreenshot(
 export type DownloadResult = {ok: boolean; downloadId?: number; error?: string};
 
 const DOWNLOAD_URL_REVOKE_DELAY_MS = 60000;
-const OFFSCREEN_DOCUMENT_URL = 'offscreen.html';
+const OFFSCREEN_DOCUMENT_URL = '/offscreen.html';
 const OFFSCREEN_JUSTIFICATION =
   'Create blob URLs for large downloads when service workers lack DOM APIs';
 

@@ -69,33 +69,33 @@ export function FormatSelector({options}: FormatSelectorProps) {
                 isSelected && 'bg-df-blue/5 border-df-blue/15',
                 isSelected && 'dark:bg-df-blue/10 dark:border-df-blue/20'
               )}
+            >
+              <Radio.Root
+                value={option.id}
+                disabled={isDisabled}
+                className="sr-only"
+              />
+              {/* Radio indicator */}
+              <span
+                className={clsx(
+                  'flex items-center justify-center w-4.5 h-4.5 rounded-full border-2 shrink-0 mt-0.5',
+                  'transition-colors duration-150',
+                  !isSelected && 'border-black/20 dark:border-white/25',
+                  isSelected && 'border-df-blue dark:border-df-blue'
+                )}
               >
-                <Radio.Root
-                  value={option.id}
-                  disabled={isDisabled}
-                  className="sr-only"
-                />
-                {/* Radio indicator */}
                 <span
                   className={clsx(
-                    'flex items-center justify-center w-4.5 h-4.5 rounded-full border-2 shrink-0 mt-0.5',
-                    'transition-colors duration-150',
-                    !isSelected && 'border-black/20 dark:border-white/25',
-                    isSelected && 'border-df-blue dark:border-df-blue'
+                    'w-2 h-2 rounded-full',
+                    !isKeyboardNav && 'transition-transform duration-150',
+                    isSelected ? 'bg-df-blue scale-100' : 'scale-0'
                   )}
-                >
-                  <span
-                    className={clsx(
-                      'w-2 h-2 rounded-full',
-                      !isKeyboardNav && 'transition-transform duration-150',
-                      isSelected ? 'bg-df-blue scale-100' : 'scale-0'
-                    )}
-                  />
-                </span>
-                <div className="flex flex-col gap-0.5 flex-1">
-                  <span
-                    className={clsx(
-                      'text-sm font-medium',
+                />
+              </span>
+              <div className="flex flex-col gap-0.5 flex-1">
+                <span
+                  className={clsx(
+                    'text-sm font-medium',
                     'text-df-ink dark:text-white'
                   )}
                 >
