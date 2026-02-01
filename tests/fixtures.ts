@@ -191,13 +191,25 @@ export const test = base.extend<{
     await fs.promises.rm(testExtensionPath, { recursive: true, force: true });
   },
   extensionId: async ({ context }, use) => {
-    let [serviceWorker] = context.serviceWorkers();
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
+    let background: { url(): string };
+    const isMV3 = extensionPath.endsWith('-mv3');
+
+    if (isMV3) {
+      [background] = context.serviceWorkers();
+      if (!background) {
+        background = await context.waitForEvent('serviceworker');
+      }
+    } else {
+      [background] = context.backgroundPages();
+      if (!background) {
+        background = await context.waitForEvent('backgroundpage');
+      }
     }
-    // Extract origin (e.g., "chrome-extension://abc123" or "moz-extension://abc123")
-    const url = new URL(serviceWorker.url());
-    await use(url.origin);
+
+    const bgUrl = background.url();
+    const extensionId = bgUrl.split('/')[2];
+    const protocol = bgUrl.split(':')[0];
+    await use(`${protocol}://${extensionId}`);
   },
   helpers: async ({ page, context, extensionId }, use) => {
     await use({

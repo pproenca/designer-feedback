@@ -1,29 +1,18 @@
 import { test, expect } from './fixtures';
 import './types';
 
-test.describe('Extension Basic Tests', () => {
-  test('service worker loads successfully', async ({ context, extensionId }) => {
-    const serviceWorkers = context.serviceWorkers();
-    expect(serviceWorkers.length).toBeGreaterThan(0);
-    expect(serviceWorkers.some((sw) => sw.url().includes(extensionId))).toBe(true);
-  });
-
-  test('toolbar activates on action click', async ({ page, helpers, toolbarPage }) => {
-    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-    await helpers.activateToolbar();
-    await toolbarPage.waitForToolbar();
-    await expect(toolbarPage.getAddButton()).toBeVisible();
-  });
-});
-
-test.describe('Feedback Toolbar flows', () => {
+test.describe('Annotation Workflow', () => {
   test.beforeEach(async ({ page, helpers, toolbarPage }) => {
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
     await helpers.activateToolbar();
     await toolbarPage.waitForToolbar();
   });
 
-  test('happy path: create annotation and open export modal', async ({ page, toolbarPage, exportModal }) => {
+  test('toolbar activates and shows controls', async ({ toolbarPage }) => {
+    await expect(toolbarPage.getAddButton()).toBeVisible();
+  });
+
+  test('create annotation and open export modal', async ({ page, toolbarPage, exportModal }) => {
     const comment = 'Tighten spacing above the headline.';
     const heading = page.getByRole('heading', { name: 'Example Domain' });
     await toolbarPage.createAnnotation(comment, 'Bug', heading);
@@ -37,7 +26,7 @@ test.describe('Feedback Toolbar flows', () => {
     await exportModal.close();
   });
 
-  test('happy path: delete annotation from marker', async ({ page, toolbarPage }) => {
+  test('delete annotation removes marker', async ({ page, toolbarPage }) => {
     const comment = 'Update the hero copy.';
     const heading = page.getByRole('heading', { name: 'Example Domain' });
     await toolbarPage.createAnnotation(comment, 'Suggestion', heading);

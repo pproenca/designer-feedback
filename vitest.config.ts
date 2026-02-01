@@ -13,10 +13,11 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
     setupFiles: ['./test/setup.ts'],
     mockReset: true,
     restoreMocks: true,
+    execArgv: ['--experimental-require-module'],
     include: [
       '**/*.{test,spec}.{ts,tsx}',
     ],
