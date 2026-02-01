@@ -6,6 +6,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   fullyParallel: false,
+  reporter: process.env.CI ? 'github' : 'list',
   use: {
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

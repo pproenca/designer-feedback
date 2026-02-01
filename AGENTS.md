@@ -1,32 +1,37 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/` houses the extension source. Key areas: `src/content` (content script + injected UI), `src/background` (service worker), `src/popup`/`src/components` (popup and shared UI), `src/utils` and `src/shared` (helpers and shared types).
-- `tests/` contains Playwright end-to-end specs. Unit tests live alongside source as `*.spec.ts`.
-- `docs/` holds policy and documentation assets (see `docs/privacy.html`).
-- `scripts/` includes build and asset generators.
-- `dist/` is generated build output; don’t edit by hand.
-- Root files like `manifest.json`, `vite.config.ts`, and `tsconfig.json` define extension and build config.
+- `entrypoints/` houses WXT entrypoints: `background.ts` (service worker), `content/` (content script + UI), `offscreen/`, `test-activate/`.
+- `components/` contains shared React UI components (toolbar, panels, modals).
+- `hooks/`, `stores/`, `utils/`, `shared/`, and `types/` contain hooks, Zustand stores, utilities, shared constants, and TS types.
+- `tests/` contains Playwright end-to-end specs and fixtures.
+- `test/` holds Vitest setup (fakeBrowser globals).
+- `docs/` contains policy and documentation assets (see `docs/privacy.html`).
+- `assets/` and `public/` hold static assets and icons.
+- `scripts/` includes build and asset helpers.
+- `.output/` and `.wxt/` are generated build/dev outputs; don’t edit by hand.
 
 ## Build, Test, and Development Commands
-- `npm run dev` — start Vite in watch mode for extension development.
-- `npm run build` — run `tsc` then produce the production build in `dist/`.
-- `npm run pack` — build and zip the extension for sharing (`dist/designer-feedback.zip`).
+- `npm run dev` — start WXT dev server with HMR.
+- `npm run build` — build the production extension.
+- `npm run zip` — create a zip for distribution.
 - `npm run test` — run Vitest unit tests.
-- `npm run test:e2e` — run Playwright tests in `tests/`.
-- `npm run lint` / `npm run lint:fix` — run ESLint checks or auto-fix.
+- `npm run test:coverage` — run Vitest with coverage.
+- `npm run test:e2e` — build with E2E flag and run Playwright tests.
+- `npm run lint` — run ESLint checks (zero warnings).
 - `npm run typecheck` — TypeScript type checks without emitting.
 
 ## Coding Style & Naming Conventions
-- TypeScript + React + Vite. Use 2-space indentation and keep semicolons consistent with existing files.
-- UI styles use SCSS modules (e.g., `styles.module.scss`). Global styles live in `src/content/styles.scss`.
-- Co-locate tests with source as `*.spec.ts` (e.g., `src/utils/storage.spec.ts`).
+- TypeScript + React + WXT. Use 2-space indentation and keep semicolons consistent with existing files.
+- Styling uses Tailwind CSS v4 and `entrypoints/content/style.css` for theme tokens and base layers.
+- Prefer `@/` path alias (root) for shared imports.
+- Co-locate unit tests with source as `*.spec.ts`.
 - ESLint is the source of truth for style; fix issues before pushing.
 
 ## Testing Guidelines
 - Vitest is used for unit tests; Playwright covers extension behavior.
-- Keep tests deterministic; prefer utilities in `tests/fixtures.ts` for e2e setup.
-- Add or update tests when behavior changes.
+- Use `tests/fixtures.ts` utilities for e2e setup.
+- Keep tests deterministic; add or update tests when behavior changes.
 
 ## Commit & Pull Request Guidelines
 - Commit messages follow Conventional Commits enforced by commitlint: `feat:`, `fix:`, `docs:`, `chore:`, `test:`, etc. Keep subjects under 100 characters (example: `feat: add draggable toolbar`).
@@ -34,5 +39,5 @@
 - PRs should follow `.github/PULL_REQUEST_TEMPLATE.md`: include a concise description, type of change, related issues, checklist, and screenshots when UI changes.
 
 ## Security & Configuration Notes
-- Extension permissions and entry points are defined in `manifest.json`.
+- Extension permissions and manifest configuration live in `wxt.config.ts`.
 - Privacy policy updates belong in `docs/privacy.html`.
