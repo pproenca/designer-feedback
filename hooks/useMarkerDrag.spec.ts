@@ -126,7 +126,12 @@ describe('useMarkerDrag', () => {
   describe('coordinate systems', () => {
     it('should use viewport coordinates for fixed markers', () => {
       const {result} = renderHook(() => useMarkerDrag());
-      const annotation = createMockAnnotation({isFixed: true, x: 100, y: 200});
+      const annotation = createMockAnnotation({
+        isFixed: true,
+        x: 100,
+        y: 200,
+        boundingBox: undefined,
+      });
       const handlers = result.current.getMarkerHandlers(annotation);
 
       // Set scroll position
@@ -161,7 +166,12 @@ describe('useMarkerDrag', () => {
 
     it('should use document coordinates for absolute markers', () => {
       const {result} = renderHook(() => useMarkerDrag());
-      const annotation = createMockAnnotation({isFixed: false, x: 100, y: 200});
+      const annotation = createMockAnnotation({
+        isFixed: false,
+        x: 100,
+        y: 200,
+        boundingBox: undefined,
+      });
       const handlers = result.current.getMarkerHandlers(annotation);
 
       // Set scroll position
@@ -194,6 +204,75 @@ describe('useMarkerDrag', () => {
       // = 150 - 100 + 100 = 150 (the start position is already in document coords)
       expect(result.current.currentDragPosition?.x).toBe(150);
       expect(result.current.currentDragPosition?.y).toBe(200);
+    });
+  });
+
+  describe('bounding box constraints', () => {
+    it('clamps drag position within bounding box for absolute markers', () => {
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation = createMockAnnotation({
+        isFixed: false,
+        x: 100,
+        y: 200,
+        boundingBox: {x: 50, y: 150, width: 100, height: 50},
+      });
+      const handlers = result.current.getMarkerHandlers(annotation);
+
+      act(() => {
+        handlers.onMouseDown({
+          button: 0,
+          clientX: 100,
+          clientY: 200,
+          preventDefault: vi.fn(),
+          stopPropagation: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 400,
+          clientY: 500,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      expect(result.current.currentDragPosition?.x).toBe(150);
+      expect(result.current.currentDragPosition?.y).toBe(200);
+    });
+
+    it('clamps fixed marker drag position using viewport bounds', () => {
+      Object.defineProperty(window, 'scrollX', {value: 500, writable: true});
+      Object.defineProperty(window, 'scrollY', {value: 300, writable: true});
+
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation = createMockAnnotation({
+        isFixed: true,
+        x: 100,
+        y: 100,
+        boundingBox: {x: 550, y: 380, width: 100, height: 60},
+      });
+      const handlers = result.current.getMarkerHandlers(annotation);
+
+      act(() => {
+        handlers.onMouseDown({
+          button: 0,
+          clientX: 100,
+          clientY: 100,
+          preventDefault: vi.fn(),
+          stopPropagation: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 300,
+          clientY: 300,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      expect(result.current.currentDragPosition?.x).toBe(150);
+      expect(result.current.currentDragPosition?.y).toBe(140);
     });
   });
 

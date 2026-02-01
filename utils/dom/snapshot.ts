@@ -139,12 +139,19 @@ function drawAnnotationOverlays(
       ctx.restore();
     }
 
-    const point = bounds
-      ? {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2}
-      : {
-          x: annotation.isFixed ? annotation.x + scrollX : annotation.x,
-          y: annotation.isFixed ? annotation.y + scrollY : annotation.y,
-        };
+    const annotationPoint = {
+      x: annotation.isFixed ? annotation.x + scrollX : annotation.x,
+      y: annotation.isFixed ? annotation.y + scrollY : annotation.y,
+    };
+
+    const point =
+      Number.isFinite(annotationPoint.x) && Number.isFinite(annotationPoint.y)
+        ? annotationPoint
+        : bounds
+          ? {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2}
+          : null;
+
+    if (!point) return;
 
     const x = offsetX + point.x * scaleX;
     const y = offsetY + point.y * scaleY;

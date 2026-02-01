@@ -95,6 +95,22 @@ export function useMarkerDrag(
 
     const newX = startPositionX + deltaX;
     const newY = startPositionY + deltaY;
+    const bounds = annotation.boundingBox;
+
+    if (bounds && bounds.width > 0 && bounds.height > 0) {
+      const scrollX = annotation.isFixed ? window.scrollX : 0;
+      const scrollY = annotation.isFixed ? window.scrollY : 0;
+      const minX = bounds.x - scrollX;
+      const minY = bounds.y - scrollY;
+      const maxX = minX + bounds.width;
+      const maxY = minY + bounds.height;
+
+      setCurrentDragPosition({
+        x: Math.min(Math.max(newX, minX), maxX),
+        y: Math.min(Math.max(newY, minY), maxY),
+      });
+      return;
+    }
 
     setCurrentDragPosition({x: newX, y: newY});
   }, []);

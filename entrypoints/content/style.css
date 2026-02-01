@@ -73,15 +73,18 @@
    ============================================================================= */
 
 @layer base {
+  :host([data-capture='true']) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   :host {
     --df-font: "Source Sans 3", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
   .df-root {
     --df-tooltip-delay: 850ms;
-    transition: opacity 140ms cubic-bezier(0.32, 0.72, 0, 1),
-      transform 140ms cubic-bezier(0.32, 0.72, 0, 1);
-    transform: translateY(0);
+    transition: opacity 140ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .df-root[data-tooltips-ready='true'] {
@@ -91,7 +94,6 @@
   .df-root[data-capture='true'] {
     opacity: 0;
     pointer-events: none;
-    transform: translateY(2px);
   }
 
   :host,

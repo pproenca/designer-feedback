@@ -1,4 +1,4 @@
-import {useReducer, useEffect, useMemo, useCallback} from 'react';
+import {useReducer, useEffect, useMemo, useCallback, useState} from 'react';
 import {
   m,
   AnimatePresence,
@@ -72,6 +72,7 @@ export function ExportModal({
 }: ExportModalProps) {
   const {settings} = useSettings();
   const lightMode = settings.lightMode;
+  const [isDialogOpen, setDialogOpen] = useState(true);
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
   const reduceMotion = useReducedMotion() ?? false;
   const {pushToast} = useToasts();
@@ -109,6 +110,7 @@ export function ExportModal({
     ],
     [restricted]
   );
+  const dialogCloseDelayMs = reduceMotion ? 80 : 160;
   const captureDelayMs = reduceMotion ? 40 : 140;
   const toastDelayMs = reduceMotion ? 0 : 80;
 
@@ -123,6 +125,11 @@ export function ExportModal({
     if (typeof error === 'string') return error;
     return 'Export failed. Please try again.';
   };
+
+  const closeDialogForCapture = useCallback(async () => {
+    setDialogOpen(false);
+    await new Promise(resolve => setTimeout(resolve, dialogCloseDelayMs));
+  }, [dialogCloseDelayMs]);
 
   const handleExport = useCallback(async () => {
     dispatch({
@@ -143,6 +150,7 @@ export function ExportModal({
     let pendingToast: ToastInput | null = null;
     try {
       if (selectedFormat === 'snapshot') {
+        await closeDialogForCapture();
         captureActive = true;
         onCaptureChange?.(true);
         await new Promise(resolve => setTimeout(resolve, captureDelayMs));
@@ -187,6 +195,7 @@ export function ExportModal({
   }, [
     annotations,
     captureDelayMs,
+    closeDialogForCapture,
     onCaptureChange,
     onClose,
     pushToast,
@@ -197,7 +206,15 @@ export function ExportModal({
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
   return (
-    <Dialog.Root open onOpenChange={open => !open && onClose()}>
+    <Dialog.Root
+      open={isDialogOpen}
+      onOpenChange={open => {
+        setDialogOpen(open);
+        if (!open && !isExporting) {
+          onClose();
+        }
+      }}
+    >
       <Dialog.Portal container={shadowRoot}>
         <AnimatePresence>
           <Dialog.Backdrop

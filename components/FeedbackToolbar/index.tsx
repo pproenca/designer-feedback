@@ -111,6 +111,17 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   }, [entranceCompleted]);
 
   useEffect(() => {
+    const host = shadowRoot.host as HTMLElement | null;
+    if (!host) return;
+    if (isCaptureActive) {
+      host.setAttribute('data-capture', 'true');
+    } else {
+      host.removeAttribute('data-capture');
+    }
+    return () => host.removeAttribute('data-capture');
+  }, [isCaptureActive, shadowRoot]);
+
+  useEffect(() => {
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
