@@ -1,5 +1,3 @@
-
-
 import { useCallback, useMemo } from 'react';
 import { MarkerLayer } from './MarkerLayer';
 import { PendingMarker } from './PendingMarker';
@@ -8,7 +6,7 @@ import { MarkerDragProvider } from './MarkerDragContext';
 import { useAnnotationsStore } from '@/stores/annotations';
 import { useToolbarActions, useToolbarState } from '@/components/FeedbackToolbar/ToolbarStateProvider';
 import { useMarkerDrag } from '@/hooks/useMarkerDrag';
-import type { Position } from '@/hooks/useMarkerDrag';
+import type { Position } from '@/types/position';
 
 export function AnnotationLayer() {
   const annotations = useAnnotationsStore((s) => s.annotations);

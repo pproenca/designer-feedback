@@ -1,3 +1,5 @@
+import { assertDomAvailable } from '@/utils/dom/guards';
+
 const EDGE_SAMPLE_POINTS = [0.1, 0.5, 0.9];
 const EDGE_OFFSET_PX = 2;
 const MIN_EDGE_HEIGHT_PX = 8;
@@ -14,6 +16,7 @@ type HiddenElementSnapshot = {
 type StickyEdge = 'top' | 'bottom';
 
 export function hideStickyElements(edge: StickyEdge): HiddenElementSnapshot[] {
+  assertDomAvailable('hideStickyElements');
   const elements = collectStickyElements(edge);
   const hidden: HiddenElementSnapshot[] = [];
 

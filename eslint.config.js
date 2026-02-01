@@ -127,4 +127,19 @@ export default [
       'react-hooks/exhaustive-deps': 'off',
     },
   },
+  {
+    files: [
+      'entrypoints/background.ts',
+      'entrypoints/offscreen/**/*.{ts,tsx}',
+      'entrypoints/test-activate/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['@/utils/dom/**'],
+        },
+      ],
+    },
+  },
 ];

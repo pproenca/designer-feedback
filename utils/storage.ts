@@ -6,10 +6,25 @@ import { hashString } from '@/utils/hash';
 import { storage } from 'wxt/utils/storage';
 import { backgroundMessenger } from '@/utils/messaging';
 import { maybeRunCleanup, getRetentionCutoff } from '@/utils/storage-cleanup';
+import { getWindow } from '@/utils/dom/guards';
 
-export function getStorageKey(): string {
-  const origin = window.location.origin === 'null' ? '' : window.location.origin;
-  const raw = `${origin}${window.location.pathname}${window.location.search}`;
+export function getStorageKey(targetUrl?: string): string {
+  let raw = '';
+
+  if (targetUrl) {
+    try {
+      const parsed = new URL(targetUrl);
+      const origin = parsed.origin === 'null' ? '' : parsed.origin;
+      raw = `${origin}${parsed.pathname}${parsed.search}`;
+    } catch {
+      raw = targetUrl;
+    }
+  } else {
+    const win = getWindow('getStorageKey');
+    const origin = win.location.origin === 'null' ? '' : win.location.origin;
+    raw = `${origin}${win.location.pathname}${win.location.search}`;
+  }
+
   return `${STORAGE_KEY_VERSION}:${hashString(raw)}`;
 }
 

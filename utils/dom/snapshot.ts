@@ -1,6 +1,7 @@
 import type { Annotation } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 import { loadImage } from '@/utils/image';
+import { assertDomAvailable, getDocument, getWindow } from '@/utils/dom/guards';
 
 const SNAPSHOT_FONT_FAMILY =
   '"Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif';
@@ -9,11 +10,14 @@ export async function createSnapshotImage(
   screenshot: string,
   annotations: Annotation[]
 ): Promise<string> {
+  assertDomAvailable('createSnapshotImage');
+  const doc = getDocument('createSnapshotImage');
+  const win = getWindow('createSnapshotImage');
   const pageHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight
+    doc.body.scrollHeight,
+    doc.documentElement.scrollHeight
   );
-  const pageWidth = window.innerWidth;
+  const pageWidth = win.innerWidth;
   const baseImage = await loadImage(screenshot);
   const scaleX = baseImage.width / pageWidth;
   const scaleY = baseImage.height / pageHeight;
@@ -23,7 +27,7 @@ export async function createSnapshotImage(
   const headerHeightPx = Math.round(headerHeight * scaleY);
   const sidebarWidthPx = Math.round(sidebarWidth * scaleX);
 
-  const canvas = document.createElement('canvas');
+  const canvas = doc.createElement('canvas');
   canvas.width = baseImage.width + sidebarWidthPx;
   canvas.height = baseImage.height + headerHeightPx;
 
@@ -63,7 +67,7 @@ export async function createSnapshotImage(
   ctx.fillText('Feedback Export', headerPaddingX, 16 * scaleY);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = `400 ${11 * scaleY}px ${SNAPSHOT_FONT_FAMILY}`;
-  const metaText = `${document.title || 'Untitled page'} · ${exportDate} · ${
+  const metaText = `${doc.title || 'Untitled page'} · ${exportDate} · ${
     annotations.length
   } annotation${annotations.length !== 1 ? 's' : ''}`;
   ctx.fillText(
@@ -77,6 +81,8 @@ export async function createSnapshotImage(
     offsetY: headerHeightPx,
     scaleX,
     scaleY,
+    scrollX: win.scrollX,
+    scrollY: win.scrollY,
   });
 
   drawSidebarPanel(ctx, annotations, {
@@ -93,9 +99,16 @@ export async function createSnapshotImage(
 function drawAnnotationOverlays(
   ctx: CanvasRenderingContext2D,
   annotations: Annotation[],
-  options: { offsetX: number; offsetY: number; scaleX: number; scaleY: number }
+  options: {
+    offsetX: number;
+    offsetY: number;
+    scaleX: number;
+    scaleY: number;
+    scrollX: number;
+    scrollY: number;
+  }
 ): void {
-  const { offsetX, offsetY, scaleX, scaleY } = options;
+  const { offsetX, offsetY, scaleX, scaleY, scrollX, scrollY } = options;
   const markerRadius = 13 * scaleX;
   const markerFontSize = 12 * scaleX;
   const strokeWidth = Math.max(1, 2 * scaleX);
@@ -124,8 +137,8 @@ function drawAnnotationOverlays(
     const point = bounds
       ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
       : {
-          x: annotation.isFixed ? annotation.x + window.scrollX : annotation.x,
-          y: annotation.isFixed ? annotation.y + window.scrollY : annotation.y,
+          x: annotation.isFixed ? annotation.x + scrollX : annotation.x,
+          y: annotation.isFixed ? annotation.y + scrollY : annotation.y,
         };
 
     const x = offsetX + point.x * scaleX;

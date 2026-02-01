@@ -1,11 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import type { Position } from '@/types/position';
 
 const DRAG_THRESHOLD = 5;
-
-export interface Position {
-  x: number;
-  y: number;
-}
 
 export type ExpandDirection = 'left' | 'right';
 

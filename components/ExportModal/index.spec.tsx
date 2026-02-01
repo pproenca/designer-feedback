@@ -4,8 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, act, within } from '@testing-library/react';
 import { ExportModal } from './index';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { isRestrictedPage } from '@/utils/screenshot';
+import { isRestrictedPage } from '@/utils/dom/screenshot';
 import type { Annotation } from '@/types';
+import { ToastProvider } from '@/components/Toast';
 
 // Verify ExportModal is a named export (supports lazy loading with transform)
 describe('ExportModal module structure', () => {
@@ -29,7 +30,7 @@ vi.mock('@/utils/export', () => ({
   exportAsSnapshotImage: vi.fn().mockResolvedValue({ captureMode: 'full' }),
 }));
 
-vi.mock('@/utils/screenshot', () => ({
+vi.mock('@/utils/dom/screenshot', () => ({
   isRestrictedPage: vi.fn().mockReturnValue(false),
 }));
 
@@ -69,6 +70,19 @@ describe('ExportModal', () => {
   // Shadow-scoped screen queries (portal renders into shadow root)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let screen: any;
+  const defaultCaptureChange = vi.fn();
+
+  const renderModal = (props: { onClose: () => void; onCaptureChange?: (isCapturing: boolean) => void }) =>
+    render(
+      <ToastProvider>
+        <ExportModal
+          annotations={mockAnnotations}
+          onClose={props.onClose}
+          onCaptureChange={props.onCaptureChange ?? defaultCaptureChange}
+          shadowRoot={mockShadowRoot}
+        />
+      </ToastProvider>
+    );
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -94,82 +108,10 @@ describe('ExportModal', () => {
     }
   });
 
-  it('clears timeout when component unmounts before auto-close', async () => {
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-    const onClose = vi.fn();
-
-    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
-
-    // Click export button to trigger the auto-close timer
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    await act(async () => {
-      fireEvent.click(exportButton);
-      // Wait for export to complete (mocked to resolve immediately)
-      await vi.runAllTimersAsync();
-    });
-
-    // Unmount before the 1500ms auto-close timer fires
-    vi.advanceTimersByTime(500);
-    unmount();
-
-    // clearTimeout should have been called during cleanup
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-    clearTimeoutSpy.mockRestore();
-  });
-
-  it('does not call onClose after component unmounts', async () => {
-    const onClose = vi.fn();
-
-    const { unmount } = render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
-
-    // Click export button to trigger the auto-close timer
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    await act(async () => {
-      fireEvent.click(exportButton);
-      // Wait for export to complete
-      await vi.runAllTimersAsync();
-    });
-
-    // Reset onClose mock to track only post-export calls
-    onClose.mockClear();
-
-    // Unmount before the 1500ms timer fires
-    vi.advanceTimersByTime(500);
-    unmount();
-
-    // Advance past when the timer would have fired
-    vi.advanceTimersByTime(2000);
-
-    // onClose should NOT have been called after unmount
-    expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it('stores timer ID in ref for cleanup', async () => {
-    const onClose = vi.fn();
-
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
-
-    // Click export button
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
-    await act(async () => {
-      fireEvent.click(exportButton);
-      // Wait for export to complete
-      await vi.runAllTimersAsync();
-    });
-
-    // Advance past the auto-close timer
-    act(() => {
-      vi.advanceTimersByTime(1600);
-    });
-
-    // onClose should have been called by the timer
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
   it('downloads snapshot and auto-closes on success', async () => {
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -178,15 +120,16 @@ describe('ExportModal', () => {
     });
 
     expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations);
-    expect(screen.getByText(/snapshot downloaded\./i)).toBeInTheDocument();
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(true);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows warning when snapshot uses placeholder and does not auto-close', async () => {
+  it('closes after snapshot uses placeholder', async () => {
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'placeholder' });
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -194,16 +137,14 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByText(/snapshot downloaded, but the screenshot was unavailable/i)).toBeInTheDocument();
-    vi.advanceTimersByTime(2000);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows warning when snapshot falls back to viewport capture', async () => {
+  it('closes after snapshot falls back to viewport capture', async () => {
     mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'viewport' });
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -211,15 +152,13 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByText(/only the visible area was captured/i)).toBeInTheDocument();
-    vi.advanceTimersByTime(2000);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('exports markdown to clipboard and auto-closes', async () => {
     const onClose = vi.fn();
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
 
     // Click on the Markdown label to select it (Base UI RadioGroup structure)
     const markdownLabel = screen.getByText('Markdown (Clipboard)').closest('label');
@@ -234,14 +173,13 @@ describe('ExportModal', () => {
     });
 
     expect(mockedExportAsImageWithNotes).toHaveBeenCalledWith(mockAnnotations);
-    expect(screen.getByText(/markdown copied to clipboard/i)).toBeInTheDocument();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('disables snapshot option on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose: () => {}, onCaptureChange: defaultCaptureChange });
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -259,7 +197,7 @@ describe('ExportModal', () => {
   it('auto-selects markdown format on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    render(<ExportModal annotations={mockAnnotations} onClose={() => {}} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose: () => {}, onCaptureChange: defaultCaptureChange });
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -278,7 +216,7 @@ describe('ExportModal', () => {
     const onClose = vi.fn();
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<ExportModal annotations={mockAnnotations} onClose={onClose} shadowRoot={mockShadowRoot} />);
+    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
 
     const exportButton = screen.getByRole('button', { name: /download snapshot/i });
     await act(async () => {
@@ -286,8 +224,7 @@ describe('ExportModal', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByText(/network error/i)).toBeInTheDocument();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(consoleSpy).toHaveBeenCalledWith('Export failed:', expect.any(Error));
     consoleSpy.mockRestore();
   });

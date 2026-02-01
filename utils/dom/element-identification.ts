@@ -1,4 +1,5 @@
 
+import { assertDomAvailable } from '@/utils/dom/guards';
 
 const SHORT_CLASS_REGEX = /^[a-z]{1,2}$/;
 const HASH_CLASS_REGEX = /[A-Z0-9]{5,}/;
@@ -159,6 +160,7 @@ export function identifyElement(target: HTMLElement): { name: string; path: stri
 }
 
 export function hasFixedPositioning(element: HTMLElement): boolean {
+  assertDomAvailable('hasFixedPositioning');
   let current: HTMLElement | null = element;
 
   while (current && current !== document.body) {

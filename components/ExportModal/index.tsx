@@ -1,9 +1,9 @@
-import { useReducer, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useReducer, useEffect, useMemo, useCallback } from 'react';
 import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import { Dialog } from '@base-ui/react/dialog';
 import type { Annotation } from '@/types';
 import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { isRestrictedPage } from '@/utils/screenshot';
+import { isRestrictedPage } from '@/utils/dom/screenshot';
 import { X, Copy, Image } from 'lucide-react';
 import { clsx } from 'clsx';
 import { FormatSelector, type ExportFormatOption } from './FormatSelector';
@@ -11,6 +11,7 @@ import { AnnotationPreview } from './AnnotationPreview';
 import { ExportActions } from './ExportActions';
 import { ExportProvider, exportReducer, initialExportState } from './ExportContext';
 import { useSettings } from '@/hooks/useSettings';
+import { useToasts, type ToastInput } from '@/components/Toast';
 
 const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
@@ -50,14 +51,16 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
 interface ExportModalProps {
   annotations: Annotation[];
   onClose: () => void;
+  onCaptureChange?: (isCapturing: boolean) => void;
   shadowRoot: ShadowRoot;
 }
 
-export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalProps) {
+export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot }: ExportModalProps) {
   const { settings } = useSettings();
   const lightMode = settings.lightMode;
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
   const reduceMotion = useReducedMotion() ?? false;
+  const { pushToast } = useToasts();
   const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
   const modalVariants = useMemo(() => getModalVariants(reduceMotion), [reduceMotion]);
   const { isExporting, statusMessage, selectedFormat } = state;
@@ -86,25 +89,14 @@ export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalPro
     ],
     [restricted]
   );
-
-  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const captureDelayMs = reduceMotion ? 40 : 140;
+  const toastDelayMs = reduceMotion ? 0 : 80;
 
   useEffect(() => {
     if (restricted && selectedFormat === 'snapshot') {
       dispatch({ type: 'updateState', payload: { selectedFormat: 'image-notes' } });
     }
   }, [restricted, selectedFormat]);
-
-
-  useEffect(() => {
-    return () => {
-      if (autoCloseTimerRef.current !== null) {
-        clearTimeout(autoCloseTimerRef.current);
-        autoCloseTimerRef.current = null;
-      }
-    };
-  }, []);
 
   const getReadableError = (error: unknown): string => {
     if (error instanceof Error && error.message) return error.message;
@@ -113,10 +105,6 @@ export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalPro
   };
 
   const handleExport = useCallback(async () => {
-    if (autoCloseTimerRef.current !== null) {
-      clearTimeout(autoCloseTimerRef.current);
-      autoCloseTimerRef.current = null;
-    }
     dispatch({
       type: 'updateState',
       payload: {
@@ -128,54 +116,54 @@ export function ExportModal({ annotations, onClose, shadowRoot }: ExportModalPro
         },
       },
     });
+    let captureActive = false;
+    let pendingToast: ToastInput | null = null;
     try {
       if (selectedFormat === 'snapshot') {
+        captureActive = true;
+        onCaptureChange?.(true);
+        await new Promise((resolve) => setTimeout(resolve, captureDelayMs));
         const result = await exportAsSnapshotImage(annotations);
-        if (result.captureMode === 'full') {
-          dispatch({
-            type: 'updateState',
-            payload: {
-              exportOutcome: 'downloaded',
-              statusMessage: { type: 'success', text: 'Snapshot downloaded.' },
-            },
-          });
-          autoCloseTimerRef.current = setTimeout(() => onClose(), 1500);
-          return;
-        }
-
-        dispatch({
-          type: 'updateState',
-          payload: {
-            statusMessage: {
-              type: 'warning',
-              text:
-                result.captureMode === 'viewport'
-                  ? 'Snapshot downloaded, but only the visible area was captured. Try again or reduce page length.'
-                  : 'Snapshot downloaded, but the screenshot was unavailable. Try again or check site restrictions.',
-            },
-          },
-        });
+        pendingToast =
+          result.captureMode === 'full'
+            ? { type: 'success', message: 'Snapshot downloaded.' }
+            : {
+                type: 'error',
+                message:
+                  result.captureMode === 'viewport'
+                    ? 'Snapshot captured, but only the visible area was saved.'
+                    : 'Snapshot failed. The screenshot was unavailable.',
+              };
+        onClose();
+        return;
       } else {
         await exportAsImageWithNotes(annotations);
-        dispatch({
-          type: 'updateState',
-          payload: {
-            exportOutcome: 'copied',
-            statusMessage: { type: 'success', text: 'Markdown copied to clipboard.' },
-          },
-        });
-        autoCloseTimerRef.current = setTimeout(() => onClose(), 1500);
+        pendingToast = { type: 'success', message: 'Markdown copied to clipboard.' };
+        onClose();
       }
     } catch (error) {
       console.error('Export failed:', error);
-      dispatch({
-        type: 'updateState',
-        payload: { statusMessage: { type: 'error', text: getReadableError(error) } },
-      });
+      pendingToast = { type: 'error', message: getReadableError(error) };
+      onClose();
     } finally {
+      if (captureActive) {
+        onCaptureChange?.(false);
+      }
+      if (pendingToast) {
+        const toast = pendingToast;
+        window.setTimeout(() => pushToast(toast), captureActive ? toastDelayMs : 0);
+      }
       dispatch({ type: 'updateState', payload: { isExporting: false } });
     }
-  }, [annotations, onClose, selectedFormat]);
+  }, [
+    annotations,
+    captureDelayMs,
+    onCaptureChange,
+    onClose,
+    pushToast,
+    selectedFormat,
+    toastDelayMs,
+  ]);
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 

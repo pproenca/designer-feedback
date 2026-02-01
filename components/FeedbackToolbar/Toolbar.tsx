@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
 import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useDraggable, type Position } from '@/hooks/useDraggable';
+import { useDraggable } from '@/hooks/useDraggable';
+import type { Position } from '@/types/position';
 import { clsx } from 'clsx';
 import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react';
 import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';

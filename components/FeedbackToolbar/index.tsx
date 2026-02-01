@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   lazy,
   Suspense,
 } from 'react';
@@ -19,7 +20,7 @@ import { onUiEvent } from '@/utils/ui-events';
 import {
   identifyElement,
   hasFixedPositioning,
-} from '@/utils/element-identification';
+} from '@/utils/dom/element-identification';
 import {
   calculatePopupPosition,
   getPopupDisplayPosition,
@@ -33,6 +34,7 @@ import type { PendingAnnotation } from './context';
 
 import { useAnnotationsStore } from '@/stores/annotations';
 import { ToolbarStateProvider, useToolbarActions, useToolbarState } from './ToolbarStateProvider';
+import { ToastProvider, ToastViewport } from '@/components/Toast';
 
 const ExportModal = lazy(() =>
   import('../ExportModal').then((m) => ({ default: m.ExportModal }))
@@ -45,7 +47,9 @@ interface FeedbackToolbarProps {
 export function FeedbackToolbar(props: FeedbackToolbarProps) {
   return (
     <ToolbarStateProvider>
-      <FeedbackToolbarContent {...props} />
+      <ToastProvider>
+        <FeedbackToolbarContent {...props} />
+      </ToastProvider>
     </ToolbarStateProvider>
   );
 }
@@ -53,6 +57,7 @@ export function FeedbackToolbar(props: FeedbackToolbarProps) {
 function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
   const { settings } = useSettings();
   const lightMode = settings.lightMode;
+  const [isCaptureActive, setCaptureActive] = useState(false);
   const {
     addMode,
     selectedCategory,
@@ -302,7 +307,10 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
   const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={clsx('font-sans df-root', darkModeClassName)}>
+    <div
+      className={clsx('font-sans df-root', darkModeClassName)}
+      data-capture={isCaptureActive ? 'true' : 'false'}
+    >
       {/* Selection overlay for element highlighting */}
       <SelectionOverlay enabled={isSelectingElement} />
 
@@ -343,6 +351,7 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
             <ExportModal
               annotations={annotations}
               onClose={() => exportModalClosed()}
+              onCaptureChange={setCaptureActive}
               shadowRoot={shadowRoot}
             />
           </Suspense>
@@ -353,6 +362,8 @@ function FeedbackToolbarContent({ shadowRoot }: FeedbackToolbarProps) {
       <Toolbar>
         <CategoryPanel />
       </Toolbar>
+
+      <ToastViewport />
     </div>,
     shadowRoot
   );

@@ -1,15 +1,27 @@
 import type { Annotation } from '@/types';
 import { getCategoryConfig } from '@/shared/categories';
 
-export function generateNotesMarkdown(annotations: Annotation[]): string {
+type NotesMarkdownMeta = {
+  title?: string;
+  url?: string;
+  exportedAt?: string;
+};
+
+export function generateNotesMarkdown(
+  annotations: Annotation[],
+  meta: NotesMarkdownMeta = {}
+): string {
   const lines: string[] = [];
+  const pageTitle = meta.title ?? 'Untitled page';
+  const pageUrl = meta.url ?? 'Unknown';
+  const exportedAt = meta.exportedAt ?? new Date().toLocaleString();
 
 
   lines.push('# Feedback Notes');
   lines.push('');
-  lines.push(`**Page:** ${document.title}`);
-  lines.push(`**URL:** ${window.location.href}`);
-  lines.push(`**Exported:** ${new Date().toLocaleString()}`);
+  lines.push(`**Page:** ${pageTitle}`);
+  lines.push(`**URL:** ${pageUrl}`);
+  lines.push(`**Exported:** ${exportedAt}`);
   lines.push('');
   lines.push('---');
   lines.push('');

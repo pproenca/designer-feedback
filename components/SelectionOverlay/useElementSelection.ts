@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMotionValue, type MotionValue } from 'framer-motion';
-import { identifyElement } from '@/utils/element-identification';
+import { identifyElement } from '@/utils/dom/element-identification';
 
 export interface HoverInfo {
   element: string;

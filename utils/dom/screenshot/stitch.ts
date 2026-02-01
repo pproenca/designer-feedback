@@ -1,4 +1,5 @@
 import { loadImage } from '@/utils/image';
+import { assertDomAvailable } from '@/utils/dom/guards';
 
 const MAX_CANVAS_DIMENSION = 16384;
 const MAX_CANVAS_AREA = 268_000_000;
@@ -11,6 +12,7 @@ export async function stitchScreenshots(
   dpr: number,
   scrollPositions: number[]
 ): Promise<string> {
+  assertDomAvailable('stitchScreenshots');
   const rawWidth = Math.max(1, viewportWidth * dpr);
   const rawHeight = Math.max(1, totalHeight * dpr);
   const areaScale = Math.sqrt(MAX_CANVAS_AREA / (rawWidth * rawHeight));

@@ -1,8 +1,7 @@
-
-
 import { createContext, useContext, type ReactNode } from 'react';
 import type { Annotation } from '@/types';
-import type { Position, MarkerHandlers } from '@/hooks/useMarkerDrag';
+import type { Position } from '@/types/position';
+import type { MarkerHandlers } from '@/hooks/useMarkerDrag';
 
 interface MarkerDragContextValue {
 

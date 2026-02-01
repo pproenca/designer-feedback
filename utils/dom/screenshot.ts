@@ -3,7 +3,8 @@
 import { createPlaceholderScreenshot } from './screenshot/placeholder';
 import { hideStickyElements, restoreHiddenElements } from './screenshot/sticky';
 import { stitchScreenshots } from './screenshot/stitch';
-import { backgroundMessenger, withTimeout } from './messaging';
+import { backgroundMessenger, withTimeout } from '@/utils/messaging';
+import { assertDomAvailable } from '@/utils/dom/guards';
 
 export type FullPageCaptureResult = {
   dataUrl: string;
@@ -13,6 +14,7 @@ export type FullPageCaptureResult = {
 };
 
 export function isRestrictedPage(): boolean {
+  assertDomAvailable('isRestrictedPage');
   try {
     const protocol = window.location.protocol;
 
@@ -38,6 +40,7 @@ export async function captureScreenshot(): Promise<string> {
 }
 
 export async function captureFullPage(): Promise<FullPageCaptureResult> {
+  assertDomAvailable('captureFullPage');
   try {
     return { dataUrl: await captureFullPageFromExtension(), isPlaceholder: false, mode: 'full' };
   } catch (error) {

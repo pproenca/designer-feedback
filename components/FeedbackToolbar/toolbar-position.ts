@@ -1,6 +1,4 @@
-
-
-import type { Position } from '@/hooks/useDraggable';
+import type { Position } from '@/types/position';
 import { toolbarPositions } from '@/utils/storage-items';
 
 function getOriginKey(): string {

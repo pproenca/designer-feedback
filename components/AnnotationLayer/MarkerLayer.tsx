@@ -1,5 +1,3 @@
-
-
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useMemo } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
@@ -7,7 +5,7 @@ import { clsx } from 'clsx';
 import { getCategoryConfig } from '@/shared/categories';
 import { useMarkerDragContext } from './MarkerDragContext';
 import type { Annotation } from '@/types';
-import type { Position } from '@/hooks/useMarkerDrag';
+import type { Position } from '@/types/position';
 
 export interface MarkerLayerProps {
 
