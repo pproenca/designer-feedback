@@ -1,23 +1,12 @@
-import { useRef, useEffect, useState, useCallback, type KeyboardEvent } from 'react';
-import { clsx } from 'clsx';
-
-const BUTTON_BASE = [
-  'px-4 py-2 text-xs font-medium rounded-lg border-none cursor-pointer',
-  'transition-interactive',
-  'focus-ring',
-  'active:scale-[0.98]',
-].join(' ');
-
-const BUTTON_SECONDARY = clsx(
-  BUTTON_BASE,
-  'bg-black/5 text-black/60 hover:bg-black/8 hover:text-black/75',
-  'dark:bg-white/8 dark:text-white/70 dark:hover:bg-white/12 dark:hover:text-white/85'
-);
-
-const ELEMENT_LABEL = clsx(
-  'text-xs font-normal max-w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1',
-  'text-muted'
-);
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type KeyboardEvent,
+} from 'react';
+import {clsx} from 'clsx';
+import {BUTTON_BASE, BUTTON_SECONDARY, ELEMENT_LABEL} from './styles';
 
 interface CreateModeContentProps {
   element: string;
@@ -45,7 +34,6 @@ export function CreateModeContent({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoFocusTimerRef = useRef<number | null>(null);
 
-  // Focus textarea on mount
   useEffect(() => {
     autoFocusTimerRef.current = window.setTimeout(() => {
       const textarea = textareaRef.current;
@@ -111,12 +99,14 @@ export function CreateModeContent({
         )}
         style={{
           borderColor: isTextareaFocused ? accentColor : undefined,
-          boxShadow: isTextareaFocused ? `0 0 0 3px color-mix(in srgb, ${accentColor} 15%, transparent)` : undefined,
+          boxShadow: isTextareaFocused
+            ? `0 0 0 3px color-mix(in srgb, ${accentColor} 15%, transparent)`
+            : undefined,
         }}
         placeholder={placeholder}
         aria-label="Annotation comment"
         value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
+        onChange={e => setCommentText(e.target.value)}
         onFocus={() => setIsTextareaFocused(true)}
         onBlur={() => setIsTextareaFocused(false)}
         rows={2}
@@ -135,7 +125,7 @@ export function CreateModeContent({
             'hover:enabled:brightness-110 hover:enabled:shadow-[0_2px_8px_rgba(0,0,0,0.15)]',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
-          style={{ backgroundColor: accentColor }}
+          style={{backgroundColor: accentColor}}
           type="button"
           onClick={handleSubmit}
           disabled={!commentText.trim()}

@@ -1,81 +1,69 @@
-/**
- * Toolbar - The main floating toolbar UI component
- *
- * Reads toolbar state from local context and renders controls.
- */
-
-import { useState, useEffect, useCallback, useRef, startTransition, type ReactNode } from 'react';
-import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useDraggable, type Position } from '@/hooks/useDraggable';
-import { clsx } from 'clsx';
-import { X, Trash2, Sun, Moon, Download, MessageCircleMore } from 'lucide-react';
-import { loadToolbarPosition, saveToolbarPosition } from './toolbar-position';
-import { useAnnotationsStore } from '@/stores/annotations';
-import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
-
-// =============================================================================
-// Types
-// =============================================================================
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  startTransition,
+  type ReactNode,
+} from 'react';
+import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {useDraggable} from '@/hooks/useDraggable';
+import type {Position} from '@/types/position';
+import {clsx} from 'clsx';
+import {X, Trash2, Sun, Moon, Download, MessageCircleMore} from 'lucide-react';
+import {loadToolbarPosition, saveToolbarPosition} from './toolbar-position';
+import {useAnnotationsStore} from '@/stores/annotations';
+import {useToolbarActions, useToolbarState} from './ToolbarStateProvider';
+import {useSettings} from '@/hooks/useSettings';
 
 export interface ToolbarProps {
-  /** Callback when theme button is clicked */
-  onThemeToggle: () => void;
-  /** Whether light mode is enabled */
-  lightMode: boolean;
-  /** Children to render in add button area (CategoryPanel) */
   children?: ReactNode;
 }
 
-// =============================================================================
-// Animation Variants
-// =============================================================================
-
 const getVariants = (reduceMotion: boolean) => ({
   toolbar: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { y: 6, scale: 0.96 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {y: 6, scale: 0.96})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { y: 0, scale: 1 }),
+      ...(reduceMotion ? {} : {y: 0, scale: 1}),
       transition: reduceMotion
-        ? { duration: 0.15, ease: 'easeOut' as const }
-        : { type: 'spring' as const, stiffness: 400, damping: 25 },
+        ? {duration: 0.15, ease: 'easeOut' as const}
+        : {type: 'spring' as const, stiffness: 400, damping: 25},
     },
   },
   badge: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.9 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.9})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1 }),
+      ...(reduceMotion ? {} : {scale: 1}),
       transition: reduceMotion
-        ? { duration: 0.12, ease: 'easeOut' as const }
-        : { type: 'spring' as const, stiffness: 500, damping: 20, delay: 0.4 },
+        ? {duration: 0.12, ease: 'easeOut' as const}
+        : {type: 'spring' as const, stiffness: 500, damping: 20, delay: 0.4},
     },
   },
   iconSwap: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.8 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.8})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1 }),
-      transition: { duration: 0.12, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1}),
+      transition: {duration: 0.12, ease: 'easeOut' as const},
     },
     exit: {
       opacity: 0,
-      ...(reduceMotion ? {} : { scale: 0.8 }),
-      transition: { duration: 0.08, ease: 'easeIn' as const },
+      ...(reduceMotion ? {} : {scale: 0.8}),
+      transition: {duration: 0.08, ease: 'easeIn' as const},
     },
   },
 });
 
-// =============================================================================
-// Component
-// =============================================================================
+export function Toolbar({children}: ToolbarProps) {
+  const {settings, updateSettings} = useSettings();
+  const lightMode = settings.lightMode;
 
-export function Toolbar({
-  onThemeToggle,
-  lightMode,
-  children,
-}: ToolbarProps) {
-  const { isExpanded, addMode, isEntranceComplete } = useToolbarState();
+  const handleThemeToggle = useCallback(() => {
+    updateSettings({lightMode: !lightMode});
+  }, [lightMode, updateSettings]);
+  const {isExpanded, addMode, isEntranceComplete} = useToolbarState();
   const {
     toolbarExpanded,
     toolbarCollapsed,
@@ -84,13 +72,14 @@ export function Toolbar({
     annotationDeselected,
   } = useToolbarActions();
 
-  const annotationsCount = useAnnotationsStore((s) => s.annotations.length);
-  const annotationsCleared = useAnnotationsStore((s) => s.annotationsCleared);
+  const annotationsCount = useAnnotationsStore(s => s.annotations.length);
+  const annotationsCleared = useAnnotationsStore(s => s.annotationsCleared);
 
   const isSelectingElement = addMode === 'selecting';
   const isCategoryPanelOpen = addMode === 'category';
 
-  const [savedToolbarPosition, setSavedToolbarPosition] = useState<Position | null>(null);
+  const [savedToolbarPosition, setSavedToolbarPosition] =
+    useState<Position | null>(null);
   const [tooltipsReady, setTooltipsReady] = useState(false);
   const tooltipDelayTimerRef = useRef<number | null>(null);
 
@@ -124,7 +113,7 @@ export function Toolbar({
       }
     };
 
-    loadInitialPosition();
+    void loadInitialPosition();
     return () => {
       isCancelled = true;
     };
@@ -211,7 +200,7 @@ export function Toolbar({
               )
         )}
         onClick={() => !isExpanded && handleExpandedChange(true)}
-        onKeyDown={(event) => {
+        onKeyDown={event => {
           if (!isExpanded && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
             handleExpandedChange(true);
@@ -270,7 +259,9 @@ export function Toolbar({
                 (isSelectingElement || isCategoryPanelOpen) && 'active'
               )}
               type="button"
-              aria-label={isSelectingElement ? 'Cancel add annotation' : 'Add annotation'}
+              aria-label={
+                isSelectingElement ? 'Cancel add annotation' : 'Add annotation'
+              }
               aria-pressed={isSelectingElement || isCategoryPanelOpen}
               aria-expanded={isCategoryPanelOpen}
               aria-describedby="tooltip-add-annotation"
@@ -302,7 +293,11 @@ export function Toolbar({
                 )}
               </AnimatePresence>
             </button>
-            <span className="tooltip" role="tooltip" id="tooltip-add-annotation">
+            <span
+              className="tooltip"
+              role="tooltip"
+              id="tooltip-add-annotation"
+            >
               {isSelectingElement ? 'Cancel' : 'Add annotation'}
             </span>
 
@@ -355,9 +350,11 @@ export function Toolbar({
             <button
               className="btn-toolbar"
               type="button"
-              aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+              aria-label={
+                lightMode ? 'Switch to dark mode' : 'Switch to light mode'
+              }
               aria-describedby="tooltip-theme"
-              onClick={onThemeToggle}
+              onClick={handleThemeToggle}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {lightMode ? (

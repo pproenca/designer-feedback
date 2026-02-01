@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
 
 // Tests for position calculation utilities
 // These utilities provide consistent coordinate calculations for:
@@ -14,9 +14,9 @@ describe('calculateMarkerPosition', () => {
 
   describe('for fixed elements', () => {
     it('returns viewport-relative coordinates for fixed element', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 100, top: 200, width: 50, height: 30 } as DOMRect;
+      const rect = {left: 100, top: 200, width: 50, height: 30} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 500,
@@ -33,9 +33,9 @@ describe('calculateMarkerPosition', () => {
     });
 
     it('ignores scroll position for fixed elements', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 0, top: 0, width: 100, height: 50 } as DOMRect;
+      const rect = {left: 0, top: 0, width: 100, height: 50} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 9999,
@@ -51,9 +51,9 @@ describe('calculateMarkerPosition', () => {
 
   describe('for absolute elements', () => {
     it('returns document-relative coordinates for absolute element', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 100, top: 200, width: 50, height: 30 } as DOMRect;
+      const rect = {left: 100, top: 200, width: 50, height: 30} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 500,
@@ -70,9 +70,9 @@ describe('calculateMarkerPosition', () => {
     });
 
     it('handles zero scroll position', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 100, top: 200, width: 50, height: 30 } as DOMRect;
+      const rect = {left: 100, top: 200, width: 50, height: 30} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 0,
@@ -90,9 +90,9 @@ describe('calculateMarkerPosition', () => {
 
   describe('edge cases', () => {
     it('handles elements at origin (0,0)', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 0, top: 0, width: 20, height: 20 } as DOMRect;
+      const rect = {left: 0, top: 0, width: 20, height: 20} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 0,
@@ -108,9 +108,9 @@ describe('calculateMarkerPosition', () => {
     });
 
     it('handles large elements', async () => {
-      const { calculateMarkerPosition } = await import('./annotation-position');
+      const {calculateMarkerPosition} = await import('./annotation-position');
 
-      const rect = { left: 0, top: 0, width: 1000, height: 800 } as DOMRect;
+      const rect = {left: 0, top: 0, width: 1000, height: 800} as DOMRect;
       const result = calculateMarkerPosition({
         rect,
         scrollX: 0,
@@ -130,10 +130,16 @@ describe('calculateMarkerPosition', () => {
 describe('calculatePopupPosition', () => {
   describe('basic positioning', () => {
     it('positions popup below element with default gap', async () => {
-      const { calculatePopupPosition } = await import('./annotation-position');
+      const {calculatePopupPosition} = await import('./annotation-position');
 
       const result = calculatePopupPosition({
-        rect: { left: 100, top: 200, width: 50, height: 30, bottom: 230 } as DOMRect,
+        rect: {
+          left: 100,
+          top: 200,
+          width: 50,
+          height: 30,
+          bottom: 230,
+        } as DOMRect,
         scrollX: 0,
         scrollY: 0,
         isFixed: false,
@@ -146,11 +152,17 @@ describe('calculatePopupPosition', () => {
     });
 
     it('uses custom gap when provided', async () => {
-      const { calculatePopupPosition } = await import('./annotation-position');
+      const {calculatePopupPosition} = await import('./annotation-position');
 
       const result = calculatePopupPosition(
         {
-          rect: { left: 100, top: 200, width: 50, height: 30, bottom: 230 } as DOMRect,
+          rect: {
+            left: 100,
+            top: 200,
+            width: 50,
+            height: 30,
+            bottom: 230,
+          } as DOMRect,
           scrollX: 0,
           scrollY: 0,
           isFixed: false,
@@ -164,10 +176,16 @@ describe('calculatePopupPosition', () => {
 
   describe('for fixed elements', () => {
     it('returns viewport-relative coordinates with fixed positioning', async () => {
-      const { calculatePopupPosition } = await import('./annotation-position');
+      const {calculatePopupPosition} = await import('./annotation-position');
 
       const result = calculatePopupPosition({
-        rect: { left: 100, top: 50, width: 200, height: 40, bottom: 90 } as DOMRect,
+        rect: {
+          left: 100,
+          top: 50,
+          width: 200,
+          height: 40,
+          bottom: 90,
+        } as DOMRect,
         scrollX: 500,
         scrollY: 1000,
         isFixed: true,
@@ -182,10 +200,16 @@ describe('calculatePopupPosition', () => {
 
   describe('for absolute elements', () => {
     it('adds scroll offset to coordinates', async () => {
-      const { calculatePopupPosition } = await import('./annotation-position');
+      const {calculatePopupPosition} = await import('./annotation-position');
 
       const result = calculatePopupPosition({
-        rect: { left: 100, top: 200, width: 50, height: 30, bottom: 230 } as DOMRect,
+        rect: {
+          left: 100,
+          top: 200,
+          width: 50,
+          height: 30,
+          bottom: 230,
+        } as DOMRect,
         scrollX: 100,
         scrollY: 500,
         isFixed: false,
@@ -200,7 +224,7 @@ describe('calculatePopupPosition', () => {
 
 describe('getMarkerDisplayPosition', () => {
   it('returns stored position for marker display', async () => {
-    const { getMarkerDisplayPosition } = await import('./annotation-position');
+    const {getMarkerDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 500,
@@ -218,7 +242,7 @@ describe('getMarkerDisplayPosition', () => {
   });
 
   it('handles fixed annotation', async () => {
-    const { getMarkerDisplayPosition } = await import('./annotation-position');
+    const {getMarkerDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 100,
@@ -236,7 +260,7 @@ describe('getMarkerDisplayPosition', () => {
   });
 
   it('defaults isFixed to false when not specified', async () => {
-    const { getMarkerDisplayPosition } = await import('./annotation-position');
+    const {getMarkerDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 100,
@@ -251,13 +275,13 @@ describe('getMarkerDisplayPosition', () => {
 
 describe('getPopupDisplayPosition', () => {
   it('calculates popup position from annotation with default gap', async () => {
-    const { getPopupDisplayPosition } = await import('./annotation-position');
+    const {getPopupDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 500,
       y: 300,
       isFixed: false,
-      boundingBox: { x: 475, y: 285, width: 50, height: 30 },
+      boundingBox: {x: 475, y: 285, width: 50, height: 30},
     };
 
     const result = getPopupDisplayPosition(annotation);
@@ -271,7 +295,7 @@ describe('getPopupDisplayPosition', () => {
   });
 
   it('handles annotation without boundingBox', async () => {
-    const { getPopupDisplayPosition } = await import('./annotation-position');
+    const {getPopupDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 500,
@@ -288,7 +312,7 @@ describe('getPopupDisplayPosition', () => {
   });
 
   it('uses custom gap', async () => {
-    const { getPopupDisplayPosition } = await import('./annotation-position');
+    const {getPopupDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 500,
@@ -302,7 +326,7 @@ describe('getPopupDisplayPosition', () => {
   });
 
   it('handles fixed annotation', async () => {
-    const { getPopupDisplayPosition } = await import('./annotation-position');
+    const {getPopupDisplayPosition} = await import('./annotation-position');
 
     const annotation = {
       x: 100,

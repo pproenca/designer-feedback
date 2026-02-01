@@ -17,9 +17,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -32,9 +32,9 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -47,17 +47,14 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
       - run: npm ci
-
-      - name: Generate WXT types
-        run: npx wxt prepare
 
       - run: npm run test:coverage
 
@@ -73,9 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: typecheck
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -85,7 +82,7 @@ jobs:
       - name: Build extension for E2E
         run: VITE_DF_E2E=1 npx wxt build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: extension-build-${{ github.sha }}
           path: .output/chrome-mv3/
@@ -96,16 +93,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
       - run: npm ci
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: extension-build-${{ github.sha }}
           path: .output/chrome-mv3/
@@ -114,18 +111,19 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npm run test:e2e
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
           CI: true
+          EXTENSION_PATH: .output/chrome-mv3
 
-      - uses: actions/upload-artifact@v4
-        if: failure()
+      - uses: actions/upload-artifact@v5
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: |
             playwright-report/
             test-results/
-          retention-days: 7
+          retention-days: 30
 
   ci-success:
     name: CI Success

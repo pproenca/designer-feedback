@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import {defineConfig} from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -13,13 +13,12 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
     setupFiles: ['./test/setup.ts'],
     mockReset: true,
     restoreMocks: true,
-    include: [
-      '**/*.{test,spec}.{ts,tsx}',
-    ],
+    execArgv: ['--experimental-require-module'],
+    include: ['**/*.{test,spec}.{ts,tsx}'],
     exclude: [
       'node_modules/**',
       'tests/**', // Exclude Playwright E2E tests

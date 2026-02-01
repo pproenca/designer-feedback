@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { withTimeout } from './messaging';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {withTimeout} from './messaging';
 
 describe('withTimeout', () => {
   beforeEach(() => {
@@ -11,7 +11,7 @@ describe('withTimeout', () => {
   });
 
   it('resolves normally when promise resolves before timeout', async () => {
-    const expectedResponse = { data: 'test' };
+    const expectedResponse = {data: 'test'};
     const promise = Promise.resolve(expectedResponse);
 
     const result = await withTimeout(promise, 1000);
@@ -63,7 +63,7 @@ describe('withTimeout', () => {
   });
 
   it('does not reject after promise resolves even if timer would fire later', async () => {
-    const expectedResponse = { data: 'test' };
+    const expectedResponse = {data: 'test'};
     const promise = Promise.resolve(expectedResponse);
 
     // Get response immediately
@@ -80,6 +80,8 @@ describe('withTimeout', () => {
     const originalError = new Error('Original error');
     const failingPromise = Promise.reject(originalError);
 
-    await expect(withTimeout(failingPromise, 1000)).rejects.toThrow('Original error');
+    await expect(withTimeout(failingPromise, 1000)).rejects.toThrow(
+      'Original error'
+    );
   });
 });

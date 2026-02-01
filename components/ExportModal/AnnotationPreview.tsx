@@ -1,19 +1,27 @@
-import type { Annotation } from '@/types';
-import { getCategoryConfig } from '@/shared/categories';
-import { clsx } from 'clsx';
+import type {Annotation} from '@/types';
+import {getCategoryConfig} from '@/shared/categories';
+import {clsx} from 'clsx';
 
 interface AnnotationPreviewProps {
   annotations: Annotation[];
   maxItems?: number;
 }
 
-export function AnnotationPreview({ annotations, maxItems = 5 }: AnnotationPreviewProps) {
+export function AnnotationPreview({
+  annotations,
+  maxItems = 5,
+}: AnnotationPreviewProps) {
   const visibleAnnotations = annotations.slice(0, maxItems);
   const remainingCount = annotations.length - maxItems;
 
   return (
     <div className="mt-2 mb-3.5 p-0 bg-transparent rounded-none border-none">
-      <h3 className={clsx('text-xs font-semibold mb-2 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}>
+      <h3
+        className={clsx(
+          'text-xs font-semibold mb-2 uppercase tracking-widest',
+          'text-black/45 dark:text-white/50'
+        )}
+      >
         Preview
       </h3>
       <div className="flex flex-col gap-1.5">
@@ -33,7 +41,9 @@ export function AnnotationPreview({ annotations, maxItems = 5 }: AnnotationPrevi
                   'flex items-center justify-center w-5 h-5 rounded-full text-2xs font-bold shrink-0',
                   'shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]',
                   config.tw.bg,
-                  annotation.category === 'question' ? 'text-black/80' : 'text-white'
+                  annotation.category === 'question'
+                    ? 'text-black/80'
+                    : 'text-white'
                 )}
               >
                 {index + 1}
@@ -58,7 +68,12 @@ export function AnnotationPreview({ annotations, maxItems = 5 }: AnnotationPrevi
           );
         })}
         {remainingCount > 0 && (
-          <div className={clsx('text-xs italic pt-1', 'text-black/35 dark:text-white/45')}>
+          <div
+            className={clsx(
+              'text-xs italic pt-1',
+              'text-black/35 dark:text-white/45'
+            )}
+          >
             +{remainingCount} more annotations
           </div>
         )}

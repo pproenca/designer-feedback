@@ -1,57 +1,31 @@
-/**
- * SelectionOverlay - Visual overlay for element selection during annotation mode
- *
- * This component renders:
- * - A highlight box around the hovered element
- * - A tooltip showing the element name
- *
- * Key features:
- * - Uses motion values for smooth position updates without re-renders
- * - AnimatePresence for smooth show/hide transitions
- * - Pointer-events: none to allow clicking through the overlay
- */
-
-import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useElementSelection } from './useElementSelection';
-import { clsx } from 'clsx';
-
-// =============================================================================
-// Types
-// =============================================================================
+import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {useElementSelection} from './useElementSelection';
+import {clsx} from 'clsx';
 
 export interface SelectionOverlayProps {
-  /** Whether element selection mode is enabled */
   enabled: boolean;
 }
 
-// =============================================================================
-// Animation Variants
-// =============================================================================
-
 const getVariants = (reduceMotion: boolean) => ({
   highlight: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.98 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.98})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1 }),
-      transition: { duration: 0.12, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1}),
+      transition: {duration: 0.12, ease: 'easeOut' as const},
     },
   },
   tooltip: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 4 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: 4})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.1, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1, y: 0}),
+      transition: {duration: 0.1, ease: 'easeOut' as const},
     },
   },
 });
 
-// =============================================================================
-// Component
-// =============================================================================
-
-export function SelectionOverlay({ enabled }: SelectionOverlayProps) {
+export function SelectionOverlay({enabled}: SelectionOverlayProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
@@ -64,7 +38,7 @@ export function SelectionOverlay({ enabled }: SelectionOverlayProps) {
     highlightHeight,
     tooltipX,
     tooltipY,
-  } = useElementSelection({ enabled });
+  } = useElementSelection({enabled});
 
   return (
     <AnimatePresence>

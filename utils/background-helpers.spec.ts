@@ -2,10 +2,10 @@
  * Unit tests for background-helpers.ts
  * Tests critical paths: captureVisibleTabScreenshot, downloadFile, tab tracking, settings, badge
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing/fake-browser';
-import type { Settings } from '@/types';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {fakeBrowser} from 'wxt/testing/fake-browser';
+import type {Settings} from '@/types';
+import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
   activatedTabs,
   settingsEnabled,
@@ -39,7 +39,7 @@ import {
   ensureHostPermission,
   getContentScriptFiles,
 } from './background-helpers';
-import { hashString } from './hash';
+import {hashString} from './hash';
 
 describe('Background Helpers', () => {
   beforeEach(() => {
@@ -73,8 +73,12 @@ describe('Background Helpers', () => {
       });
 
       it('returns false for extension URLs', () => {
-        expect(isInjectableUrl('chrome-extension://abc123/popup.html')).toBe(false);
-        expect(isInjectableUrl('moz-extension://abc123/popup.html')).toBe(false);
+        expect(isInjectableUrl('chrome-extension://abc123/popup.html')).toBe(
+          false
+        );
+        expect(isInjectableUrl('moz-extension://abc123/popup.html')).toBe(
+          false
+        );
       });
 
       it('returns false for about: URLs', () => {
@@ -89,8 +93,12 @@ describe('Background Helpers', () => {
 
     describe('getOrigin', () => {
       it('extracts origin from valid URLs', () => {
-        expect(getOrigin('https://example.com/path?query=1')).toBe('https://example.com');
-        expect(getOrigin('http://localhost:3000/page')).toBe('http://localhost:3000');
+        expect(getOrigin('https://example.com/path?query=1')).toBe(
+          'https://example.com'
+        );
+        expect(getOrigin('http://localhost:3000/page')).toBe(
+          'http://localhost:3000'
+        );
       });
 
       it('returns empty string for invalid URLs', () => {
@@ -115,8 +123,12 @@ describe('Background Helpers', () => {
 
     describe('getOriginPattern', () => {
       it('adds wildcard suffix to origin', () => {
-        expect(getOriginPattern('https://example.com')).toBe('https://example.com/*');
-        expect(getOriginPattern('http://localhost:3000')).toBe('http://localhost:3000/*');
+        expect(getOriginPattern('https://example.com')).toBe(
+          'https://example.com/*'
+        );
+        expect(getOriginPattern('http://localhost:3000')).toBe(
+          'http://localhost:3000/*'
+        );
       });
     });
 
@@ -140,7 +152,9 @@ describe('Background Helpers', () => {
   describe('captureVisibleTabScreenshot', () => {
     it('returns data URL on success', async () => {
       const testDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
-      vi.spyOn(fakeBrowser.tabs, 'captureVisibleTab').mockResolvedValue(testDataUrl);
+      vi.spyOn(fakeBrowser.tabs, 'captureVisibleTab').mockResolvedValue(
+        testDataUrl
+      );
 
       const result = await captureVisibleTabScreenshot(1);
 
@@ -152,13 +166,18 @@ describe('Background Helpers', () => {
       vi.spyOn(fakeBrowser.tabs, 'captureVisibleTab').mockRejectedValue(
         new Error('Tab capture failed')
       );
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const result = await captureVisibleTabScreenshot(1);
 
       expect(result.data).toBe('');
       expect(result.error).toContain('Tab capture failed');
-      expect(consoleSpy).toHaveBeenCalledWith('[Background] captureVisibleTab failed:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Background] captureVisibleTab failed:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
 
@@ -178,7 +197,7 @@ describe('Background Helpers', () => {
 
       await captureVisibleTabScreenshot(42);
 
-      expect(captureVisibleTabSpy).toHaveBeenCalledWith(42, { format: 'png' });
+      expect(captureVisibleTabSpy).toHaveBeenCalledWith(42, {format: 'png'});
     });
   });
 
@@ -190,12 +209,15 @@ describe('Background Helpers', () => {
 
     it('queries active tab when sender.tab.windowId is undefined', async () => {
       vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-        { id: 1, windowId: 99, url: 'https://example.com' },
+        {id: 1, windowId: 99, url: 'https://example.com'},
       ]);
 
       const windowId = await getWindowIdForCapture(undefined);
 
-      expect(fakeBrowser.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
+      expect(fakeBrowser.tabs.query).toHaveBeenCalledWith({
+        active: true,
+        currentWindow: true,
+      });
       expect(windowId).toBe(99);
     });
 
@@ -209,7 +231,7 @@ describe('Background Helpers', () => {
 
     it('returns WINDOW_ID_CURRENT when active tab has no windowId', async () => {
       vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-        { id: 1, url: 'https://example.com' }, // no windowId
+        {id: 1, url: 'https://example.com'}, // no windowId
       ]);
 
       const windowId = await getWindowIdForCapture(undefined);
@@ -218,13 +240,18 @@ describe('Background Helpers', () => {
     });
 
     it('returns WINDOW_ID_CURRENT when tab query fails', async () => {
-      vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(new Error('Query failed'));
+      vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(
+        new Error('Query failed')
+      );
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const windowId = await getWindowIdForCapture(undefined);
 
       expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
-      expect(consoleSpy).toHaveBeenCalledWith('[Background] Failed to query active tab:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Background] Failed to query active tab:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
   });
@@ -233,7 +260,9 @@ describe('Background Helpers', () => {
     it('returns true when permission is granted', async () => {
       vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(true);
 
-      const result = await verifyScreenshotPermission('https://example.com/page');
+      const result = await verifyScreenshotPermission(
+        'https://example.com/page'
+      );
 
       expect(result).toBe(true);
       expect(fakeBrowser.permissions.contains).toHaveBeenCalledWith({
@@ -244,29 +273,45 @@ describe('Background Helpers', () => {
     it('returns false when permission is not granted', async () => {
       vi.spyOn(fakeBrowser.permissions, 'contains').mockResolvedValue(false);
 
-      const result = await verifyScreenshotPermission('https://example.com/page');
+      const result = await verifyScreenshotPermission(
+        'https://example.com/page'
+      );
 
       expect(result).toBe(false);
     });
 
     it('returns false for invalid URLs', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const result = await verifyScreenshotPermission('not-a-valid-url');
 
       expect(result).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith('[Background] Permission check failed:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Background] Permission check failed:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
 
     it('returns false when permission check throws', async () => {
-      vi.spyOn(fakeBrowser.permissions, 'contains').mockRejectedValue(new Error('Permission error'));
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(fakeBrowser.permissions, 'contains').mockRejectedValue(
+        new Error('Permission error')
+      );
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
-      const result = await verifyScreenshotPermission('https://example.com/page');
+      const result = await verifyScreenshotPermission(
+        'https://example.com/page'
+      );
 
       expect(result).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith('[Background] Permission check failed:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Background] Permission check failed:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
   });
@@ -278,7 +323,7 @@ describe('Background Helpers', () => {
   describe('Settings Management', () => {
     describe('getSettings', () => {
       it('returns settings from sync storage', async () => {
-        const customSettings: Settings = { enabled: false, lightMode: false };
+        const customSettings: Settings = {enabled: false, lightMode: false};
         await settingsEnabled.setValue(customSettings.enabled);
         await settingsLightMode.setValue(customSettings.lightMode);
 
@@ -289,23 +334,34 @@ describe('Background Helpers', () => {
       });
 
       it('returns default settings when storage fails', async () => {
-        vi.spyOn(settingsEnabled, 'getValue').mockRejectedValue(new Error('Storage error'));
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(settingsEnabled, 'getValue').mockRejectedValue(
+          new Error('Storage error')
+        );
+        const consoleSpy = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => {});
 
         const result = await getSettings();
 
         expect(result.settings).toEqual(DEFAULT_SETTINGS);
         expect(result.error).toContain('Storage error');
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to get settings:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to get settings:',
+          expect.any(Error)
+        );
         consoleSpy.mockRestore();
       });
     });
 
     describe('saveSettings', () => {
       it('saves settings to sync storage', async () => {
-        const newSettings: Settings = { enabled: false, lightMode: true };
-        const enabledSpy = vi.spyOn(settingsEnabled, 'setValue').mockResolvedValue(undefined);
-        const lightModeSpy = vi.spyOn(settingsLightMode, 'setValue').mockResolvedValue(undefined);
+        const newSettings: Settings = {enabled: false, lightMode: true};
+        const enabledSpy = vi
+          .spyOn(settingsEnabled, 'setValue')
+          .mockResolvedValue(undefined);
+        const lightModeSpy = vi
+          .spyOn(settingsLightMode, 'setValue')
+          .mockResolvedValue(undefined);
 
         const result = await saveSettings(newSettings);
 
@@ -316,14 +372,21 @@ describe('Background Helpers', () => {
       });
 
       it('returns error when saving fails', async () => {
-        vi.spyOn(settingsEnabled, 'setValue').mockRejectedValue(new Error('Quota exceeded'));
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(settingsEnabled, 'setValue').mockRejectedValue(
+          new Error('Quota exceeded')
+        );
+        const consoleSpy = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => {});
 
         const result = await saveSettings(DEFAULT_SETTINGS);
 
         expect(result.settings).toEqual(DEFAULT_SETTINGS);
         expect(result.error).toContain('Quota exceeded');
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to save settings:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to save settings:',
+          expect.any(Error)
+        );
         consoleSpy.mockRestore();
       });
     });
@@ -336,11 +399,13 @@ describe('Background Helpers', () => {
   describe('Badge Updates', () => {
     it('sets badge text and color for non-zero count', () => {
       vi.spyOn(fakeBrowser.action, 'setBadgeText').mockResolvedValue(undefined);
-      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(undefined);
+      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(
+        undefined
+      );
 
       updateBadge(5);
 
-      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({ text: '5' });
+      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({text: '5'});
       expect(fakeBrowser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
         color: '#3C82F7',
       });
@@ -348,22 +413,28 @@ describe('Background Helpers', () => {
 
     it('clears badge text for zero count', () => {
       vi.spyOn(fakeBrowser.action, 'setBadgeText').mockResolvedValue(undefined);
-      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(undefined);
+      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(
+        undefined
+      );
 
       updateBadge(0);
 
-      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({text: ''});
       // setBadgeBackgroundColor should NOT be called for zero count
       expect(fakeBrowser.action.setBadgeBackgroundColor).not.toHaveBeenCalled();
     });
 
     it('handles large counts', () => {
       vi.spyOn(fakeBrowser.action, 'setBadgeText').mockResolvedValue(undefined);
-      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(undefined);
+      vi.spyOn(fakeBrowser.action, 'setBadgeBackgroundColor').mockResolvedValue(
+        undefined
+      );
 
       updateBadge(999);
 
-      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({ text: '999' });
+      expect(fakeBrowser.action.setBadgeText).toHaveBeenCalledWith({
+        text: '999',
+      });
     });
   });
 
@@ -380,7 +451,7 @@ describe('Background Helpers', () => {
           configurable: true,
         });
 
-        expect(isExtensionSender({ id: extensionId })).toBe(true);
+        expect(isExtensionSender({id: extensionId})).toBe(true);
       });
 
       it('returns false for non-matching extension ID', () => {
@@ -389,7 +460,7 @@ describe('Background Helpers', () => {
           configurable: true,
         });
 
-        expect(isExtensionSender({ id: 'malicious-extension' })).toBe(false);
+        expect(isExtensionSender({id: 'malicious-extension'})).toBe(false);
       });
 
       it('returns false for undefined sender ID', () => {
@@ -410,7 +481,9 @@ describe('Background Helpers', () => {
   describe('Tab Tracking', () => {
     describe('persistActivatedTabs', () => {
       it('persists tabs to session storage', () => {
-        const setSpy = vi.spyOn(activatedTabs, 'setValue').mockResolvedValue(undefined);
+        const setSpy = vi
+          .spyOn(activatedTabs, 'setValue')
+          .mockResolvedValue(undefined);
 
         const tabs = new Map<number, string>();
         tabs.set(1, 'hash1');
@@ -418,11 +491,13 @@ describe('Background Helpers', () => {
 
         persistActivatedTabs(tabs);
 
-        expect(setSpy).toHaveBeenCalledWith({ '1': 'hash1', '2': 'hash2' });
+        expect(setSpy).toHaveBeenCalledWith({'1': 'hash1', '2': 'hash2'});
       });
 
       it('persists empty map as empty object', () => {
-        const setSpy = vi.spyOn(activatedTabs, 'setValue').mockResolvedValue(undefined);
+        const setSpy = vi
+          .spyOn(activatedTabs, 'setValue')
+          .mockResolvedValue(undefined);
 
         const tabs = new Map<number, string>();
 
@@ -439,8 +514,8 @@ describe('Background Helpers', () => {
           '2': 'hash2',
         });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-          { id: 1, url: 'https://example.com' },
-          { id: 2, url: 'https://other.com' },
+          {id: 1, url: 'https://example.com'},
+          {id: 2, url: 'https://other.com'},
         ]);
 
         const tabs = new Map<number, string>();
@@ -456,7 +531,7 @@ describe('Background Helpers', () => {
           '999': 'hash999',
         });
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-          { id: 1, url: 'https://example.com' },
+          {id: 1, url: 'https://example.com'},
         ]);
 
         const tabs = new Map<number, string>();
@@ -471,9 +546,9 @@ describe('Background Helpers', () => {
         const fullUrl = 'https://example.com';
         const expectedHash = hashString(fullUrl);
 
-        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({ '1': fullUrl });
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({'1': fullUrl});
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-          { id: 1, url: 'https://example.com' },
+          {id: 1, url: 'https://example.com'},
         ]);
 
         const tabs = new Map<number, string>();
@@ -485,9 +560,9 @@ describe('Background Helpers', () => {
 
       it('returns false when nothing changed', async () => {
         const hash = 'alreadyhashed123';
-        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({ '1': hash });
+        vi.spyOn(activatedTabs, 'getValue').mockResolvedValue({'1': hash});
         vi.spyOn(fakeBrowser.tabs, 'query').mockResolvedValue([
-          { id: 1, url: 'https://example.com' },
+          {id: 1, url: 'https://example.com'},
         ]);
 
         const tabs = new Map<number, string>();
@@ -586,8 +661,8 @@ describe('Background Helpers', () => {
           name: 'Test',
           version: '1.0',
           content_scripts: [
-            { js: ['content.js'], matches: ['<all_urls>'] },
-            { js: ['other.js'], matches: ['<all_urls>'] },
+            {js: ['content.js'], matches: ['<all_urls>']},
+            {js: ['other.js'], matches: ['<all_urls>']},
           ],
         });
 
@@ -602,8 +677,8 @@ describe('Background Helpers', () => {
           name: 'Test',
           version: '1.0',
           content_scripts: [
-            { js: ['content.js'], matches: ['<all_urls>'] },
-            { js: ['content.js', 'other.js'], matches: ['<all_urls>'] },
+            {js: ['content.js'], matches: ['<all_urls>']},
+            {js: ['content.js', 'other.js'], matches: ['<all_urls>']},
           ],
         });
 

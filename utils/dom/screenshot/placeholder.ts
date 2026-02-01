@@ -1,4 +1,6 @@
-function getDocumentSize(): { width: number; height: number } {
+import {assertDomAvailable} from '@/utils/dom/guards';
+
+function getDocumentSize(): {width: number; height: number} {
   const body = document.body;
   const html = document.documentElement;
 
@@ -22,14 +24,15 @@ function getDocumentSize(): { width: number; height: number } {
     window.innerHeight
   );
 
-  return { width, height };
+  return {width, height};
 }
 
 export function createPlaceholderScreenshot(
   message = 'Screenshot unavailable',
   subtitle = 'Export includes annotations and layout metadata.'
 ): string {
-  const { width, height } = getDocumentSize();
+  assertDomAvailable('createPlaceholderScreenshot');
+  const {width, height} = getDocumentSize();
   const scale = window.devicePixelRatio || 1;
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(width * scale));

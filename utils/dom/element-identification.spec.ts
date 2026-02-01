@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { getElementPath, identifyElement } from './element-identification';
+// @vitest-environment jsdom
+import {describe, it, expect} from 'vitest';
+import {getElementPath, identifyElement} from './element-identification';
 
 describe('element-identification', () => {
   it('builds readable element paths with ids and parents', () => {

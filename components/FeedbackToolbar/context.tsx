@@ -1,9 +1,3 @@
-/**
- * Toolbar Types
- *
- * Shared types used by the toolbar store and related components.
- */
-
 export type PendingAnnotation = {
   x: number;
   y: number;

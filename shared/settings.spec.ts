@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { DEFAULT_SETTINGS } from './settings';
+import {describe, it, expect} from 'vitest';
+import {DEFAULT_SETTINGS} from './settings';
 
 describe('settings', () => {
   describe('DEFAULT_SETTINGS', () => {

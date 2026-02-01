@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { activatedTabs } from './storage-items';
+import {describe, it, expect, beforeEach} from 'vitest';
+import {fakeBrowser} from 'wxt/testing/fake-browser';
+import {activatedTabs} from './storage-items';
 import {
   ANNOTATIONS_PREFIX,
   STORAGE_KEY_VERSION,
@@ -20,14 +20,14 @@ describe('storage-items', () => {
     });
 
     it('setValue persists record', async () => {
-      const tabs = { '1': 'hash123', '2': 'hash456' };
+      const tabs = {'1': 'hash123', '2': 'hash456'};
       await activatedTabs.setValue(tabs);
       const value = await activatedTabs.getValue();
       expect(value).toEqual(tabs);
     });
 
     it('getValue retrieves persisted value', async () => {
-      const tabs = { '10': 'origin-hash' };
+      const tabs = {'10': 'origin-hash'};
       await activatedTabs.setValue(tabs);
 
       // Create new reference to test persistence

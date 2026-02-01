@@ -1,32 +1,21 @@
-import type { ReactNode } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { clsx } from 'clsx';
-import { Check, Download } from 'lucide-react';
-import { StatusMessage, type StatusType } from '../StatusMessage';
+import type {ReactNode} from 'react';
+import {AnimatePresence} from 'framer-motion';
+import {clsx} from 'clsx';
+import {Check, Download} from 'lucide-react';
+import {StatusMessage} from '../StatusMessage';
+import {useExportState, useExportActions} from './ExportContext';
 
-interface ExportActionsProps {
-  isExporting: boolean;
-  exportOutcome: 'copied' | 'downloaded' | null;
-  isSnapshotFormat: boolean;
-  isMarkdownFormat: boolean;
-  isClipboardFormat: boolean;
-  statusMessage: { type: StatusType; text: string } | null;
-  statusMessageId: string | undefined;
-  onCancel: () => void;
-  onExport: () => void;
-}
-
-export function ExportActions({
-  isExporting,
-  exportOutcome,
-  isSnapshotFormat,
-  isMarkdownFormat,
-  isClipboardFormat,
-  statusMessage,
-  statusMessageId,
-  onCancel,
-  onExport,
-}: ExportActionsProps) {
+export function ExportActions() {
+  const {
+    isExporting,
+    exportOutcome,
+    isSnapshotFormat,
+    isMarkdownFormat,
+    isClipboardFormat,
+    statusMessage,
+    statusMessageId,
+  } = useExportState();
+  const {onClose, handleExport} = useExportActions();
   const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
       return (
@@ -50,7 +39,11 @@ export function ExportActions({
       <AnimatePresence>
         {statusMessage && (
           <div className="px-4.5 pb-2">
-            <StatusMessage type={statusMessage.type} message={statusMessage.text} id={statusMessageId} />
+            <StatusMessage
+              type={statusMessage.type}
+              message={statusMessage.text}
+              id={statusMessageId}
+            />
           </div>
         )}
       </AnimatePresence>
@@ -72,7 +65,7 @@ export function ExportActions({
             'dark:hover:bg-white/5 dark:hover:text-white'
           )}
           type="button"
-          onClick={onCancel}
+          onClick={onClose}
         >
           Cancel
         </button>
@@ -88,10 +81,12 @@ export function ExportActions({
             isExporting && 'animate-pulse'
           )}
           type="button"
-          onClick={onExport}
+          onClick={handleExport}
           disabled={isExporting}
         >
-          {!exportOutcome && !isExporting && <Download size={16} aria-hidden="true" />}
+          {!exportOutcome && !isExporting && (
+            <Download size={16} aria-hidden="true" />
+          )}
           {getButtonContent()}
         </button>
       </div>

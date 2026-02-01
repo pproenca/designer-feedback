@@ -1,6 +1,7 @@
-import type { Annotation } from '@/types';
-import { getCategoryConfig } from '@/shared/categories';
-import { loadImage } from '@/utils/image';
+import type {Annotation} from '@/types';
+import {getCategoryConfig} from '@/shared/categories';
+import {loadImage} from '@/utils/image';
+import {assertDomAvailable, getDocument, getWindow} from '@/utils/dom/guards';
 
 const SNAPSHOT_FONT_FAMILY =
   '"Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif';
@@ -9,11 +10,14 @@ export async function createSnapshotImage(
   screenshot: string,
   annotations: Annotation[]
 ): Promise<string> {
+  assertDomAvailable('createSnapshotImage');
+  const doc = getDocument('createSnapshotImage');
+  const win = getWindow('createSnapshotImage');
   const pageHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight
+    doc.body.scrollHeight,
+    doc.documentElement.scrollHeight
   );
-  const pageWidth = window.innerWidth;
+  const pageWidth = win.innerWidth;
   const baseImage = await loadImage(screenshot);
   const scaleX = baseImage.width / pageWidth;
   const scaleY = baseImage.height / pageHeight;
@@ -23,7 +27,7 @@ export async function createSnapshotImage(
   const headerHeightPx = Math.round(headerHeight * scaleY);
   const sidebarWidthPx = Math.round(sidebarWidth * scaleX);
 
-  const canvas = document.createElement('canvas');
+  const canvas = doc.createElement('canvas');
   canvas.width = baseImage.width + sidebarWidthPx;
   canvas.height = baseImage.height + headerHeightPx;
 
@@ -41,7 +45,12 @@ export async function createSnapshotImage(
   ctx.drawImage(baseImage, 0, headerHeightPx);
 
   ctx.fillStyle = '#141414';
-  ctx.fillRect(baseImage.width, headerHeightPx, sidebarWidthPx, baseImage.height);
+  ctx.fillRect(
+    baseImage.width,
+    headerHeightPx,
+    sidebarWidthPx,
+    baseImage.height
+  );
 
   const borderWidth = Math.max(1, Math.round(scaleX));
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -63,7 +72,7 @@ export async function createSnapshotImage(
   ctx.fillText('Feedback Export', headerPaddingX, 16 * scaleY);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = `400 ${11 * scaleY}px ${SNAPSHOT_FONT_FAMILY}`;
-  const metaText = `${document.title || 'Untitled page'} · ${exportDate} · ${
+  const metaText = `${doc.title || 'Untitled page'} · ${exportDate} · ${
     annotations.length
   } annotation${annotations.length !== 1 ? 's' : ''}`;
   ctx.fillText(
@@ -77,6 +86,8 @@ export async function createSnapshotImage(
     offsetY: headerHeightPx,
     scaleX,
     scaleY,
+    scrollX: win.scrollX,
+    scrollY: win.scrollY,
   });
 
   drawSidebarPanel(ctx, annotations, {
@@ -93,9 +104,16 @@ export async function createSnapshotImage(
 function drawAnnotationOverlays(
   ctx: CanvasRenderingContext2D,
   annotations: Annotation[],
-  options: { offsetX: number; offsetY: number; scaleX: number; scaleY: number }
+  options: {
+    offsetX: number;
+    offsetY: number;
+    scaleX: number;
+    scaleY: number;
+    scrollX: number;
+    scrollY: number;
+  }
 ): void {
-  const { offsetX, offsetY, scaleX, scaleY } = options;
+  const {offsetX, offsetY, scaleX, scaleY, scrollX, scrollY} = options;
   const markerRadius = 13 * scaleX;
   const markerFontSize = 12 * scaleX;
   const strokeWidth = Math.max(1, 2 * scaleX);
@@ -122,10 +140,10 @@ function drawAnnotationOverlays(
     }
 
     const point = bounds
-      ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      ? {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2}
       : {
-          x: annotation.isFixed ? annotation.x + window.scrollX : annotation.x,
-          y: annotation.isFixed ? annotation.y + window.scrollY : annotation.y,
+          x: annotation.isFixed ? annotation.x + scrollX : annotation.x,
+          y: annotation.isFixed ? annotation.y + scrollY : annotation.y,
         };
 
     const x = offsetX + point.x * scaleX;
@@ -154,9 +172,9 @@ function drawAnnotationOverlays(
 function drawSidebarPanel(
   ctx: CanvasRenderingContext2D,
   annotations: Annotation[],
-  options: { x: number; y: number; width: number; height: number; scale: number }
+  options: {x: number; y: number; width: number; height: number; scale: number}
 ): void {
-  const { x, y, width, height, scale } = options;
+  const {x, y, width, height, scale} = options;
   const headerHeight = 48 * scale;
   const headerPaddingX = 18 * scale;
   const headerPaddingY = 16 * scale;
@@ -174,7 +192,11 @@ function drawSidebarPanel(
   ctx.textBaseline = 'top';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-  ctx.fillText(`Annotations (${annotations.length})`, x + headerPaddingX, y + headerPaddingY);
+  ctx.fillText(
+    `Annotations (${annotations.length})`,
+    x + headerPaddingX,
+    y + headerPaddingY
+  );
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = Math.max(1, scale);
   ctx.beginPath();
@@ -257,7 +279,13 @@ function drawSidebarPanel(
     ctx.font = `600 ${10 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
     ctx.beginPath();
-    ctx.arc(textX + 3 * scale, textY + categoryLineHeight / 2, 3 * scale, 0, Math.PI * 2);
+    ctx.arc(
+      textX + 3 * scale,
+      textY + categoryLineHeight / 2,
+      3 * scale,
+      0,
+      Math.PI * 2
+    );
     ctx.fillStyle = config.color;
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
@@ -269,7 +297,11 @@ function drawSidebarPanel(
     ctx.fillStyle = '#fff';
     ctx.font = `600 ${13 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
-    ctx.fillText(truncateText(ctx, annotation.element, textWidth), textX, textY);
+    ctx.fillText(
+      truncateText(ctx, annotation.element, textWidth),
+      textX,
+      textY
+    );
     ctx.restore();
 
     textY += elementLineHeight + 4 * scale;
@@ -277,7 +309,7 @@ function drawSidebarPanel(
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
-    commentLines.forEach((line) => {
+    commentLines.forEach(line => {
       ctx.fillText(line, textX, textY);
       textY += commentLineHeight;
     });
@@ -319,7 +351,7 @@ function wrapText(
   const lines: string[] = [];
   let currentLine = '';
 
-  words.forEach((word) => {
+  words.forEach(word => {
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     if (ctx.measureText(testLine).width <= maxWidth) {
       currentLine = testLine;
@@ -340,7 +372,6 @@ function truncateText(
 ): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
 
-  // Binary search for optimal truncation point - O(log n) vs O(n) linear
   let low = 0;
   let high = text.length;
 
@@ -362,7 +393,7 @@ function hexToRgba(hex: string, alpha: number): string {
     normalized.length === 3
       ? normalized
           .split('')
-          .map((char) => char + char)
+          .map(char => char + char)
           .join('')
       : normalized;
   const int = Number.parseInt(value, 16);

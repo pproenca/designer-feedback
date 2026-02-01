@@ -10,7 +10,7 @@
 import puppeteer from 'puppeteer';
 import sharp from 'sharp';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ICONS_DIR = path.resolve(__dirname, '../icons');
@@ -67,14 +67,14 @@ const SIZES = [128, 48, 32, 16] as const;
 
 async function generateIcons() {
   console.log('Launching browser...');
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({headless: true});
   const page = await browser.newPage();
 
   // Set viewport to exact icon size
-  await page.setViewport({ width: 128, height: 128, deviceScaleFactor: 1 });
+  await page.setViewport({width: 128, height: 128, deviceScaleFactor: 1});
 
   // Load the HTML template
-  await page.setContent(HTML_TEMPLATE, { waitUntil: 'networkidle0' });
+  await page.setContent(HTML_TEMPLATE, {waitUntil: 'networkidle0'});
 
   // Take screenshot at 128px
   console.log('Capturing 128px icon...');
@@ -93,7 +93,7 @@ async function generateIcons() {
       await sharp(screenshot).toFile(outputPath);
     } else {
       await sharp(screenshot)
-        .resize(size, size, { kernel: sharp.kernel.lanczos3 })
+        .resize(size, size, {kernel: sharp.kernel.lanczos3})
         .toFile(outputPath);
     }
 
@@ -103,7 +103,7 @@ async function generateIcons() {
   console.log('Done!');
 }
 
-generateIcons().catch((err) => {
+generateIcons().catch(err => {
   console.error('Error generating icons:', err);
   process.exit(1);
 });

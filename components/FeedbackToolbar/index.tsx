@@ -1,83 +1,58 @@
-/**
- * FeedbackToolbar - Composition root for the annotation toolbar
- *
- * This is the main entry point that composes:
- * - Toolbar UI component
- * - CategoryPanel for annotation type selection
- * - SelectionOverlay for element highlighting
- * - AnnotationLayer for markers
- * - AnnotationPopup for creating/viewing annotations
- * - ExportModal for exporting feedback
- *
- * State management is colocated via ToolbarStateProvider (reducer + context).
- */
-
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  lazy,
-  Suspense,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence } from 'framer-motion';
-import { useShallow } from 'zustand/react/shallow';
-import { AnnotationPopup } from '../AnnotationPopup';
-import { Toolbar } from './Toolbar';
-import { CategoryPanel } from './CategoryPanel';
-import { SelectionOverlay } from '../SelectionOverlay';
-import { AnnotationLayer } from '../AnnotationLayer';
-import { onUiEvent } from '@/utils/ui-events';
+import {useCallback, useEffect, useMemo, useState, lazy, Suspense} from 'react';
+import {createPortal} from 'react-dom';
+import {AnimatePresence} from 'framer-motion';
+import {useShallow} from 'zustand/react/shallow';
+import {AnnotationPopup} from '../AnnotationPopup';
+import {Toolbar} from './Toolbar';
+import {CategoryPanel} from './CategoryPanel';
+import {SelectionOverlay} from '../SelectionOverlay';
+import {AnnotationLayer} from '../AnnotationLayer';
+import {onUiEvent} from '@/utils/ui-events';
 import {
   identifyElement,
   hasFixedPositioning,
-} from '@/utils/element-identification';
+} from '@/utils/dom/element-identification';
 import {
   calculatePopupPosition,
   getPopupDisplayPosition,
 } from '@/utils/annotation-position';
-import { clsx } from 'clsx';
-import type { Annotation } from '@/types';
-import { useEscapeKey } from '@/hooks/useEscapeKey';
-import { useClickOutside } from '@/hooks/useClickOutside';
-import type { PendingAnnotation } from './context';
+import {clsx} from 'clsx';
+import type {Annotation} from '@/types';
+import {useEscapeKey} from '@/hooks/useEscapeKey';
+import {useClickOutside} from '@/hooks/useClickOutside';
+import {useSettings} from '@/hooks/useSettings';
+import type {PendingAnnotation} from './context';
 
-// Zustand stores
-import { useAnnotationsStore } from '@/stores/annotations';
-import { ToolbarStateProvider, useToolbarActions, useToolbarState } from './ToolbarStateProvider';
+import {useAnnotationsStore} from '@/stores/annotations';
+import {
+  ToolbarStateProvider,
+  useToolbarActions,
+  useToolbarState,
+} from './ToolbarStateProvider';
+import {ToastProvider, ToastViewport} from '@/components/Toast';
 
-// Lazy load ExportModal for bundle size optimization
 const ExportModal = lazy(() =>
-  import('../ExportModal').then((m) => ({ default: m.ExportModal }))
+  import('../ExportModal').then(m => ({default: m.ExportModal}))
 );
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface FeedbackToolbarProps {
   shadowRoot: ShadowRoot;
-  lightMode?: boolean;
-  onLightModeChange?: (lightMode: boolean) => void;
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export function FeedbackToolbar(props: FeedbackToolbarProps) {
   return (
     <ToolbarStateProvider>
-      <FeedbackToolbarContent {...props} />
+      <ToastProvider>
+        <FeedbackToolbarContent {...props} />
+      </ToastProvider>
     </ToolbarStateProvider>
   );
 }
 
-function FeedbackToolbarContent({
-  shadowRoot,
-  lightMode = false,
-  onLightModeChange,
-}: FeedbackToolbarProps) {
+function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
+  const {settings} = useSettings();
+  const lightMode = settings.lightMode;
+  const [isCaptureActive, setCaptureActive] = useState(false);
   const {
     addMode,
     selectedCategory,
@@ -100,56 +75,48 @@ function FeedbackToolbarContent({
     categoryPanelClosed,
   } = useToolbarActions();
 
-  const {
-    annotations,
-    loadAnnotations,
-    annotationCreated,
-    annotationDeleted,
-  } = useAnnotationsStore(
-    useShallow((s) => ({
-      annotations: s.annotations,
-      loadAnnotations: s.loadAnnotations,
-      annotationCreated: s.annotationCreated,
-      annotationDeleted: s.annotationDeleted,
-    }))
-  );
+  const {annotations, loadAnnotations, annotationCreated, annotationDeleted} =
+    useAnnotationsStore(
+      useShallow(s => ({
+        annotations: s.annotations,
+        loadAnnotations: s.loadAnnotations,
+        annotationCreated: s.annotationCreated,
+        annotationDeleted: s.annotationDeleted,
+      }))
+    );
 
-  // Derived state
   const selectedAnnotation = useMemo(
-    () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
+    () =>
+      annotations.find(annotation => annotation.id === selectedAnnotationId) ??
+      null,
     [annotations, selectedAnnotationId]
   );
   const isSelectingElement = addMode === 'selecting';
   const isCategoryPanelOpen = addMode === 'category';
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
 
-  // Local state (component-specific)
-  // Clear stale selected annotation
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
       annotationDeselected();
     }
   }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
-  // Load initial data
   useEffect(() => {
-    loadAnnotations();
+    void loadAnnotations();
   }, [loadAnnotations]);
 
-  // Entrance animation complete
   useEffect(() => {
     const timer = setTimeout(() => entranceCompleted(), 500);
     return () => clearTimeout(timer);
   }, [entranceCompleted]);
 
-  // Listen for external events (UI events emitted from content script handlers)
   useEffect(() => {
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
     const offLocation = onUiEvent('location-changed', () => {
-      annotationDeselected(); // Close any open popup
-      loadAnnotations(); // Reload for new URL
+      annotationDeselected();
+      void loadAnnotations();
     });
 
     return () => {
@@ -158,16 +125,24 @@ function FeedbackToolbarContent({
       offOpen();
       offLocation();
     };
-  }, [annotationDeselected, exportModalOpened, loadAnnotations, uiHidden, uiShown]);
+  }, [
+    annotationDeselected,
+    exportModalOpened,
+    loadAnnotations,
+    uiHidden,
+    uiShown,
+  ]);
 
-  // Element selection click handler
   useEffect(() => {
     if (!isSelectingElement) return undefined;
 
     const handleAddModeClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      if (target.closest('[data-annotation-popup]') || target.closest('[data-toolbar]')) {
+      if (
+        target.closest('[data-annotation-popup]') ||
+        target.closest('[data-toolbar]')
+      ) {
         return;
       }
 
@@ -181,7 +156,7 @@ function FeedbackToolbarContent({
       const clickX = e.clientX;
       const clickY = e.clientY;
 
-      const { name, path } = identifyElement(target);
+      const {name, path} = identifyElement(target);
 
       elementSelected({
         x: isFixed ? clickX : clickX + scrollLeft,
@@ -197,10 +172,10 @@ function FeedbackToolbarContent({
     };
 
     document.addEventListener('click', handleAddModeClick, true);
-    return () => document.removeEventListener('click', handleAddModeClick, true);
+    return () =>
+      document.removeEventListener('click', handleAddModeClick, true);
   }, [isSelectingElement, elementSelected]);
 
-  // Body class for crosshair cursor
   useEffect(() => {
     if (isSelectingElement) {
       document.body.classList.add('designer-feedback-add-mode');
@@ -210,7 +185,6 @@ function FeedbackToolbarContent({
     return () => document.body.classList.remove('designer-feedback-add-mode');
   }, [isSelectingElement]);
 
-  // Escape key handler - closes panels/selections in priority order
   type EscapeState = {
     hasSelectedAnnotation: boolean;
     isSelectingElement: boolean;
@@ -225,7 +199,12 @@ function FeedbackToolbarContent({
       pendingAnnotation,
       isCategoryPanelOpen,
     }),
-    [hasSelectedAnnotation, isSelectingElement, pendingAnnotation, isCategoryPanelOpen]
+    [
+      hasSelectedAnnotation,
+      isSelectingElement,
+      pendingAnnotation,
+      isCategoryPanelOpen,
+    ]
   );
 
   const escapeHandlers = useMemo(
@@ -247,12 +226,16 @@ function FeedbackToolbarContent({
         handler: () => selectionModeCancelled(),
       },
     ],
-    [categoryPanelClosed, annotationDeselected, pendingAnnotationCleared, selectionModeCancelled]
+    [
+      categoryPanelClosed,
+      annotationDeselected,
+      pendingAnnotationCleared,
+      selectionModeCancelled,
+    ]
   );
 
   useEscapeKey(escapeState, escapeHandlers);
 
-  // Click outside handler for selected annotation
   const handleClickOutside = useCallback(() => {
     annotationDeselected();
   }, [annotationDeselected]);
@@ -262,14 +245,17 @@ function FeedbackToolbarContent({
     []
   );
 
-  useClickOutside(Boolean(selectedAnnotation), clickOutsideSelectors, handleClickOutside);
+  useClickOutside(
+    Boolean(selectedAnnotation),
+    clickOutsideSelectors,
+    handleClickOutside
+  );
 
-  // Handlers
   const handleAnnotationSubmit = useCallback(
     async (comment: string) => {
       if (!pendingAnnotation) return;
 
-      const { scrollX, scrollY, rect } = pendingAnnotation;
+      const {scrollX, scrollY, rect} = pendingAnnotation;
       const boundingBox = {
         x: rect.left + scrollX,
         y: rect.top + scrollY,
@@ -293,7 +279,12 @@ function FeedbackToolbarContent({
       await annotationCreated(newAnnotation);
       pendingAnnotationCleared();
     },
-    [pendingAnnotation, selectedCategory, annotationCreated, pendingAnnotationCleared]
+    [
+      pendingAnnotation,
+      selectedCategory,
+      annotationCreated,
+      pendingAnnotationCleared,
+    ]
   );
 
   const handleDeleteAnnotation = useCallback(
@@ -319,7 +310,6 @@ function FeedbackToolbarContent({
     return getPopupDisplayPosition(selectedAnnotation);
   }, [selectedAnnotation]);
 
-  // Hide all UI during screenshot
   if (isHidden) {
     return null;
   }
@@ -327,7 +317,10 @@ function FeedbackToolbarContent({
   const darkModeClassName = !lightMode ? 'dark' : '';
 
   return createPortal(
-    <div className={clsx('font-sans df-root', darkModeClassName)}>
+    <div
+      className={clsx('font-sans df-root', darkModeClassName)}
+      data-capture={isCaptureActive ? 'true' : 'false'}
+    >
       {/* Selection overlay for element highlighting */}
       <SelectionOverlay enabled={isSelectingElement} />
 
@@ -368,7 +361,7 @@ function FeedbackToolbarContent({
             <ExportModal
               annotations={annotations}
               onClose={() => exportModalClosed()}
-              lightMode={lightMode}
+              onCaptureChange={setCaptureActive}
               shadowRoot={shadowRoot}
             />
           </Suspense>
@@ -376,12 +369,11 @@ function FeedbackToolbarContent({
       </AnimatePresence>
 
       {/* Toolbar */}
-      <Toolbar
-        onThemeToggle={() => onLightModeChange?.(!lightMode)}
-        lightMode={lightMode}
-      >
+      <Toolbar>
         <CategoryPanel />
       </Toolbar>
+
+      <ToastViewport />
     </div>,
     shadowRoot
   );
