@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import {useEffect, useRef} from 'react';
 
 type EscapeKeyHandler = () => void;
 
@@ -8,10 +8,9 @@ interface EscapeKeyState {
 
 export function useEscapeKey<T extends EscapeKeyState>(
   state: T,
-  handlers: Array<{ condition: (state: T) => boolean; handler: EscapeKeyHandler }>
+  handlers: Array<{condition: (state: T) => boolean; handler: EscapeKeyHandler}>
 ) {
   const stateRef = useRef(state);
-
 
   useEffect(() => {
     stateRef.current = state;
@@ -23,8 +22,7 @@ export function useEscapeKey<T extends EscapeKeyState>(
         e.stopPropagation();
         const currentState = stateRef.current;
 
-
-        for (const { condition, handler } of handlers) {
+        for (const {condition, handler} of handlers) {
           if (condition(currentState)) {
             handler();
             return;

@@ -1,4 +1,4 @@
-import { assertDomAvailable } from '@/utils/dom/guards';
+import {assertDomAvailable} from '@/utils/dom/guards';
 
 const EDGE_SAMPLE_POINTS = [0.1, 0.5, 0.9];
 const EDGE_OFFSET_PX = 2;
@@ -20,7 +20,7 @@ export function hideStickyElements(edge: StickyEdge): HiddenElementSnapshot[] {
   const elements = collectStickyElements(edge);
   const hidden: HiddenElementSnapshot[] = [];
 
-  elements.forEach((element) => {
+  elements.forEach(element => {
     hidden.push({
       element,
       visibility: element.style.visibility,
@@ -37,7 +37,7 @@ export function hideStickyElements(edge: StickyEdge): HiddenElementSnapshot[] {
 }
 
 export function restoreHiddenElements(hidden: HiddenElementSnapshot[]): void {
-  hidden.forEach(({ element, visibility, opacity, pointerEvents }) => {
+  hidden.forEach(({element, visibility, opacity, pointerEvents}) => {
     element.style.visibility = visibility;
     element.style.opacity = opacity;
     element.style.pointerEvents = pointerEvents;
@@ -48,14 +48,26 @@ function collectStickyElements(edge: StickyEdge): Set<HTMLElement> {
   const root = document.getElementById('designer-feedback-root');
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const y = edge === 'top' ? EDGE_OFFSET_PX : Math.max(EDGE_OFFSET_PX, viewportHeight - EDGE_OFFSET_PX);
+  const y =
+    edge === 'top'
+      ? EDGE_OFFSET_PX
+      : Math.max(EDGE_OFFSET_PX, viewportHeight - EDGE_OFFSET_PX);
   const elements = new Set<HTMLElement>();
 
-  EDGE_SAMPLE_POINTS.forEach((ratio) => {
-    const x = Math.min(viewportWidth - EDGE_OFFSET_PX, Math.max(EDGE_OFFSET_PX, Math.round(viewportWidth * ratio)));
+  EDGE_SAMPLE_POINTS.forEach(ratio => {
+    const x = Math.min(
+      viewportWidth - EDGE_OFFSET_PX,
+      Math.max(EDGE_OFFSET_PX, Math.round(viewportWidth * ratio))
+    );
     const stack = document.elementsFromPoint(x, y) as HTMLElement[];
-    stack.forEach((candidate) => {
-      const sticky = findStickyAncestor(candidate, edge, viewportWidth, viewportHeight, root);
+    stack.forEach(candidate => {
+      const sticky = findStickyAncestor(
+        candidate,
+        edge,
+        viewportWidth,
+        viewportHeight,
+        root
+      );
       if (sticky) {
         elements.add(sticky);
       }
@@ -82,11 +94,15 @@ function findStickyAncestor(
       const rect = node.getBoundingClientRect();
       if (rect.width > 0 && rect.height > MIN_EDGE_HEIGHT_PX) {
         const wideEnough = rect.width >= viewportWidth * MIN_STICKY_WIDTH_RATIO;
-        const shortEnough = rect.height <= viewportHeight * MAX_STICKY_HEIGHT_RATIO;
+        const shortEnough =
+          rect.height <= viewportHeight * MAX_STICKY_HEIGHT_RATIO;
         if (wideEnough && shortEnough) {
           const nearTop = rect.top <= EDGE_OFFSET_PX;
           const nearBottom = rect.bottom >= viewportHeight - EDGE_OFFSET_PX;
-          if ((edge === 'top' && nearTop) || (edge === 'bottom' && nearBottom)) {
+          if (
+            (edge === 'top' && nearTop) ||
+            (edge === 'bottom' && nearBottom)
+          ) {
             return node;
           }
         }

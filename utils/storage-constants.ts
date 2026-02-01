@@ -1,5 +1,3 @@
-
-
 export const ANNOTATIONS_PREFIX = 'designer-feedback:annotations:';
 
 export const STORAGE_KEY_VERSION = 'v2';

@@ -1,7 +1,12 @@
-
-
-import { createContext, useContext, useRef, type ReactNode, type Dispatch, type RefObject } from 'react';
-import type { ExportFormat } from '@/types';
+import {
+  createContext,
+  useContext,
+  useRef,
+  type ReactNode,
+  type Dispatch,
+  type RefObject,
+} from 'react';
+import type {ExportFormat} from '@/types';
 
 export type ExportStatus = {
   type: 'success' | 'warning' | 'error' | 'info';
@@ -16,8 +21,8 @@ export type ExportState = {
 };
 
 export type ExportAction =
-  | { type: 'updateState'; payload: Partial<ExportState> }
-  | { type: 'resetStatus' };
+  | {type: 'updateState'; payload: Partial<ExportState>}
+  | {type: 'resetStatus'};
 
 export const initialExportState: ExportState = {
   selectedFormat: 'snapshot',
@@ -26,31 +31,30 @@ export const initialExportState: ExportState = {
   statusMessage: null,
 };
 
-export function exportReducer(state: ExportState, action: ExportAction): ExportState {
+export function exportReducer(
+  state: ExportState,
+  action: ExportAction
+): ExportState {
   switch (action.type) {
     case 'updateState':
-      return { ...state, ...action.payload };
+      return {...state, ...action.payload};
     case 'resetStatus':
-      return { ...state, statusMessage: null, exportOutcome: null };
+      return {...state, statusMessage: null, exportOutcome: null};
     default:
       return state;
   }
 }
 
 interface ExportContextValue {
-
   state: ExportState;
   dispatch: Dispatch<ExportAction>;
-
 
   isMarkdownFormat: boolean;
   isSnapshotFormat: boolean;
   isClipboardFormat: boolean;
   statusMessageId: string | undefined;
 
-
   formatOptionsRef: RefObject<HTMLDivElement | null>;
-
 
   onClose: () => void;
   handleExport: () => Promise<void>;
@@ -75,7 +79,7 @@ export function ExportProvider({
 }: ExportProviderProps) {
   const formatOptionsRef = useRef<HTMLDivElement | null>(null);
 
-  const { selectedFormat, statusMessage } = state;
+  const {selectedFormat, statusMessage} = state;
   const isMarkdownFormat = selectedFormat === 'image-notes';
   const isSnapshotFormat = selectedFormat === 'snapshot';
   const isClipboardFormat = isMarkdownFormat;
@@ -93,7 +97,9 @@ export function ExportProvider({
     handleExport,
   };
 
-  return <ExportContext.Provider value={value}>{children}</ExportContext.Provider>;
+  return (
+    <ExportContext.Provider value={value}>{children}</ExportContext.Provider>
+  );
 }
 
 export function useExportContext(): ExportContextValue {
@@ -105,8 +111,13 @@ export function useExportContext(): ExportContextValue {
 }
 
 export function useExportState() {
-  const { state, isMarkdownFormat, isSnapshotFormat, isClipboardFormat, statusMessageId } =
-    useExportContext();
+  const {
+    state,
+    isMarkdownFormat,
+    isSnapshotFormat,
+    isClipboardFormat,
+    statusMessageId,
+  } = useExportContext();
   return {
     ...state,
     isMarkdownFormat,
@@ -117,6 +128,7 @@ export function useExportState() {
 }
 
 export function useExportActions() {
-  const { dispatch, onClose, handleExport, formatOptionsRef } = useExportContext();
-  return { dispatch, onClose, handleExport, formatOptionsRef };
+  const {dispatch, onClose, handleExport, formatOptionsRef} =
+    useExportContext();
+  return {dispatch, onClose, handleExport, formatOptionsRef};
 }

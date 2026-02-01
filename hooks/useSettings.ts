@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
-import { backgroundMessenger } from '@/utils/messaging';
-import { settingsEnabled, settingsLightMode } from '@/utils/storage-items';
-import type { Settings } from '@/types';
+import {useCallback, useEffect, useState} from 'react';
+import {DEFAULT_SETTINGS} from '@/shared/settings';
+import {backgroundMessenger} from '@/utils/messaging';
+import {settingsEnabled, settingsLightMode} from '@/utils/storage-items';
+import type {Settings} from '@/types';
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -12,7 +12,7 @@ export function useSettings() {
 
     backgroundMessenger
       .sendMessage('getSettings', undefined)
-      .then((response) => {
+      .then(response => {
         if (!isCancelled && response.settings) {
           setSettings(response.settings);
         }
@@ -27,14 +27,14 @@ export function useSettings() {
   }, []);
 
   useEffect(() => {
-    const unwatchEnabled = settingsEnabled.watch((newValue) => {
-      setSettings((prev) =>
-        prev.enabled === newValue ? prev : { ...prev, enabled: newValue }
+    const unwatchEnabled = settingsEnabled.watch(newValue => {
+      setSettings(prev =>
+        prev.enabled === newValue ? prev : {...prev, enabled: newValue}
       );
     });
-    const unwatchLightMode = settingsLightMode.watch((newValue) => {
-      setSettings((prev) =>
-        prev.lightMode === newValue ? prev : { ...prev, lightMode: newValue }
+    const unwatchLightMode = settingsLightMode.watch(newValue => {
+      setSettings(prev =>
+        prev.lightMode === newValue ? prev : {...prev, lightMode: newValue}
       );
     });
 
@@ -47,14 +47,16 @@ export function useSettings() {
   const updateSettings = useCallback((next: Partial<Settings>) => {
     if (!Object.keys(next).length) return;
 
-    setSettings((prev) => {
-      const newSettings = { ...prev, ...next };
-      backgroundMessenger.sendMessage('saveSettings', newSettings).catch((error: unknown) => {
-        console.error('Failed to save settings:', error);
-      });
+    setSettings(prev => {
+      const newSettings = {...prev, ...next};
+      backgroundMessenger
+        .sendMessage('saveSettings', newSettings)
+        .catch((error: unknown) => {
+          console.error('Failed to save settings:', error);
+        });
       return newSettings;
     });
   }, []);
 
-  return { settings, updateSettings };
+  return {settings, updateSettings};
 }

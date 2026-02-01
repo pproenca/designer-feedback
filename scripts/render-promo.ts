@@ -10,7 +10,7 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMO_DIR = path.resolve(__dirname, '../dist');
@@ -30,7 +30,14 @@ const COLORS = {
 };
 
 // Marker component (matches app style)
-const marker = (number: number, color: string, top: string, left: string, size = 28, fontSize = 14) => `
+const marker = (
+  number: number,
+  color: string,
+  top: string,
+  left: string,
+  size = 28,
+  fontSize = 14
+) => `
   <div style="
     position: absolute;
     top: ${top};
@@ -292,18 +299,18 @@ interface PromoConfig {
 }
 
 const PROMOS: PromoConfig[] = [
-  { name: 'promo-small', width: 440, height: 280, html: smallPromoHTML },
-  { name: 'promo-marquee', width: 1400, height: 560, html: marqueePromoHTML },
+  {name: 'promo-small', width: 440, height: 280, html: smallPromoHTML},
+  {name: 'promo-marquee', width: 1400, height: 560, html: marqueePromoHTML},
 ];
 
 async function generatePromos() {
   // Ensure promo directory exists
   if (!fs.existsSync(PROMO_DIR)) {
-    fs.mkdirSync(PROMO_DIR, { recursive: true });
+    fs.mkdirSync(PROMO_DIR, {recursive: true});
   }
 
   console.log('Launching browser...');
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({headless: true});
 
   for (const promo of PROMOS) {
     console.log(`Generating ${promo.name} (${promo.width}x${promo.height})...`);
@@ -315,10 +322,10 @@ async function generatePromos() {
       deviceScaleFactor: 1,
     });
 
-    await page.setContent(promo.html, { waitUntil: 'networkidle0' });
+    await page.setContent(promo.html, {waitUntil: 'networkidle0'});
 
     const outputPath = path.join(PROMO_DIR, `${promo.name}.png`);
-    await page.screenshot({ type: 'png', path: outputPath });
+    await page.screenshot({type: 'png', path: outputPath});
 
     console.log(`Generated: ${outputPath}`);
     await page.close();
@@ -328,7 +335,7 @@ async function generatePromos() {
   console.log('Done!');
 }
 
-generatePromos().catch((err) => {
+generatePromos().catch(err => {
   console.error('Error generating promo images:', err);
   process.exit(1);
 });

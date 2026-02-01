@@ -1,6 +1,6 @@
-import type { Annotation } from '@/types';
-import { clsx } from 'clsx';
-import { BUTTON_BASE, BUTTON_SECONDARY, ELEMENT_LABEL } from './styles';
+import type {Annotation} from '@/types';
+import {clsx} from 'clsx';
+import {BUTTON_BASE, BUTTON_SECONDARY, ELEMENT_LABEL} from './styles';
 
 interface ViewModeContentProps {
   element: string;

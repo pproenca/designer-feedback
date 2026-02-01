@@ -1,6 +1,4 @@
-
-
-import { browser } from 'wxt/browser';
+import {browser} from 'wxt/browser';
 
 async function activate(): Promise<void> {
   window.__dfActivateStatus = 'pending';
@@ -13,12 +11,12 @@ async function activate(): Promise<void> {
 
     const tabs = await browser.tabs.query({});
     window.__dfActivateDebug = {
-      tabs: tabs.map((tab) => tab.url || ''),
+      tabs: tabs.map(tab => tab.url || ''),
     };
 
-    const exactMatch = tabs.find((tab) => tab.url === targetUrl);
+    const exactMatch = tabs.find(tab => tab.url === targetUrl);
     const originMatch = tabs.find(
-      (tab) => targetOrigin && tab.url && tab.url.startsWith(targetOrigin)
+      tab => targetOrigin && tab.url && tab.url.startsWith(targetOrigin)
     );
     const targetTab = exactMatch || originMatch;
 
@@ -28,15 +26,17 @@ async function activate(): Promise<void> {
     }
 
     const manifest = browser.runtime.getManifest();
-    const files = manifest.content_scripts?.flatMap((script) => script.js ?? []) ?? [];
+    const files =
+      manifest.content_scripts?.flatMap(script => script.js ?? []) ?? [];
     const uniqueFiles = Array.from(new Set(files));
-    const scriptFiles = uniqueFiles.length > 0 ? uniqueFiles : ['content-scripts/content.js'];
+    const scriptFiles =
+      uniqueFiles.length > 0 ? uniqueFiles : ['content-scripts/content.js'];
 
     window.__dfActivateDebug.scriptFiles = scriptFiles;
 
     try {
       const injectionResult = await browser.scripting.executeScript({
-        target: { tabId: targetTab.id },
+        target: {tabId: targetTab.id},
         files: scriptFiles,
       });
       window.__dfActivateDebug.injectionResult = injectionResult;
@@ -46,16 +46,14 @@ async function activate(): Promise<void> {
       return;
     }
 
-
     const [flagCheckResult] = await browser.scripting.executeScript({
-      target: { tabId: targetTab.id },
+      target: {tabId: targetTab.id},
       func: () => ({
         flag: window.__designerFeedbackInjected,
         url: window.location.href,
       }),
     });
     window.__dfActivateDebug.flagCheck = flagCheckResult?.result;
-
 
     const sendShowToolbar = async (): Promise<boolean> => {
       try {
@@ -73,7 +71,7 @@ async function activate(): Promise<void> {
 
     const firstAttempt = await sendShowToolbar();
     if (!firstAttempt) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100));
       await sendShowToolbar();
     }
 

@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
-import { Radio } from '@base-ui/react/radio';
-import { RadioGroup } from '@base-ui/react/radio-group';
-import type { ExportFormat } from '@/types';
-import { clsx } from 'clsx';
-import { useExportState, useExportActions } from './ExportContext';
+import {useState, type ReactNode} from 'react';
+import {Radio} from '@base-ui/react/radio';
+import {RadioGroup} from '@base-ui/react/radio-group';
+import type {ExportFormat} from '@/types';
+import {clsx} from 'clsx';
+import {useExportState, useExportActions} from './ExportContext';
 
 export type ExportFormatOption = {
   id: ExportFormat;
@@ -18,21 +18,27 @@ interface FormatSelectorProps {
   options: ExportFormatOption[];
 }
 
-export function FormatSelector({ options }: FormatSelectorProps) {
-  const { selectedFormat, isExporting } = useExportState();
-  const { dispatch, formatOptionsRef } = useExportActions();
+export function FormatSelector({options}: FormatSelectorProps) {
+  const {selectedFormat, isExporting} = useExportState();
+  const {dispatch, formatOptionsRef} = useExportActions();
 
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
 
   const handleValueChange = (value: string) => {
-    dispatch({ type: 'updateState', payload: { selectedFormat: value as ExportFormat } });
+    dispatch({
+      type: 'updateState',
+      payload: {selectedFormat: value as ExportFormat},
+    });
   };
 
   return (
     <div className="mb-3.5">
       <h3
         id="format-selector-label"
-        className={clsx('text-xs font-semibold mb-2.5 uppercase tracking-widest', 'text-black/45 dark:text-white/50')}
+        className={clsx(
+          'text-xs font-semibold mb-2.5 uppercase tracking-widest',
+          'text-black/45 dark:text-white/50'
+        )}
       >
         Format
       </h3>
@@ -46,7 +52,7 @@ export function FormatSelector({ options }: FormatSelectorProps) {
         onKeyDown={() => setIsKeyboardNav(true)}
         onPointerDown={() => setIsKeyboardNav(false)}
       >
-        {options.map((option) => {
+        {options.map(option => {
           const isSelected = selectedFormat === option.id;
           const isDisabled = option.disabled || isExporting;
           return (
@@ -59,7 +65,8 @@ export function FormatSelector({ options }: FormatSelectorProps) {
                 'active:scale-[0.97]',
                 'has-[[data-disabled]]:opacity-60 has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:transform-none',
                 'focus-within:ring-2 focus-within:ring-df-blue focus-within:ring-offset-1',
-                !isSelected && 'bg-transparent border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
+                !isSelected &&
+                  'bg-transparent border-transparent hover:bg-df-surface-muted dark:hover:bg-df-dark-muted',
                 isSelected && 'bg-df-blue/5 border-df-blue/15',
                 isSelected && 'dark:bg-df-blue/10 dark:border-df-blue/20'
               )}
@@ -100,10 +107,17 @@ export function FormatSelector({ options }: FormatSelectorProps) {
                 {option.icon}
               </span>
               <div className="flex flex-col gap-0.5 flex-1">
-                <span className={clsx('text-sm font-medium', 'text-df-ink dark:text-white')}>
+                <span
+                  className={clsx(
+                    'text-sm font-medium',
+                    'text-df-ink dark:text-white'
+                  )}
+                >
                   {option.label}
                 </span>
-                <span className={clsx('text-xs leading-snug', 'text-muted-soft')}>
+                <span
+                  className={clsx('text-xs leading-snug', 'text-muted-soft')}
+                >
                   {option.description}
                 </span>
               </div>

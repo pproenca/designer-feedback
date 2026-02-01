@@ -1,41 +1,50 @@
-import { useReducer, useEffect, useMemo, useCallback } from 'react';
-import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
-import { Dialog } from '@base-ui/react/dialog';
-import type { Annotation } from '@/types';
-import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { isRestrictedPage } from '@/utils/dom/screenshot';
-import { X, Copy, Image } from 'lucide-react';
-import { clsx } from 'clsx';
-import { FormatSelector, type ExportFormatOption } from './FormatSelector';
-import { AnnotationPreview } from './AnnotationPreview';
-import { ExportActions } from './ExportActions';
-import { ExportProvider, exportReducer, initialExportState } from './ExportContext';
-import { useSettings } from '@/hooks/useSettings';
-import { useToasts, type ToastInput } from '@/components/Toast';
+import {useReducer, useEffect, useMemo, useCallback} from 'react';
+import {
+  m,
+  AnimatePresence,
+  useReducedMotion,
+  type Variants,
+} from 'framer-motion';
+import {Dialog} from '@base-ui/react/dialog';
+import type {Annotation} from '@/types';
+import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
+import {isRestrictedPage} from '@/utils/dom/screenshot';
+import {X, Copy, Image} from 'lucide-react';
+import {clsx} from 'clsx';
+import {FormatSelector, type ExportFormatOption} from './FormatSelector';
+import {AnnotationPreview} from './AnnotationPreview';
+import {ExportActions} from './ExportActions';
+import {
+  ExportProvider,
+  exportReducer,
+  initialExportState,
+} from './ExportContext';
+import {useSettings} from '@/hooks/useSettings';
+import {useToasts, type ToastInput} from '@/components/Toast';
 
 const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
 
 const getOverlayVariants = (reduceMotion: boolean): Variants => ({
-  hidden: { opacity: 0 },
+  hidden: {opacity: 0},
   visible: {
     opacity: 1,
-    transition: { duration: reduceMotion ? 0.1 : 0.15, ease: EMIL_EASE_OUT },
+    transition: {duration: reduceMotion ? 0.1 : 0.15, ease: EMIL_EASE_OUT},
   },
   exit: {
     opacity: 0,
-    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN },
+    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN},
   },
 });
 
 const getModalVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: 8, scale: 0.96 }),
+    ...(reduceMotion ? {} : {y: 8, scale: 0.96}),
   },
   visible: {
     opacity: 1,
-    ...(reduceMotion ? {} : { y: 0, scale: 1 }),
+    ...(reduceMotion ? {} : {y: 0, scale: 1}),
     transition: {
       duration: reduceMotion ? 0.12 : 0.2,
       ease: EMIL_EASE_OUT,
@@ -43,8 +52,8 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
   },
   exit: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: -4, scale: 0.98 }),
-    transition: { duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN },
+    ...(reduceMotion ? {} : {y: -4, scale: 0.98}),
+    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN},
   },
 });
 
@@ -55,15 +64,26 @@ interface ExportModalProps {
   shadowRoot: ShadowRoot;
 }
 
-export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot }: ExportModalProps) {
-  const { settings } = useSettings();
+export function ExportModal({
+  annotations,
+  onClose,
+  onCaptureChange,
+  shadowRoot,
+}: ExportModalProps) {
+  const {settings} = useSettings();
   const lightMode = settings.lightMode;
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
   const reduceMotion = useReducedMotion() ?? false;
-  const { pushToast } = useToasts();
-  const overlayVariants = useMemo(() => getOverlayVariants(reduceMotion), [reduceMotion]);
-  const modalVariants = useMemo(() => getModalVariants(reduceMotion), [reduceMotion]);
-  const { isExporting, statusMessage, selectedFormat } = state;
+  const {pushToast} = useToasts();
+  const overlayVariants = useMemo(
+    () => getOverlayVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const modalVariants = useMemo(
+    () => getModalVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const {isExporting, statusMessage, selectedFormat} = state;
   const themeClassName = lightMode ? '' : 'dark';
 
   const restricted = isRestrictedPage();
@@ -94,7 +114,7 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
 
   useEffect(() => {
     if (restricted && selectedFormat === 'snapshot') {
-      dispatch({ type: 'updateState', payload: { selectedFormat: 'image-notes' } });
+      dispatch({type: 'updateState', payload: {selectedFormat: 'image-notes'}});
     }
   }, [restricted, selectedFormat]);
 
@@ -112,7 +132,10 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
         exportOutcome: null,
         statusMessage: {
           type: 'info',
-          text: selectedFormat === 'snapshot' ? 'Capturing full page…' : 'Preparing export…',
+          text:
+            selectedFormat === 'snapshot'
+              ? 'Capturing full page…'
+              : 'Preparing export…',
         },
       },
     });
@@ -122,11 +145,11 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
       if (selectedFormat === 'snapshot') {
         captureActive = true;
         onCaptureChange?.(true);
-        await new Promise((resolve) => setTimeout(resolve, captureDelayMs));
+        await new Promise(resolve => setTimeout(resolve, captureDelayMs));
         const result = await exportAsSnapshotImage(annotations);
         pendingToast =
           result.captureMode === 'full'
-            ? { type: 'success', message: 'Snapshot downloaded.' }
+            ? {type: 'success', message: 'Snapshot downloaded.'}
             : {
                 type: 'error',
                 message:
@@ -138,12 +161,15 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
         return;
       } else {
         await exportAsImageWithNotes(annotations);
-        pendingToast = { type: 'success', message: 'Markdown copied to clipboard.' };
+        pendingToast = {
+          type: 'success',
+          message: 'Markdown copied to clipboard.',
+        };
         onClose();
       }
     } catch (error) {
       console.error('Export failed:', error);
-      pendingToast = { type: 'error', message: getReadableError(error) };
+      pendingToast = {type: 'error', message: getReadableError(error)};
       onClose();
     } finally {
       if (captureActive) {
@@ -151,9 +177,12 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
       }
       if (pendingToast) {
         const toast = pendingToast;
-        window.setTimeout(() => pushToast(toast), captureActive ? toastDelayMs : 0);
+        window.setTimeout(
+          () => pushToast(toast),
+          captureActive ? toastDelayMs : 0
+        );
       }
-      dispatch({ type: 'updateState', payload: { isExporting: false } });
+      dispatch({type: 'updateState', payload: {isExporting: false}});
     }
   }, [
     annotations,
@@ -168,7 +197,7 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
   return (
-    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root open onOpenChange={open => !open && onClose()}>
       <Dialog.Portal container={shadowRoot}>
         <AnimatePresence>
           <Dialog.Backdrop
@@ -216,7 +245,10 @@ export function ExportModal({ annotations, onClose, onCaptureChange, shadowRoot 
               )}
             >
               <Dialog.Title
-                className={clsx('text-base font-semibold m-0 tracking-normal', 'text-df-ink dark:text-white')}
+                className={clsx(
+                  'text-base font-semibold m-0 tracking-normal',
+                  'text-df-ink dark:text-white'
+                )}
               >
                 Export Feedback
               </Dialog.Title>

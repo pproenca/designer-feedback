@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import {type Page, expect} from '@playwright/test';
 
 /**
  * Page object for the Export Modal
@@ -13,12 +13,12 @@ export class ExportModalPage {
 
   /** Get the export dialog */
   getDialog() {
-    return this.page.getByRole('dialog', { name: 'Export feedback' });
+    return this.page.getByRole('dialog', {name: 'Export feedback'});
   }
 
   /** Get the export heading */
   getHeading() {
-    return this.page.getByRole('heading', { name: 'Export Feedback' });
+    return this.page.getByRole('heading', {name: 'Export Feedback'});
   }
 
   /** Get the close button (the visible X button, not the backdrop) */
@@ -28,7 +28,7 @@ export class ExportModalPage {
 
   /** Get the Snapshot button */
   getSnapshotButton() {
-    return this.page.getByRole('button', { name: 'Snapshot' });
+    return this.page.getByRole('button', {name: 'Snapshot'});
   }
 
   /** Get annotation text in the export preview */
@@ -42,7 +42,7 @@ export class ExportModalPage {
 
   /** Wait for the export modal to open */
   async waitForOpen() {
-    await expect(this.getDialog()).toBeVisible({ timeout: 5000 });
+    await expect(this.getDialog()).toBeVisible({timeout: 5000});
   }
 
   /** Close the export modal */

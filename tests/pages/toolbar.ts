@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import {type Page, expect} from '@playwright/test';
 
 /**
  * Page object for the Designer Feedback toolbar
@@ -23,17 +23,20 @@ export class ToolbarPage {
 
   /** Get the Add annotation button */
   getAddButton() {
-    return this.page.getByRole('button', { name: 'Add annotation', exact: true });
+    return this.page.getByRole('button', {name: 'Add annotation', exact: true});
   }
 
   /** Get the Export feedback button */
   getExportButton() {
-    return this.page.getByRole('button', { name: 'Export feedback', exact: true });
+    return this.page.getByRole('button', {
+      name: 'Export feedback',
+      exact: true,
+    });
   }
 
   /** Get a category button by name */
   getCategoryButton(category: 'Bug' | 'Question' | 'Suggestion') {
-    return this.page.getByRole('button', { name: category, exact: true });
+    return this.page.getByRole('button', {name: category, exact: true});
   }
 
   /** Get the annotation popup */
@@ -48,7 +51,10 @@ export class ToolbarPage {
 
   /** Get the minimize button */
   getMinimizeButton() {
-    return this.page.getByRole('button', { name: 'Minimize toolbar', exact: true });
+    return this.page.getByRole('button', {
+      name: 'Minimize toolbar',
+      exact: true,
+    });
   }
 
   // ============================================================================
@@ -57,8 +63,8 @@ export class ToolbarPage {
 
   /** Wait for the toolbar to be visible */
   async waitForToolbar() {
-    await expect(this.getToolbarRoot()).toBeAttached({ timeout: 10000 });
-    await expect(this.getToolbarContainer()).toBeVisible({ timeout: 10000 });
+    await expect(this.getToolbarRoot()).toBeAttached({timeout: 10000});
+    await expect(this.getToolbarContainer()).toBeVisible({timeout: 10000});
   }
 
   /** Click the Add annotation button */
@@ -73,7 +79,9 @@ export class ToolbarPage {
 
   /** Wait for add mode (crosshair cursor) */
   async waitForAddMode() {
-    await expect(this.page.locator('body').first()).toHaveClass(/designer-feedback-add-mode/);
+    await expect(this.page.locator('body').first()).toHaveClass(
+      /designer-feedback-add-mode/
+    );
   }
 
   /** Click an element on the page to place annotation */
@@ -90,7 +98,7 @@ export class ToolbarPage {
   /** Submit the annotation */
   async submitAnnotation() {
     const popup = this.getAnnotationPopup();
-    await popup.getByRole('button', { name: 'Add' }).click();
+    await popup.getByRole('button', {name: 'Add'}).click();
   }
 
   /**
@@ -184,7 +192,7 @@ export class ToolbarPage {
 
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
-    await this.page.mouse.move(x, y, { steps: 20 });
+    await this.page.mouse.move(x, y, {steps: 20});
     await this.page.mouse.up();
 
     // Expand toolbar after drag

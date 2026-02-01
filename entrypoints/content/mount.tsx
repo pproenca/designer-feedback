@@ -1,9 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { LazyMotion, domAnimation } from 'framer-motion';
-import { createShadowRootUi, type ContentScriptContext } from '#imports';
-import { App } from './App';
-import { ErrorBoundary } from './ErrorBoundary';
+import {LazyMotion, domAnimation} from 'framer-motion';
+import {createShadowRootUi, type ContentScriptContext} from '#imports';
+import {App} from './App';
+import {ErrorBoundary} from './ErrorBoundary';
 import './style.css';
 
 const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
@@ -11,7 +11,6 @@ const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
 let globalStyleElement: HTMLStyleElement | null = null;
 
 export interface MountCleanupHandle {
-
   root: ReactDOM.Root;
 
   appRoot: HTMLDivElement;
@@ -21,8 +20,10 @@ function waitForDomReady(): Promise<void> {
   if (document.readyState !== 'loading') {
     return Promise.resolve();
   }
-  return new Promise((resolve) => {
-    document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+  return new Promise(resolve => {
+    document.addEventListener('DOMContentLoaded', () => resolve(), {
+      once: true,
+    });
   });
 }
 
@@ -44,9 +45,6 @@ function ensureGlobalStyles(): void {
 export async function mountUI(ctx: ContentScriptContext) {
   await waitForDomReady();
   ensureGlobalStyles();
-
-
-
 
   const isE2E = import.meta.env.VITE_DF_E2E === '1';
 
@@ -70,9 +68,9 @@ export async function mountUI(ctx: ContentScriptContext) {
           </ErrorBoundary>
         </React.StrictMode>
       );
-      return { root, appRoot };
+      return {root, appRoot};
     },
-    onRemove: (handle) => {
+    onRemove: handle => {
       if (handle) {
         handle.root.unmount();
         handle.appRoot.remove();

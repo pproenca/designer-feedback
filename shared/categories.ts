@@ -1,5 +1,11 @@
-import { Accessibility, Bug, CircleHelp, Lightbulb, type LucideIcon } from 'lucide-react';
-import type { FeedbackCategory } from '@/types';
+import {
+  Accessibility,
+  Bug,
+  CircleHelp,
+  Lightbulb,
+  type LucideIcon,
+} from 'lucide-react';
+import type {FeedbackCategory} from '@/types';
 
 export type CategoryConfig = {
   id: FeedbackCategory;
@@ -56,5 +62,5 @@ export const CATEGORIES: CategoryConfig[] = [
 ];
 
 export const getCategoryConfig = (id: FeedbackCategory): CategoryConfig => {
-  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
+  return CATEGORIES.find(c => c.id === id) ?? CATEGORIES[0];
 };

@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import {readFileSync, writeFileSync, readdirSync, statSync} from 'node:fs';
+import {join, relative} from 'node:path';
 import ts from 'typescript';
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -24,10 +24,10 @@ function removeComments(sourceCode: string, fileName: string): string {
   ];
 
   function shouldPreserve(commentText: string): boolean {
-    return PRESERVE_PATTERNS.some((pattern) => pattern.test(commentText));
+    return PRESERVE_PATTERNS.some(pattern => pattern.test(commentText));
   }
 
-  const commentRanges: Array<{ pos: number; end: number }> = [];
+  const commentRanges: Array<{pos: number; end: number}> = [];
 
   function collectComments(ranges: ts.CommentRange[] | undefined) {
     if (!ranges) return;
@@ -40,7 +40,9 @@ function removeComments(sourceCode: string, fileName: string): string {
   }
 
   function visit(node: ts.Node) {
-    collectComments(ts.getLeadingCommentRanges(sourceCode, node.getFullStart()));
+    collectComments(
+      ts.getLeadingCommentRanges(sourceCode, node.getFullStart())
+    );
     collectComments(ts.getTrailingCommentRanges(sourceCode, node.getEnd()));
     ts.forEachChild(node, visit);
   }
@@ -53,7 +55,7 @@ function removeComments(sourceCode: string, fileName: string): string {
 
   // Remove duplicates
   const seen = new Set<string>();
-  const uniqueRanges = commentRanges.filter((range) => {
+  const uniqueRanges = commentRanges.filter(range => {
     const key = `${range.pos}-${range.end}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -74,7 +76,7 @@ function removeComments(sourceCode: string, fileName: string): string {
   // Remove trailing whitespace on lines
   result = result
     .split('\n')
-    .map((line) => line.trimEnd())
+    .map(line => line.trimEnd())
     .join('\n');
 
   // Ensure single newline at end
@@ -95,7 +97,7 @@ function findFiles(dir: string, extensions: string[]): string[] {
       if (stat.isDirectory()) {
         results.push(...findFiles(fullPath, extensions));
       } else if (
-        extensions.some((ext) => entry.endsWith(ext)) &&
+        extensions.some(ext => entry.endsWith(ext)) &&
         !entry.includes('.spec.') &&
         !entry.includes('.test.')
       ) {
@@ -110,12 +112,22 @@ function findFiles(dir: string, extensions: string[]): string[] {
 }
 
 async function main() {
-  const dirs = ['entrypoints', 'components', 'stores', 'utils', 'hooks', 'types', 'shared'];
+  const dirs = [
+    'entrypoints',
+    'components',
+    'stores',
+    'utils',
+    'hooks',
+    'types',
+    'shared',
+  ];
   const extensions = ['.ts', '.tsx'];
 
-  const files = dirs.flatMap((dir) => findFiles(dir, extensions));
+  const files = dirs.flatMap(dir => findFiles(dir, extensions));
 
-  console.log(`Found ${files.length} files to process${DRY_RUN ? ' (dry run)' : ''}\n`);
+  console.log(
+    `Found ${files.length} files to process${DRY_RUN ? ' (dry run)' : ''}\n`
+  );
 
   let totalRemoved = 0;
 
@@ -137,7 +149,9 @@ async function main() {
     }
   }
 
-  console.log(`\nTotal: ${totalRemoved} lines removed${DRY_RUN ? ' (dry run - no files modified)' : ''}`);
+  console.log(
+    `\nTotal: ${totalRemoved} lines removed${DRY_RUN ? ' (dry run - no files modified)' : ''}`
+  );
 }
 
 main().catch(console.error);

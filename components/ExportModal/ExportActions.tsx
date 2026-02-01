@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { clsx } from 'clsx';
-import { Check, Download } from 'lucide-react';
-import { StatusMessage } from '../StatusMessage';
-import { useExportState, useExportActions } from './ExportContext';
+import type {ReactNode} from 'react';
+import {AnimatePresence} from 'framer-motion';
+import {clsx} from 'clsx';
+import {Check, Download} from 'lucide-react';
+import {StatusMessage} from '../StatusMessage';
+import {useExportState, useExportActions} from './ExportContext';
 
 export function ExportActions() {
   const {
@@ -15,7 +15,7 @@ export function ExportActions() {
     statusMessage,
     statusMessageId,
   } = useExportState();
-  const { onClose, handleExport } = useExportActions();
+  const {onClose, handleExport} = useExportActions();
   const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
       return (
@@ -39,7 +39,11 @@ export function ExportActions() {
       <AnimatePresence>
         {statusMessage && (
           <div className="px-4.5 pb-2">
-            <StatusMessage type={statusMessage.type} message={statusMessage.text} id={statusMessageId} />
+            <StatusMessage
+              type={statusMessage.type}
+              message={statusMessage.text}
+              id={statusMessageId}
+            />
           </div>
         )}
       </AnimatePresence>
@@ -80,7 +84,9 @@ export function ExportActions() {
           onClick={handleExport}
           disabled={isExporting}
         >
-          {!exportOutcome && !isExporting && <Download size={16} aria-hidden="true" />}
+          {!exportOutcome && !isExporting && (
+            <Download size={16} aria-hidden="true" />
+          )}
           {getButtonContent()}
         </button>
       </div>

@@ -1,20 +1,16 @@
-
-
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useMotionValue, type MotionValue } from 'framer-motion';
-import { identifyElement } from '@/utils/dom/element-identification';
+import {useState, useRef, useEffect, useCallback} from 'react';
+import {useMotionValue, type MotionValue} from 'framer-motion';
+import {identifyElement} from '@/utils/dom/element-identification';
 
 export interface HoverInfo {
   element: string;
 }
 
 export interface UseElementSelectionOptions {
-
   enabled: boolean;
 }
 
 export interface UseElementSelectionResult {
-
   hoverInfo: HoverInfo | null;
 
   hasTarget: boolean;
@@ -33,9 +29,7 @@ const TOOLTIP_OFFSET = 8;
 export function useElementSelection({
   enabled,
 }: UseElementSelectionOptions): UseElementSelectionResult {
-
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
-
 
   const highlightX = useMotionValue(0);
   const highlightY = useMotionValue(0);
@@ -44,18 +38,15 @@ export function useElementSelection({
   const tooltipX = useMotionValue(0);
   const tooltipY = useMotionValue(0);
 
-
   const elementPathRef = useRef<string | null>(null);
   const elementLabelRef = useRef<string | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const hoverInfoRef = useRef<HoverInfo | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
-
   useEffect(() => {
     hoverInfoRef.current = hoverInfo;
   }, [hoverInfo]);
-
 
   useEffect(() => {
     if (!enabled) {
@@ -67,16 +58,13 @@ export function useElementSelection({
     }
   }, [enabled]);
 
-
   /* eslint-disable react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps -- MotionValues are stable refs */
   const handleMouseOver = useCallback(
     (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-
       if (target === targetRef.current) return;
       targetRef.current = target;
-
 
       if (
         target.closest('[data-annotation-popup]') ||
@@ -90,7 +78,6 @@ export function useElementSelection({
         return;
       }
 
-
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
       }
@@ -98,9 +85,7 @@ export function useElementSelection({
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = null;
 
-
         const rect = target.getBoundingClientRect();
-
 
         highlightX.set(rect.left);
         highlightY.set(rect.top);
@@ -109,26 +94,24 @@ export function useElementSelection({
         tooltipX.set(rect.left);
         tooltipY.set(rect.bottom + TOOLTIP_OFFSET);
 
+        const {name, path} = identifyElement(target);
 
-        const { name, path } = identifyElement(target);
-
-
-        if (elementPathRef.current !== path || elementLabelRef.current !== name) {
+        if (
+          elementPathRef.current !== path ||
+          elementLabelRef.current !== name
+        ) {
           elementPathRef.current = path;
           elementLabelRef.current = name;
-          setHoverInfo({ element: name });
+          setHoverInfo({element: name});
         } else if (!hoverInfoRef.current) {
-
-          setHoverInfo({ element: name });
+          setHoverInfo({element: name});
         }
       });
     },
 
-
     []
   );
   /* eslint-enable react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps */
-
 
   useEffect(() => {
     if (!enabled) return;
@@ -138,12 +121,10 @@ export function useElementSelection({
     return () => {
       document.removeEventListener('mouseover', handleMouseOver);
 
-
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
-
 
       targetRef.current = null;
     };

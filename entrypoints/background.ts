@@ -1,55 +1,37 @@
-
-
-import { defineBackground } from '#imports';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
+import {defineBackground} from '#imports';
+import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
-
   isInjectableUrl,
   getOrigin,
   getOriginHash,
   normalizeOriginHash,
-
   captureVisibleTabScreenshot,
   getWindowIdForCapture,
-
   downloadFile,
-
   getSettings,
   saveSettings,
-
   updateBadge,
-
   isExtensionSender,
-
   persistActivatedTabs,
   restoreActivatedTabs,
   ensureHostPermission,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
-import { activatedTabs as activatedTabsStorage } from '@/utils/storage-items';
-import { backgroundMessenger, contentMessenger } from '@/utils/messaging';
+import {activatedTabs as activatedTabsStorage} from '@/utils/storage-items';
+import {backgroundMessenger, contentMessenger} from '@/utils/messaging';
 
 export default defineBackground(() => {
-
-
-
-
   const activatedTabs = new Map<number, string>();
 
-
   restoreActivatedTabs(activatedTabs)
-    .then((changed) => {
+    .then(changed => {
       if (changed) {
         persistActivatedTabs(activatedTabs);
       }
     })
-    .catch((error) => {
+    .catch(error => {
       console.warn('Failed to restore activated tabs:', error);
     });
-
-
-
-
 
   async function getActivatedOriginHash(tabId: number): Promise<string | null> {
     const cached = activatedTabs.get(tabId);
@@ -78,15 +60,11 @@ export default defineBackground(() => {
     persistActivatedTabs(activatedTabs);
   }
 
-
-
-
-
   async function injectContentScripts(tabId: number): Promise<boolean> {
     if (!browser.scripting?.executeScript) return false;
     const files = getContentScriptFiles();
     if (!files.length) return false;
-    await browser.scripting.executeScript({ target: { tabId }, files });
+    await browser.scripting.executeScript({target: {tabId}, files});
     return true;
   }
 
@@ -98,15 +76,13 @@ export default defineBackground(() => {
     try {
       await sendShowToolbar(tabId);
     } catch {
-      await new Promise((resolve) => setTimeout(resolve, 60));
+      await new Promise(resolve => setTimeout(resolve, 60));
       await sendShowToolbar(tabId);
     }
   }
 
-
   async function showToolbar(tabId: number): Promise<boolean> {
     try {
-
       await sendShowToolbarWithRetry(tabId);
       return true;
     } catch (error) {
@@ -126,13 +102,8 @@ export default defineBackground(() => {
     return false;
   }
 
-
-
-
-
-  browser.action.onClicked.addListener(async (tab) => {
+  browser.action.onClicked.addListener(async tab => {
     if (!tab.id || !tab.url) return;
-
 
     if (!isInjectableUrl(tab.url)) {
       return;
@@ -149,10 +120,6 @@ export default defineBackground(() => {
     }
   });
 
-
-
-
-
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== 'complete' || !tab.url) return;
     const url = tab.url;
@@ -163,28 +130,21 @@ export default defineBackground(() => {
       const currentOrigin = getOrigin(url);
       const currentOriginHash = getOriginHash(currentOrigin);
       if (currentOriginHash === previousOriginHash) {
-
         const shown = await showToolbar(tabId);
         if (!shown) {
           clearActivatedTab(tabId);
         }
       } else {
-
         clearActivatedTab(tabId);
       }
     })();
   });
 
-
-  browser.tabs.onRemoved.addListener((tabId) => {
+  browser.tabs.onRemoved.addListener(tabId => {
     clearActivatedTab(tabId);
   });
 
-
-
-
-
-  backgroundMessenger.onMessage('captureScreenshot', async ({ sender }) => {
+  backgroundMessenger.onMessage('captureScreenshot', async ({sender}) => {
     if (!isExtensionSender(sender)) {
       throw new Error('Invalid sender');
     }
@@ -194,11 +154,11 @@ export default defineBackground(() => {
       return result;
     } catch (error) {
       console.error('[Background] captureScreenshot error:', error);
-      return { data: '', error: String(error) };
+      return {data: '', error: String(error)};
     }
   });
 
-  backgroundMessenger.onMessage('downloadFile', async ({ data, sender }) => {
+  backgroundMessenger.onMessage('downloadFile', async ({data, sender}) => {
     if (!isExtensionSender(sender)) {
       throw new Error('Invalid sender');
     }
@@ -206,39 +166,41 @@ export default defineBackground(() => {
       return await downloadFile(data.dataUrl, data.filename);
     } catch (error) {
       console.error('[Background] downloadFile error:', error);
-      return { ok: false, error: String(error) };
+      return {ok: false, error: String(error)};
     }
   });
 
-  backgroundMessenger.onMessage('getSettings', async ({ sender }) => {
+  backgroundMessenger.onMessage('getSettings', async ({sender}) => {
     if (!isExtensionSender(sender)) {
       throw new Error('Invalid sender');
     }
     try {
       return await getSettings();
     } catch (error) {
-      return { settings: DEFAULT_SETTINGS, error: String(error) };
+      return {settings: DEFAULT_SETTINGS, error: String(error)};
     }
   });
 
-  backgroundMessenger.onMessage('saveSettings', async ({ data: settings, sender }) => {
-    if (!isExtensionSender(sender)) {
-      throw new Error('Invalid sender');
+  backgroundMessenger.onMessage(
+    'saveSettings',
+    async ({data: settings, sender}) => {
+      if (!isExtensionSender(sender)) {
+        throw new Error('Invalid sender');
+      }
+      try {
+        return await saveSettings(settings);
+      } catch (error) {
+        return {settings, error: String(error)};
+      }
     }
-    try {
-      return await saveSettings(settings);
-    } catch (error) {
-      return { settings, error: String(error) };
-    }
-  });
+  );
 
-  backgroundMessenger.onMessage('updateBadge', ({ data: count, sender }) => {
+  backgroundMessenger.onMessage('updateBadge', ({data: count, sender}) => {
     if (!isExtensionSender(sender)) {
       return;
     }
     updateBadge(count);
   });
-
 
   browser.runtime.onInstalled.addListener(() => {
     updateBadge(0);

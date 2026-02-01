@@ -1,7 +1,7 @@
-import type { Annotation } from '@/types';
-import { getCategoryConfig } from '@/shared/categories';
-import { loadImage } from '@/utils/image';
-import { assertDomAvailable, getDocument, getWindow } from '@/utils/dom/guards';
+import type {Annotation} from '@/types';
+import {getCategoryConfig} from '@/shared/categories';
+import {loadImage} from '@/utils/image';
+import {assertDomAvailable, getDocument, getWindow} from '@/utils/dom/guards';
 
 const SNAPSHOT_FONT_FAMILY =
   '"Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif';
@@ -45,7 +45,12 @@ export async function createSnapshotImage(
   ctx.drawImage(baseImage, 0, headerHeightPx);
 
   ctx.fillStyle = '#141414';
-  ctx.fillRect(baseImage.width, headerHeightPx, sidebarWidthPx, baseImage.height);
+  ctx.fillRect(
+    baseImage.width,
+    headerHeightPx,
+    sidebarWidthPx,
+    baseImage.height
+  );
 
   const borderWidth = Math.max(1, Math.round(scaleX));
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -108,7 +113,7 @@ function drawAnnotationOverlays(
     scrollY: number;
   }
 ): void {
-  const { offsetX, offsetY, scaleX, scaleY, scrollX, scrollY } = options;
+  const {offsetX, offsetY, scaleX, scaleY, scrollX, scrollY} = options;
   const markerRadius = 13 * scaleX;
   const markerFontSize = 12 * scaleX;
   const strokeWidth = Math.max(1, 2 * scaleX);
@@ -135,7 +140,7 @@ function drawAnnotationOverlays(
     }
 
     const point = bounds
-      ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      ? {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2}
       : {
           x: annotation.isFixed ? annotation.x + scrollX : annotation.x,
           y: annotation.isFixed ? annotation.y + scrollY : annotation.y,
@@ -167,9 +172,9 @@ function drawAnnotationOverlays(
 function drawSidebarPanel(
   ctx: CanvasRenderingContext2D,
   annotations: Annotation[],
-  options: { x: number; y: number; width: number; height: number; scale: number }
+  options: {x: number; y: number; width: number; height: number; scale: number}
 ): void {
-  const { x, y, width, height, scale } = options;
+  const {x, y, width, height, scale} = options;
   const headerHeight = 48 * scale;
   const headerPaddingX = 18 * scale;
   const headerPaddingY = 16 * scale;
@@ -187,7 +192,11 @@ function drawSidebarPanel(
   ctx.textBaseline = 'top';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-  ctx.fillText(`Annotations (${annotations.length})`, x + headerPaddingX, y + headerPaddingY);
+  ctx.fillText(
+    `Annotations (${annotations.length})`,
+    x + headerPaddingX,
+    y + headerPaddingY
+  );
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = Math.max(1, scale);
   ctx.beginPath();
@@ -270,7 +279,13 @@ function drawSidebarPanel(
     ctx.font = `600 ${10 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
     ctx.beginPath();
-    ctx.arc(textX + 3 * scale, textY + categoryLineHeight / 2, 3 * scale, 0, Math.PI * 2);
+    ctx.arc(
+      textX + 3 * scale,
+      textY + categoryLineHeight / 2,
+      3 * scale,
+      0,
+      Math.PI * 2
+    );
     ctx.fillStyle = config.color;
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
@@ -282,7 +297,11 @@ function drawSidebarPanel(
     ctx.fillStyle = '#fff';
     ctx.font = `600 ${13 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
-    ctx.fillText(truncateText(ctx, annotation.element, textWidth), textX, textY);
+    ctx.fillText(
+      truncateText(ctx, annotation.element, textWidth),
+      textX,
+      textY
+    );
     ctx.restore();
 
     textY += elementLineHeight + 4 * scale;
@@ -290,7 +309,7 @@ function drawSidebarPanel(
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
     ctx.textBaseline = 'top';
-    commentLines.forEach((line) => {
+    commentLines.forEach(line => {
       ctx.fillText(line, textX, textY);
       textY += commentLineHeight;
     });
@@ -332,7 +351,7 @@ function wrapText(
   const lines: string[] = [];
   let currentLine = '';
 
-  words.forEach((word) => {
+  words.forEach(word => {
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     if (ctx.measureText(testLine).width <= maxWidth) {
       currentLine = testLine;
@@ -352,7 +371,6 @@ function truncateText(
   maxWidth: number
 ): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
-
 
   let low = 0;
   let high = text.length;
@@ -375,7 +393,7 @@ function hexToRgba(hex: string, alpha: number): string {
     normalized.length === 3
       ? normalized
           .split('')
-          .map((char) => char + char)
+          .map(char => char + char)
           .join('')
       : normalized;
   const int = Number.parseInt(value, 16);

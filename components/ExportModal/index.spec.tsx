@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import type { HTMLAttributes, ReactNode } from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, cleanup, act, within } from '@testing-library/react';
-import { ExportModal } from './index';
-import { exportAsImageWithNotes, exportAsSnapshotImage } from '@/utils/export';
-import { isRestrictedPage } from '@/utils/dom/screenshot';
-import type { Annotation } from '@/types';
-import { ToastProvider } from '@/components/Toast';
+import type {HTMLAttributes, ReactNode} from 'react';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {render, fireEvent, cleanup, act, within} from '@testing-library/react';
+import {ExportModal} from './index';
+import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
+import {isRestrictedPage} from '@/utils/dom/screenshot';
+import type {Annotation} from '@/types';
+import {ToastProvider} from '@/components/Toast';
 
 // Verify ExportModal is a named export (supports lazy loading with transform)
 describe('ExportModal module structure', () => {
@@ -17,7 +17,8 @@ describe('ExportModal module structure', () => {
   });
 
   it('can be dynamically imported', async () => {
-    const loadModule = () => import('./index').then((m) => ({ default: m.ExportModal }));
+    const loadModule = () =>
+      import('./index').then(m => ({default: m.ExportModal}));
     const module = await loadModule();
     expect(module.default).toBeDefined();
     expect(typeof module.default).toBe('function');
@@ -27,20 +28,31 @@ describe('ExportModal module structure', () => {
 // Mock export utilities
 vi.mock('@/utils/export', () => ({
   exportAsImageWithNotes: vi.fn().mockResolvedValue(undefined),
-  exportAsSnapshotImage: vi.fn().mockResolvedValue({ captureMode: 'full' }),
+  exportAsSnapshotImage: vi.fn().mockResolvedValue({captureMode: 'full'}),
 }));
 
 vi.mock('@/utils/dom/screenshot', () => ({
   isRestrictedPage: vi.fn().mockReturnValue(false),
 }));
 
+vi.mock('@/hooks/useSettings', () => ({
+  useSettings: () => ({
+    settings: {enabled: true, lightMode: true},
+    updateSettings: () => {},
+  }),
+}));
+
 // Mock Framer Motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
   m: {
-    div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => <span {...props}>{children}</span>,
+    div: ({children, ...props}: HTMLAttributes<HTMLDivElement>) => (
+      <div {...props}>{children}</div>
+    ),
+    span: ({children, ...props}: HTMLAttributes<HTMLSpanElement>) => (
+      <span {...props}>{children}</span>
+    ),
   },
-  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+  AnimatePresence: ({children}: {children: ReactNode}) => <>{children}</>,
   useReducedMotion: () => false,
 }));
 
@@ -55,7 +67,7 @@ const mockAnnotations: Annotation[] = [
     elementPath: 'body > div',
     timestamp: Date.now(),
     isFixed: false,
-    boundingBox: { x: 100, y: 200, width: 50, height: 50 },
+    boundingBox: {x: 100, y: 200, width: 50, height: 50},
   },
 ];
 
@@ -72,7 +84,10 @@ describe('ExportModal', () => {
   let screen: any;
   const defaultCaptureChange = vi.fn();
 
-  const renderModal = (props: { onClose: () => void; onCaptureChange?: (isCapturing: boolean) => void }) =>
+  const renderModal = (props: {
+    onClose: () => void;
+    onCaptureChange?: (isCapturing: boolean) => void;
+  }) =>
     render(
       <ToastProvider>
         <ExportModal
@@ -88,13 +103,13 @@ describe('ExportModal', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
-    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'full' });
+    mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'full'});
     mockedIsRestrictedPage.mockReturnValue(false);
 
     // Set up mock shadow DOM
     mockShadowHost = document.createElement('div');
     document.body.appendChild(mockShadowHost);
-    mockShadowRoot = mockShadowHost.attachShadow({ mode: 'open' });
+    mockShadowRoot = mockShadowHost.attachShadow({mode: 'open'});
     // Portal renders into shadow root, so query within it
     screen = within(mockShadowRoot as unknown as HTMLElement);
   });
@@ -111,9 +126,11 @@ describe('ExportModal', () => {
   it('downloads snapshot and auto-closes on success', async () => {
     const onClose = vi.fn();
 
-    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    const exportButton = screen.getByRole('button', {
+      name: /download snapshot/i,
+    });
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -126,12 +143,14 @@ describe('ExportModal', () => {
   });
 
   it('closes after snapshot uses placeholder', async () => {
-    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'placeholder' });
+    mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'placeholder'});
     const onClose = vi.fn();
 
-    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    const exportButton = screen.getByRole('button', {
+      name: /download snapshot/i,
+    });
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -141,12 +160,14 @@ describe('ExportModal', () => {
   });
 
   it('closes after snapshot falls back to viewport capture', async () => {
-    mockedExportAsSnapshotImage.mockResolvedValue({ captureMode: 'viewport' });
+    mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'viewport'});
     const onClose = vi.fn();
 
-    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    const exportButton = screen.getByRole('button', {
+      name: /download snapshot/i,
+    });
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -158,15 +179,17 @@ describe('ExportModal', () => {
   it('exports markdown to clipboard and auto-closes', async () => {
     const onClose = vi.fn();
 
-    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     // Click on the Markdown label to select it (Base UI RadioGroup structure)
-    const markdownLabel = screen.getByText('Markdown (Clipboard)').closest('label');
+    const markdownLabel = screen
+      .getByText('Markdown (Clipboard)')
+      .closest('label');
     await act(async () => {
       fireEvent.click(markdownLabel!);
     });
 
-    const exportButton = screen.getByRole('button', { name: /copy markdown/i });
+    const exportButton = screen.getByRole('button', {name: /copy markdown/i});
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -179,7 +202,7 @@ describe('ExportModal', () => {
   it('disables snapshot option on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    renderModal({ onClose: () => {}, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose: () => {}, onCaptureChange: defaultCaptureChange});
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -187,17 +210,21 @@ describe('ExportModal', () => {
 
     // Snapshot option should be disabled (Base UI uses data-disabled attribute)
     const radios = screen.getAllByRole('radio');
-    const snapshotRadio = radios.find((r: HTMLElement) => r.hasAttribute('data-disabled'));
+    const snapshotRadio = radios.find((r: HTMLElement) =>
+      r.hasAttribute('data-disabled')
+    );
     expect(snapshotRadio).toBeInTheDocument();
 
     // Should show "not available" message
-    expect(screen.getByText(/not available on browser pages/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/not available on browser pages/i)
+    ).toBeInTheDocument();
   });
 
   it('auto-selects markdown format on restricted pages', async () => {
     mockedIsRestrictedPage.mockReturnValue(true);
 
-    renderModal({ onClose: () => {}, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose: () => {}, onCaptureChange: defaultCaptureChange});
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -207,7 +234,11 @@ describe('ExportModal', () => {
     const radios = screen.getAllByRole('radio');
     // On restricted pages, markdown (image-notes) is auto-selected
     // The non-disabled radio with aria-checked=true should be the markdown option
-    const selectedRadio = radios.find((r: HTMLElement) => r.getAttribute('aria-checked') === 'true' && !r.hasAttribute('data-disabled'));
+    const selectedRadio = radios.find(
+      (r: HTMLElement) =>
+        r.getAttribute('aria-checked') === 'true' &&
+        !r.hasAttribute('data-disabled')
+    );
     expect(selectedRadio).toBeInTheDocument();
   });
 
@@ -216,16 +247,21 @@ describe('ExportModal', () => {
     const onClose = vi.fn();
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    renderModal({ onClose, onCaptureChange: defaultCaptureChange });
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
-    const exportButton = screen.getByRole('button', { name: /download snapshot/i });
+    const exportButton = screen.getByRole('button', {
+      name: /download snapshot/i,
+    });
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(consoleSpy).toHaveBeenCalledWith('Export failed:', expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Export failed:',
+      expect.any(Error)
+    );
     consoleSpy.mockRestore();
   });
 });

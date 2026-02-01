@@ -1,24 +1,26 @@
+import {useCallback, useMemo} from 'react';
 import {
-  useCallback,
-  useMemo,
-} from 'react';
-import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
-import type { Annotation } from '@/types';
-import { clsx } from 'clsx';
-import { usePopupPosition } from './usePopupPosition';
-import { ViewModeContent } from './ViewModeContent';
-import { CreateModeContent } from './CreateModeContent';
+  m,
+  AnimatePresence,
+  useReducedMotion,
+  type Variants,
+} from 'framer-motion';
+import type {Annotation} from '@/types';
+import {clsx} from 'clsx';
+import {usePopupPosition} from './usePopupPosition';
+import {ViewModeContent} from './ViewModeContent';
+import {CreateModeContent} from './CreateModeContent';
 
 const getPopupVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    ...(reduceMotion ? {} : { scale: 0.95, y: 4 }),
+    ...(reduceMotion ? {} : {scale: 0.95, y: 4}),
   },
   visible: {
     opacity: 1,
-    ...(reduceMotion ? {} : { scale: 1, y: 0 }),
+    ...(reduceMotion ? {} : {scale: 1, y: 0}),
     transition: reduceMotion
-      ? { duration: 0.15, ease: 'easeOut' }
+      ? {duration: 0.15, ease: 'easeOut'}
       : {
           type: 'spring',
           stiffness: 500,
@@ -28,7 +30,7 @@ const getPopupVariants = (reduceMotion: boolean): Variants => ({
   },
   exit: {
     opacity: 0,
-    ...(reduceMotion ? {} : { scale: 0.98, y: -4 }),
+    ...(reduceMotion ? {} : {scale: 0.98, y: -4}),
     transition: {
       duration: reduceMotion ? 0.1 : 0.12,
       ease: 'easeIn',
@@ -70,8 +72,11 @@ export function AnnotationPopup({
   accentColor = 'var(--color-df-blue)',
 }: AnnotationPopupProps) {
   const reduceMotion = useReducedMotion() ?? false;
-  const popupVariants = useMemo(() => getPopupVariants(reduceMotion), [reduceMotion]);
-  const position = usePopupPosition({ x, y, isFixed });
+  const popupVariants = useMemo(
+    () => getPopupVariants(reduceMotion),
+    [reduceMotion]
+  );
+  const position = usePopupPosition({x, y, isFixed});
 
   const handleCancel = useCallback(() => {
     onCancel();
@@ -86,11 +91,12 @@ export function AnnotationPopup({
   );
 
   const popupStyle = useMemo(
-    () => ({
-      left: position.x,
-      top: position.y,
-      position: position.isFixed ? 'fixed' : 'absolute',
-    } as const),
+    () =>
+      ({
+        left: position.x,
+        top: position.y,
+        position: position.isFixed ? 'fixed' : 'absolute',
+      }) as const,
     [position.x, position.y, position.isFixed]
   );
 
@@ -109,7 +115,9 @@ export function AnnotationPopup({
         data-annotation-popup
         style={popupStyle}
         role="dialog"
-        aria-label={mode === 'view' ? 'Annotation details' : 'Create annotation'}
+        aria-label={
+          mode === 'view' ? 'Annotation details' : 'Create annotation'
+        }
         tabIndex={-1}
         variants={popupVariants}
         initial="hidden"

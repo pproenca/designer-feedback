@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Annotation } from '@/types';
-import type { Position } from '@/types/position';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
+import type {Annotation} from '@/types';
+import type {Position} from '@/types/position';
 
 const DRAG_THRESHOLD = 5;
 
 export interface UseMarkerDragOptions {
-
   onClick?: (annotationId: string) => void;
 
   onDragEnd?: (annotationId: string, position: Position) => void;
@@ -18,7 +17,6 @@ export interface MarkerHandlers {
 }
 
 export interface UseMarkerDragReturn {
-
   isDragging: boolean;
 
   draggedAnnotationId: string | null;
@@ -30,12 +28,17 @@ export interface UseMarkerDragReturn {
   getMarkerHandlers: (annotation: Annotation) => MarkerHandlers;
 }
 
-export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDragReturn {
-  const { onClick, onDragEnd, disabled = false } = options;
+export function useMarkerDrag(
+  options: UseMarkerDragOptions = {}
+): UseMarkerDragReturn {
+  const {onClick, onDragEnd, disabled = false} = options;
 
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedAnnotation, setDraggedAnnotation] = useState<Annotation | null>(null);
-  const [currentDragPosition, setCurrentDragPosition] = useState<Position | null>(null);
+  const [draggedAnnotation, setDraggedAnnotation] = useState<Annotation | null>(
+    null
+  );
+  const [currentDragPosition, setCurrentDragPosition] =
+    useState<Position | null>(null);
 
   const dragSessionRef = useRef<{
     startX: number;
@@ -48,9 +51,7 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
 
   const dragCleanupTimerRef = useRef<number | null>(null);
 
-
   const mouseUpImplRef = useRef<(() => void) | null>(null);
-
 
   const handlePostDragClickCapture = useCallback((e: MouseEvent) => {
     if (dragSessionRef.current?.hasDragged) {
@@ -59,7 +60,6 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
     }
   }, []);
 
-
   const handleDragMouseUpStable = useCallback(() => {
     mouseUpImplRef.current?.();
   }, []);
@@ -67,11 +67,16 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
   const handleDragMouseMove = useCallback((e: MouseEvent) => {
     if (!dragSessionRef.current) return;
 
-    const { startX, startY, startPositionX, startPositionY, hasDragged, annotation } =
-      dragSessionRef.current;
+    const {
+      startX,
+      startY,
+      startPositionX,
+      startPositionY,
+      hasDragged,
+      annotation,
+    } = dragSessionRef.current;
     const deltaX = e.clientX - startX;
     const deltaY = e.clientY - startY;
-
 
     if (!hasDragged) {
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -83,22 +88,16 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
       setIsDragging(true);
       setDraggedAnnotation(annotation);
 
-
       e.preventDefault();
     }
 
-
     e.preventDefault();
-
-
-
 
     const newX = startPositionX + deltaX;
     const newY = startPositionY + deltaY;
 
-    setCurrentDragPosition({ x: newX, y: newY });
+    setCurrentDragPosition({x: newX, y: newY});
   }, []);
-
 
   const handleDragMouseUpImpl = useCallback(() => {
     const session = dragSessionRef.current;
@@ -106,10 +105,8 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
 
     setIsDragging(false);
 
-
     window.removeEventListener('mousemove', handleDragMouseMove);
     window.removeEventListener('mouseup', handleDragMouseUpStable);
-
 
     if (session) {
       if (wasDragging && onDragEnd && currentDragPosition) {
@@ -119,10 +116,8 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
       }
     }
 
-
     setDraggedAnnotation(null);
     setCurrentDragPosition(null);
-
 
     if (dragCleanupTimerRef.current !== null) {
       window.clearTimeout(dragCleanupTimerRef.current);
@@ -142,11 +137,9 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
     handlePostDragClickCapture,
   ]);
 
-
   useEffect(() => {
     mouseUpImplRef.current = handleDragMouseUpImpl;
   }, [handleDragMouseUpImpl]);
-
 
   useEffect(() => {
     return () => {
@@ -160,17 +153,18 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
         window.removeEventListener('click', handlePostDragClickCapture, true);
       }
     };
-  }, [handleDragMouseMove, handleDragMouseUpStable, handlePostDragClickCapture]);
+  }, [
+    handleDragMouseMove,
+    handleDragMouseUpStable,
+    handlePostDragClickCapture,
+  ]);
 
   const getMarkerHandlers = useCallback(
     (annotation: Annotation): MarkerHandlers => {
       const onMouseDown = (e: React.MouseEvent) => {
-
         if (e.button !== 0) return;
 
-
         if (disabled) return;
-
 
         const startPositionX = annotation.x;
         const startPositionY = annotation.y;
@@ -184,16 +178,20 @@ export function useMarkerDrag(options: UseMarkerDragOptions = {}): UseMarkerDrag
           annotation,
         };
 
-
         window.addEventListener('mousemove', handleDragMouseMove);
         window.addEventListener('mouseup', handleDragMouseUpStable);
 
         window.addEventListener('click', handlePostDragClickCapture, true);
       };
 
-      return { onMouseDown };
+      return {onMouseDown};
     },
-    [disabled, handleDragMouseMove, handleDragMouseUpStable, handlePostDragClickCapture]
+    [
+      disabled,
+      handleDragMouseMove,
+      handleDragMouseUpStable,
+      handlePostDragClickCapture,
+    ]
   );
 
   return {

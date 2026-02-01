@@ -1,5 +1,3 @@
-
-
 const FNV_OFFSET_BASIS_64 = 0xcbf29ce484222325n;
 const FNV_PRIME_64 = 0x100000001b3n;
 const FNV_MASK_64 = 0xffffffffffffffffn;

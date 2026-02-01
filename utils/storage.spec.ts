@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing/fake-browser';
+import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {fakeBrowser} from 'wxt/testing/fake-browser';
 
 // Mock backgroundMessenger
 const mockSendMessage = vi.fn();
@@ -19,8 +19,8 @@ import {
   saveAnnotation,
   deleteAnnotation,
 } from './storage';
-import { checkStorageQuota } from './storage-cleanup';
-import { hashString } from './hash';
+import {checkStorageQuota} from './storage-cleanup';
+import {hashString} from './hash';
 
 describe('Storage Quota Validation', () => {
   beforeEach(() => {
@@ -60,10 +60,10 @@ describe('Storage helpers and flows', () => {
     vi.clearAllMocks();
     vi.resetModules();
     fakeBrowser.reset();
-    Object.defineProperty(window, 'innerWidth', { value: 1000, writable: true });
-    Object.defineProperty(window, 'scrollX', { value: 10, writable: true });
+    Object.defineProperty(window, 'innerWidth', {value: 1000, writable: true});
+    Object.defineProperty(window, 'scrollX', {value: 10, writable: true});
     Object.defineProperty(window, 'location', {
-      value: { origin: 'https://example.com', pathname: '/page', search: '?q=1' },
+      value: {origin: 'https://example.com', pathname: '/page', search: '?q=1'},
       writable: true,
     });
   });
@@ -147,7 +147,7 @@ describe('Storage helpers and flows', () => {
     const hashedKey = getStorageKey();
     const fullKey = `${storagePrefix}${hashedKey}`;
     await browser.storage.local.set({
-      [fullKey]: [{ id: 'test', x: 0, y: 0, comment: 'test', category: 'bug' }],
+      [fullKey]: [{id: 'test', x: 0, y: 0, comment: 'test', category: 'bug'}],
     });
 
     await clearAnnotations();
@@ -180,7 +180,7 @@ describe('Storage helpers and flows', () => {
 
     const key = `${storagePrefix}${getStorageKey()}`;
     const result = await browser.storage.local.get(key);
-    const stored = result[key] as typeof annotation[];
+    const stored = result[key] as (typeof annotation)[];
     expect(stored).toHaveLength(1);
     expect(stored[0].comment).toBe('Test comment');
   });

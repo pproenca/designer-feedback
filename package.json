@@ -4,15 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "npm run compile",
     "dev": "wxt",
     "build": "wxt build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "VITE_DF_E2E=1 wxt build && playwright test",
     "typecheck": "wxt prepare && tsc --noEmit",
-    "lint": "eslint . --max-warnings 0",
-    "zip": "wxt zip"
+    "lint": "gts lint",
+    "zip": "wxt zip",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -49,14 +54,16 @@
     "eslint-plugin-react": "^7.37.3",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.2.0",
+    "gts": "^7.0.0",
     "jsdom": "^27.4.0",
     "knip": "^5.82.1",
     "lefthook": "^2.0.16",
     "puppeteer": "^24.36.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.2",
+    "typescript": "^5.6.3",
     "vitest": "^4.0.18",
-    "wxt": "^0.20.13"
+    "wxt": "^0.20.13",
+    "@types/node": "^22.7.5"
   }
 }

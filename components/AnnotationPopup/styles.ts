@@ -1,6 +1,4 @@
-
-
-import { clsx } from 'clsx';
+import {clsx} from 'clsx';
 
 export const BUTTON_BASE = [
   'px-4 py-2 text-xs font-medium rounded-lg border-none cursor-pointer',

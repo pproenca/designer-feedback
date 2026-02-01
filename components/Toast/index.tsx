@@ -8,9 +8,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { m, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
-import { clsx } from 'clsx';
+import {
+  m,
+  AnimatePresence,
+  useReducedMotion,
+  type Variants,
+} from 'framer-motion';
+import {AlertTriangle, CheckCircle2, Info, XCircle} from 'lucide-react';
+import {clsx} from 'clsx';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -40,17 +45,17 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 const getToastVariants = (reduceMotion: boolean): Variants => ({
   hidden: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: 8, scale: 0.98 }),
+    ...(reduceMotion ? {} : {y: 8, scale: 0.98}),
   },
   visible: {
     opacity: 1,
-    ...(reduceMotion ? {} : { y: 0, scale: 1 }),
-    transition: { duration: reduceMotion ? 0.12 : 0.18, ease: TOAST_EASE_OUT },
+    ...(reduceMotion ? {} : {y: 0, scale: 1}),
+    transition: {duration: reduceMotion ? 0.12 : 0.18, ease: TOAST_EASE_OUT},
   },
   exit: {
     opacity: 0,
-    ...(reduceMotion ? {} : { y: -4, scale: 0.98 }),
-    transition: { duration: reduceMotion ? 0.08 : 0.12, ease: TOAST_EASE_IN },
+    ...(reduceMotion ? {} : {y: -4, scale: 0.98}),
+    transition: {duration: reduceMotion ? 0.08 : 0.12, ease: TOAST_EASE_IN},
   },
 });
 
@@ -84,12 +89,12 @@ const TOAST_TONE: Record<
   },
 };
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({children}: {children: ReactNode}) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timersRef = useRef<Map<string, number>>(new Map());
 
   const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts(prev => prev.filter(toast => toast.id !== id));
     const timer = timersRef.current.get(id);
     if (timer) {
       clearTimeout(timer);
@@ -101,7 +106,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (toast: ToastInput) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const duration = toast.duration ?? DEFAULT_TOAST_DURATION_MS;
-      setToasts((prev) => [...prev, { ...toast, id, duration }]);
+      setToasts(prev => [...prev, {...toast, id, duration}]);
       if (duration > 0) {
         const timeoutId = window.setTimeout(() => dismissToast(id), duration);
         timersRef.current.set(id, timeoutId);
@@ -113,7 +118,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
-      timers.forEach((timeoutId) => clearTimeout(timeoutId));
+      timers.forEach(timeoutId => clearTimeout(timeoutId));
       timers.clear();
     };
   }, []);
@@ -127,7 +132,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [toasts, pushToast, dismissToast]
   );
 
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
 }
 
 export function useToasts(): ToastContextValue {
@@ -139,9 +146,12 @@ export function useToasts(): ToastContextValue {
 }
 
 export function ToastViewport() {
-  const { toasts, dismissToast } = useToasts();
+  const {toasts, dismissToast} = useToasts();
   const reduceMotion = useReducedMotion() ?? false;
-  const variants = useMemo(() => getToastVariants(reduceMotion), [reduceMotion]);
+  const variants = useMemo(
+    () => getToastVariants(reduceMotion),
+    [reduceMotion]
+  );
 
   return (
     <div
@@ -152,7 +162,7 @@ export function ToastViewport() {
       aria-atomic="true"
     >
       <AnimatePresence initial={false}>
-        {toasts.map((toast) => {
+        {toasts.map(toast => {
           const tone = TOAST_TONE[toast.type];
           const Icon = tone.icon;
 
@@ -179,9 +189,15 @@ export function ToastViewport() {
                   tone.badgeClassName
                 )}
               >
-                <Icon size={16} className={tone.iconClassName} aria-hidden="true" />
+                <Icon
+                  size={16}
+                  className={tone.iconClassName}
+                  aria-hidden="true"
+                />
               </span>
-              <span className="text-sm font-medium leading-snug">{toast.message}</span>
+              <span className="text-sm font-medium leading-snug">
+                {toast.message}
+              </span>
             </m.div>
           );
         })}

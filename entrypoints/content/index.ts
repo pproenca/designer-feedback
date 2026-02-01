@@ -1,11 +1,9 @@
-
-
 import './style.css';
-import { defineContentScript } from '#imports';
-import { getAnnotationCount, getStorageKey } from '@/utils/storage';
-import { emitUiEvent } from '@/utils/ui-events';
-import { mountUI } from './mount';
-import { contentMessenger } from '@/utils/messaging';
+import {defineContentScript} from '#imports';
+import {getAnnotationCount, getStorageKey} from '@/utils/storage';
+import {emitUiEvent} from '@/utils/ui-events';
+import {mountUI} from './mount';
+import {contentMessenger} from '@/utils/messaging';
 
 declare global {
   interface Window {
@@ -22,7 +20,8 @@ export default defineContentScript({
   main(ctx) {
     const isEligibleDocument =
       !!document.documentElement &&
-      (document.contentType === 'text/html' || document.contentType === 'application/xhtml+xml');
+      (document.contentType === 'text/html' ||
+        document.contentType === 'application/xhtml+xml');
 
     if (!isEligibleDocument || window.__designerFeedbackInjected) {
       return;
@@ -37,11 +36,11 @@ export default defineContentScript({
       if (uiInstance) return;
       if (!uiPromise) {
         uiPromise = mountUI(ctx)
-          .then((ui) => {
+          .then(ui => {
             uiInstance = ui;
             return ui;
           })
-          .catch((error) => {
+          .catch(error => {
             uiPromise = null;
             uiInstance = null;
             window.__designerFeedbackInjected = false;
@@ -51,20 +50,19 @@ export default defineContentScript({
       await uiPromise;
     }
 
-
     contentMessenger.onMessage('showToolbar', () => {
-      ensureInjected().catch((error) => {
+      ensureInjected().catch(error => {
         console.error('Failed to show toolbar:', error);
       });
     });
 
-    contentMessenger.onMessage('getAnnotationCount', async ({ data: url }) => {
+    contentMessenger.onMessage('getAnnotationCount', async ({data: url}) => {
       try {
         const targetUrl = url ?? getStorageKey();
         const count = await getAnnotationCount(targetUrl);
-        return { count };
+        return {count};
       } catch {
-        return { count: 0 };
+        return {count: 0};
       }
     });
 
@@ -75,26 +73,24 @@ export default defineContentScript({
             emitUiEvent('open-export');
           }, 0);
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('Failed to trigger export:', error);
         });
     });
 
-    contentMessenger.onMessage('toggleToolbar', ({ data: enabled }) => {
+    contentMessenger.onMessage('toggleToolbar', ({data: enabled}) => {
       if (enabled) {
-        ensureInjected().catch((error) => {
+        ensureInjected().catch(error => {
           console.error('Failed to toggle toolbar:', error);
         });
       }
     });
-
 
     let currentUrl = window.location.href;
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       const newUrl = window.location.href;
       const oldUrl = currentUrl;
       currentUrl = newUrl;
-
 
       try {
         const oldParsed = new URL(oldUrl);
@@ -103,17 +99,14 @@ export default defineContentScript({
         const newKey = newParsed.origin + newParsed.pathname + newParsed.search;
 
         if (oldKey !== newKey) {
-          emitUiEvent('location-changed', { newUrl, oldUrl });
+          emitUiEvent('location-changed', {newUrl, oldUrl});
         }
       } catch {
-
-        emitUiEvent('location-changed', { newUrl, oldUrl });
+        emitUiEvent('location-changed', {newUrl, oldUrl});
       }
     });
 
     ctx.onInvalidated(() => {
-
-
       uiInstance?.remove();
       uiInstance = null;
       uiPromise = null;

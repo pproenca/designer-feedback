@@ -1,6 +1,5 @@
-
-import { storage } from 'wxt/utils/storage';
-import { DEFAULT_SETTINGS } from '@/shared/settings';
+import {storage} from 'wxt/utils/storage';
+import {DEFAULT_SETTINGS} from '@/shared/settings';
 
 export const activatedTabs = storage.defineItem<Record<string, string>>(
   'session:designer-feedback:activated-tabs',
@@ -28,10 +27,9 @@ export const lastCleanupTimestamp = storage.defineItem<number>(
   }
 );
 
-export const toolbarPositions = storage.defineItem<Record<string, { x: number; y: number }>>(
-  'local:designer-feedback:toolbar-positions',
-  {
-    fallback: {},
-    version: 1,
-  }
-);
+export const toolbarPositions = storage.defineItem<
+  Record<string, {x: number; y: number}>
+>('local:designer-feedback:toolbar-positions', {
+  fallback: {},
+  version: 1,
+});

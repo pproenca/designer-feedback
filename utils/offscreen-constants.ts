@@ -1,5 +1,3 @@
-
-
 export const OFFSCREEN_DOCUMENT_PATH = '/offscreen.html';
 
 export const MESSAGE_TARGET = {
@@ -9,6 +7,5 @@ export const MESSAGE_TARGET = {
 } as const;
 
 export const OFFSCREEN_MESSAGE_TYPE = {
-
   DOWNLOAD: 'OFFSCREEN_DOWNLOAD',
 } as const;

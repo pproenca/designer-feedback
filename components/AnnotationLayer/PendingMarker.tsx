@@ -1,10 +1,8 @@
-
-
-import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { clsx } from 'clsx';
-import type { PendingAnnotation } from '@/components/FeedbackToolbar/context';
-import type { FeedbackCategory } from '@/types';
-import { getCategoryConfig } from '@/shared/categories';
+import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {clsx} from 'clsx';
+import type {PendingAnnotation} from '@/components/FeedbackToolbar/context';
+import type {FeedbackCategory} from '@/types';
+import {getCategoryConfig} from '@/shared/categories';
 
 export interface PendingMarkerProps {
   pendingAnnotation: PendingAnnotation | null;
@@ -14,18 +12,22 @@ export interface PendingMarkerProps {
 
 const getVariants = (reduceMotion: boolean) => ({
   marker: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.9 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.9})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1 }),
+      ...(reduceMotion ? {} : {scale: 1}),
       transition: reduceMotion
-        ? { duration: 0.12, ease: 'easeOut' as const }
-        : { type: 'spring' as const, stiffness: 400, damping: 20 },
+        ? {duration: 0.12, ease: 'easeOut' as const}
+        : {type: 'spring' as const, stiffness: 400, damping: 20},
     },
   },
 });
 
-export function PendingMarker({ pendingAnnotation, markerNumber, category }: PendingMarkerProps) {
+export function PendingMarker({
+  pendingAnnotation,
+  markerNumber,
+  category,
+}: PendingMarkerProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
   const categoryConfig = getCategoryConfig(category);
@@ -34,10 +36,7 @@ export function PendingMarker({ pendingAnnotation, markerNumber, category }: Pen
     return null;
   }
 
-  const { x, y, rect, isFixed } = pendingAnnotation;
-
-
-
+  const {x, y, rect, isFixed} = pendingAnnotation;
 
   const displayY = isFixed ? rect.top + rect.height / 2 : y;
 

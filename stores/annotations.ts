@@ -1,7 +1,5 @@
-
-
-import { create } from 'zustand';
-import type { Annotation } from '@/types';
+import {create} from 'zustand';
+import type {Annotation} from '@/types';
 import {
   loadAnnotations as loadFromStorage,
   saveAnnotation,
@@ -10,7 +8,7 @@ import {
   getStorageKey,
   updateBadgeCount,
 } from '@/utils/storage';
-import { debounce } from 'lodash-es';
+import {debounce} from 'lodash-es';
 
 export interface AnnotationsState {
   annotations: Annotation[];
@@ -18,12 +16,14 @@ export interface AnnotationsState {
 }
 
 export interface AnnotationsActions {
-
   loadAnnotations: () => Promise<void>;
 
   annotationCreated: (annotation: Annotation) => Promise<void>;
 
-  annotationUpdated: (id: string, updates: Partial<Annotation>) => Promise<void>;
+  annotationUpdated: (
+    id: string,
+    updates: Partial<Annotation>
+  ) => Promise<void>;
 
   annotationDeleted: (id: string) => Promise<void>;
 
@@ -32,27 +32,27 @@ export interface AnnotationsActions {
 
 const BADGE_DEBOUNCE_MS = 150;
 
-export const useAnnotationsStore = create<AnnotationsState & AnnotationsActions>((set) => ({
-
+export const useAnnotationsStore = create<
+  AnnotationsState & AnnotationsActions
+>(set => ({
   annotations: [],
   isLoading: false,
 
-
   loadAnnotations: async () => {
-    set({ isLoading: true });
+    set({isLoading: true});
     try {
       const annotations = await loadFromStorage();
-      set({ annotations, isLoading: false });
+      set({annotations, isLoading: false});
     } catch (error) {
       console.error('Failed to load annotations:', error);
-      set({ isLoading: false });
+      set({isLoading: false});
     }
   },
 
   annotationCreated: async (annotation: Annotation) => {
     try {
-      await saveAnnotation({ ...annotation, url: getStorageKey() });
-      set((state) => ({
+      await saveAnnotation({...annotation, url: getStorageKey()});
+      set(state => ({
         annotations: [...state.annotations, annotation],
       }));
     } catch (error) {
@@ -62,14 +62,14 @@ export const useAnnotationsStore = create<AnnotationsState & AnnotationsActions>
 
   annotationUpdated: async (id: string, updates: Partial<Annotation>) => {
     const state = useAnnotationsStore.getState();
-    const annotation = state.annotations.find((a) => a.id === id);
+    const annotation = state.annotations.find(a => a.id === id);
     if (!annotation) return;
 
-    const updated = { ...annotation, ...updates };
+    const updated = {...annotation, ...updates};
     try {
-      await saveAnnotation({ ...updated, url: getStorageKey() });
-      set((state) => ({
-        annotations: state.annotations.map((a) => (a.id === id ? updated : a)),
+      await saveAnnotation({...updated, url: getStorageKey()});
+      set(state => ({
+        annotations: state.annotations.map(a => (a.id === id ? updated : a)),
       }));
     } catch (error) {
       console.error('Failed to update annotation:', error);
@@ -79,8 +79,8 @@ export const useAnnotationsStore = create<AnnotationsState & AnnotationsActions>
   annotationDeleted: async (id: string) => {
     try {
       await deleteAnnotation(id);
-      set((state) => ({
-        annotations: state.annotations.filter((a) => a.id !== id),
+      set(state => ({
+        annotations: state.annotations.filter(a => a.id !== id),
       }));
     } catch (error) {
       console.error('Failed to delete annotation:', error);
@@ -90,7 +90,7 @@ export const useAnnotationsStore = create<AnnotationsState & AnnotationsActions>
   annotationsCleared: async () => {
     try {
       await clearAnnotations();
-      set({ annotations: [] });
+      set({annotations: []});
     } catch (error) {
       console.error('Failed to clear annotations:', error);
     }
@@ -101,10 +101,8 @@ const debouncedUpdateBadge = debounce((count: number) => {
   updateBadgeCount(count);
 }, BADGE_DEBOUNCE_MS);
 
-useAnnotationsStore.subscribe(
-  (state, prevState) => {
-    if (state.annotations.length !== prevState.annotations.length) {
-      debouncedUpdateBadge(state.annotations.length);
-    }
+useAnnotationsStore.subscribe((state, prevState) => {
+  if (state.annotations.length !== prevState.annotations.length) {
+    debouncedUpdateBadge(state.annotations.length);
   }
-);
+});

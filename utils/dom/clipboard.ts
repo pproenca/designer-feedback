@@ -1,4 +1,4 @@
-import { getDocument, getNavigator } from '@/utils/dom/guards';
+import {getDocument, getNavigator} from '@/utils/dom/guards';
 
 export async function copyToClipboard(text: string): Promise<void> {
   const navigatorRef = getNavigator('copyToClipboard');

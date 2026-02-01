@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useDraggable } from './useDraggable';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {renderHook, act} from '@testing-library/react';
+import {useDraggable} from './useDraggable';
 
 describe('useDraggable', () => {
   const THRESHOLD = 5;
 
   beforeEach(() => {
-    Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true });
-    Object.defineProperty(window, 'innerHeight', { value: 768, writable: true });
+    Object.defineProperty(window, 'innerWidth', {value: 1024, writable: true});
+    Object.defineProperty(window, 'innerHeight', {value: 768, writable: true});
   });
 
   afterEach(() => {
@@ -18,19 +18,19 @@ describe('useDraggable', () => {
 
   describe('initial state', () => {
     it('should return null position initially', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
       expect(result.current.position).toBeNull();
     });
 
     it('should not be dragging initially', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
       expect(result.current.isDragging).toBe(false);
     });
   });
 
   describe('drag threshold', () => {
     it('should not start dragging until movement exceeds threshold', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       // Simulate mousedown
       act(() => {
@@ -56,7 +56,7 @@ describe('useDraggable', () => {
     });
 
     it('should start dragging when movement exceeds threshold', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       // Simulate mousedown
       act(() => {
@@ -84,7 +84,9 @@ describe('useDraggable', () => {
 
   describe('position clamping', () => {
     it('should clamp position to left viewport bound', () => {
-      const { result } = renderHook(() => useDraggable({ elementWidth: 100, elementHeight: 44 }));
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
+      );
 
       act(() => {
         result.current.onMouseDown({
@@ -108,7 +110,9 @@ describe('useDraggable', () => {
     });
 
     it('should clamp position to right viewport bound', () => {
-      const { result } = renderHook(() => useDraggable({ elementWidth: 100, elementHeight: 44 }));
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
+      );
 
       act(() => {
         result.current.onMouseDown({
@@ -132,7 +136,9 @@ describe('useDraggable', () => {
     });
 
     it('should clamp position to top viewport bound', () => {
-      const { result } = renderHook(() => useDraggable({ elementWidth: 100, elementHeight: 44 }));
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
+      );
 
       act(() => {
         result.current.onMouseDown({
@@ -156,7 +162,9 @@ describe('useDraggable', () => {
     });
 
     it('should clamp position to bottom viewport bound', () => {
-      const { result } = renderHook(() => useDraggable({ elementWidth: 100, elementHeight: 44 }));
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
+      );
 
       act(() => {
         result.current.onMouseDown({
@@ -182,7 +190,7 @@ describe('useDraggable', () => {
 
   describe('isDragging state transitions', () => {
     it('should set isDragging to false on mouseup', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       // Start dragging
       act(() => {
@@ -215,7 +223,7 @@ describe('useDraggable', () => {
     });
 
     it('should preserve position after mouseup', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       // Start dragging
       act(() => {
@@ -236,7 +244,7 @@ describe('useDraggable', () => {
         window.dispatchEvent(mouseMoveEvent);
       });
 
-      const positionBeforeRelease = { ...result.current.position };
+      const positionBeforeRelease = {...result.current.position};
 
       // Release mouse
       act(() => {
@@ -250,7 +258,7 @@ describe('useDraggable', () => {
 
   describe('reset', () => {
     it('should reset position to null when reset is called', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       // Start dragging
       act(() => {
@@ -290,8 +298,8 @@ describe('useDraggable', () => {
 
   describe('expandDirection', () => {
     it('should return "left" when position is on right side of viewport (past center)', () => {
-      const { result } = renderHook(() =>
-        useDraggable({ elementWidth: 100, elementHeight: 44 })
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
       );
 
       // Drag to right side of viewport (x > 512, which is center of 1024)
@@ -320,8 +328,8 @@ describe('useDraggable', () => {
     });
 
     it('should return "right" when position is on left side of viewport (before center)', () => {
-      const { result } = renderHook(() =>
-        useDraggable({ elementWidth: 100, elementHeight: 44 })
+      const {result} = renderHook(() =>
+        useDraggable({elementWidth: 100, elementHeight: 44})
       );
 
       // Drag to left side of viewport (x < 512)
@@ -350,7 +358,7 @@ describe('useDraggable', () => {
     });
 
     it('should default to "left" when no position (initial state, toolbar on right)', () => {
-      const { result } = renderHook(() => useDraggable());
+      const {result} = renderHook(() => useDraggable());
 
       expect(result.current.expandDirection).toBe('left');
     });
@@ -358,35 +366,35 @@ describe('useDraggable', () => {
 
   describe('initialPosition', () => {
     it('should use provided initial position', () => {
-      const { result } = renderHook(() =>
+      const {result} = renderHook(() =>
         useDraggable({
           elementWidth: 100,
           elementHeight: 44,
-          initialPosition: { x: 200, y: 150 },
+          initialPosition: {x: 200, y: 150},
         })
       );
 
-      expect(result.current.position).toEqual({ x: 200, y: 150 });
+      expect(result.current.position).toEqual({x: 200, y: 150});
     });
 
     it('should calculate expandDirection based on initial position', () => {
       // Position on left side (x=200 < center of 512)
-      const { result: leftResult } = renderHook(() =>
+      const {result: leftResult} = renderHook(() =>
         useDraggable({
           elementWidth: 100,
           elementHeight: 44,
-          initialPosition: { x: 200, y: 150 },
+          initialPosition: {x: 200, y: 150},
         })
       );
 
       expect(leftResult.current.expandDirection).toBe('right');
 
       // Position on right side (x=700 > center of 512)
-      const { result: rightResult } = renderHook(() =>
+      const {result: rightResult} = renderHook(() =>
         useDraggable({
           elementWidth: 100,
           elementHeight: 44,
-          initialPosition: { x: 700, y: 150 },
+          initialPosition: {x: 700, y: 150},
         })
       );
 
@@ -397,7 +405,7 @@ describe('useDraggable', () => {
   describe('onPositionChange callback', () => {
     it('should call onPositionChange when drag ends', () => {
       const onPositionChange = vi.fn();
-      const { result } = renderHook(() =>
+      const {result} = renderHook(() =>
         useDraggable({
           elementWidth: 100,
           elementHeight: 44,
@@ -435,7 +443,7 @@ describe('useDraggable', () => {
 
     it('should not call onPositionChange if drag did not exceed threshold', () => {
       const onPositionChange = vi.fn();
-      const { result } = renderHook(() =>
+      const {result} = renderHook(() =>
         useDraggable({
           elementWidth: 100,
           elementHeight: 44,

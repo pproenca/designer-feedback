@@ -1,14 +1,16 @@
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { useMemo } from 'react';
-import { m, useReducedMotion } from 'framer-motion';
-import { clsx } from 'clsx';
-import { getCategoryConfig } from '@/shared/categories';
-import { useMarkerDragContext } from './MarkerDragContext';
-import type { Annotation } from '@/types';
-import type { Position } from '@/types/position';
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from 'react';
+import {useMemo} from 'react';
+import {m, useReducedMotion} from 'framer-motion';
+import {clsx} from 'clsx';
+import {getCategoryConfig} from '@/shared/categories';
+import {useMarkerDragContext} from './MarkerDragContext';
+import type {Annotation} from '@/types';
+import type {Position} from '@/types/position';
 
 export interface MarkerLayerProps {
-
   annotations: Annotation[];
 
   isEntranceComplete: boolean;
@@ -18,26 +20,26 @@ export interface MarkerLayerProps {
 
 const getVariants = (reduceMotion: boolean) => ({
   marker: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.9 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.9})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1 }),
+      ...(reduceMotion ? {} : {scale: 1}),
       transition: reduceMotion
-        ? { duration: 0.12, ease: 'easeOut' as const }
-        : { type: 'spring' as const, stiffness: 400, damping: 20 },
+        ? {duration: 0.12, ease: 'easeOut' as const}
+        : {type: 'spring' as const, stiffness: 400, damping: 20},
     },
     hover: {
-      ...(reduceMotion ? {} : { scale: 1.08 }),
-      transition: { duration: 0.1, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1.08}),
+      transition: {duration: 0.1, ease: 'easeOut' as const},
     },
   },
   tooltip: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 2 }) },
-    visible: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: 2 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: 2})},
+    visible: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: 2})},
     hover: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.1, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1, y: 0}),
+      transition: {duration: 0.1, ease: 'easeOut' as const},
     },
   },
 });
@@ -47,7 +49,7 @@ interface MarkerTooltipProps {
   variants: ReturnType<typeof getVariants>['tooltip'];
 }
 
-function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
+function MarkerTooltip({annotation, variants}: MarkerTooltipProps) {
   const config = getCategoryConfig(annotation.category);
 
   return (
@@ -60,7 +62,12 @@ function MarkerTooltip({ annotation, variants }: MarkerTooltipProps) {
         'dark:bg-df-dark-ink dark:shadow-popup'
       )}
     >
-      <span className={clsx('inline-flex items-center gap-1 text-xs font-semibold mb-1', config.tw.text)}>
+      <span
+        className={clsx(
+          'inline-flex items-center gap-1 text-xs font-semibold mb-1',
+          config.tw.text
+        )}
+      >
         <config.Icon size={14} aria-hidden="true" />
         {config.label}
       </span>
@@ -111,7 +118,6 @@ function Marker({
   const config = getCategoryConfig(annotation.category);
 
   const handleClick = () => {
-
     if (!onDragMouseDown) {
       onMarkerClick(annotation.id);
     }
@@ -123,7 +129,6 @@ function Marker({
       onMarkerClick(annotation.id);
     }
   };
-
 
   const displayX = isDragged && dragPosition ? dragPosition.x : annotation.x;
   const displayY = isDragged && dragPosition ? dragPosition.y : annotation.y;
@@ -156,7 +161,9 @@ function Marker({
       aria-label={`Annotation ${index + 1} (${config.label})`}
     >
       {index + 1}
-      {!isDragged && <MarkerTooltip annotation={annotation} variants={variants.tooltip} />}
+      {!isDragged && (
+        <MarkerTooltip annotation={annotation} variants={variants.tooltip} />
+      )}
     </m.div>
   );
 }
@@ -176,20 +183,19 @@ export function MarkerLayer({
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);
 
-
-  const { absoluteMarkers, fixedMarkers } = useMemo(() => {
-    const absolute: Array<{ annotation: Annotation; globalIndex: number }> = [];
-    const fixed: Array<{ annotation: Annotation; globalIndex: number }> = [];
+  const {absoluteMarkers, fixedMarkers} = useMemo(() => {
+    const absolute: Array<{annotation: Annotation; globalIndex: number}> = [];
+    const fixed: Array<{annotation: Annotation; globalIndex: number}> = [];
 
     annotations.forEach((annotation, index) => {
       if (annotation.isFixed) {
-        fixed.push({ annotation, globalIndex: index });
+        fixed.push({annotation, globalIndex: index});
       } else {
-        absolute.push({ annotation, globalIndex: index });
+        absolute.push({annotation, globalIndex: index});
       }
     });
 
-    return { absoluteMarkers: absolute, fixedMarkers: fixed };
+    return {absoluteMarkers: absolute, fixedMarkers: fixed};
   }, [annotations]);
 
   if (annotations.length === 0) {
@@ -197,7 +203,8 @@ export function MarkerLayer({
   }
 
   const renderMarker = (annotation: Annotation, globalIndex: number) => {
-    const isThisMarkerDragged = isDragging && draggedAnnotationId === annotation.id;
+    const isThisMarkerDragged =
+      isDragging && draggedAnnotationId === annotation.id;
     const dragHandlers = getMarkerDragHandlers(annotation);
 
     return (
@@ -219,12 +226,16 @@ export function MarkerLayer({
     <>
       {/* Absolute positioned markers container */}
       <div className="absolute top-0 left-0 right-0 h-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
-        {absoluteMarkers.map(({ annotation, globalIndex }) => renderMarker(annotation, globalIndex))}
+        {absoluteMarkers.map(({annotation, globalIndex}) =>
+          renderMarker(annotation, globalIndex)
+        )}
       </div>
 
       {/* Fixed positioned markers container */}
       <div className="fixed inset-0 z-markers pointer-events-none [&>*]:pointer-events-auto">
-        {fixedMarkers.map(({ annotation, globalIndex }) => renderMarker(annotation, globalIndex))}
+        {fixedMarkers.map(({annotation, globalIndex}) =>
+          renderMarker(annotation, globalIndex)
+        )}
       </div>
     </>
   );

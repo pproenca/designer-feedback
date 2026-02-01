@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Position } from '@/types/position';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
+import type {Position} from '@/types/position';
 
 const DRAG_THRESHOLD = 5;
 
@@ -20,13 +20,20 @@ export interface UseDraggableReturn {
   reset: () => void;
 }
 
-export function useDraggable(options: UseDraggableOptions = {}): UseDraggableReturn {
-  const { elementWidth = 0, elementHeight = 0, initialPosition, onPositionChange } = options;
+export function useDraggable(
+  options: UseDraggableOptions = {}
+): UseDraggableReturn {
+  const {
+    elementWidth = 0,
+    elementHeight = 0,
+    initialPosition,
+    onPositionChange,
+  } = options;
 
-  const [position, setPosition] = useState<Position | null>(initialPosition ?? null);
+  const [position, setPosition] = useState<Position | null>(
+    initialPosition ?? null
+  );
   const [isDragging, setIsDragging] = useState(false);
-
-
 
   useEffect(() => {
     if (initialPosition) {
@@ -46,15 +53,9 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
 
   const dragCleanupTimerRef = useRef<number | null>(null);
 
-
   const hasJustDraggedRef = useRef(false);
 
-
   const mouseUpImplRef = useRef<(() => void) | null>(null);
-
-
-
-
 
   const expandDirection: ExpandDirection = (() => {
     if (!position) {
@@ -78,7 +79,6 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     [elementWidth, elementHeight]
   );
 
-
   useEffect(() => {
     if (!position) return;
     const clamped = clampPosition(position.x, position.y);
@@ -90,7 +90,9 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
 
   useEffect(() => {
     const handleResize = () => {
-      setPosition((current) => (current ? clampPosition(current.x, current.y) : current));
+      setPosition(current =>
+        current ? clampPosition(current.x, current.y) : current
+      );
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -100,11 +102,10 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     (e: MouseEvent) => {
       if (!dragSessionRef.current) return;
 
-      const { startX, startY, startPositionX, startPositionY, hasDragged } =
+      const {startX, startY, startPositionX, startPositionY, hasDragged} =
         dragSessionRef.current;
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
-
 
       if (!hasDragged) {
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -115,10 +116,8 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
         dragSessionRef.current.hasDragged = true;
         setIsDragging(true);
 
-
         e.preventDefault();
       }
-
 
       e.preventDefault();
 
@@ -130,34 +129,27 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
     [clampPosition]
   );
 
-
   const handlePostDragClickCapture = useCallback((e: MouseEvent) => {
-
-
     if (hasJustDraggedRef.current || dragSessionRef.current?.hasDragged) {
       e.preventDefault();
       e.stopPropagation();
     }
   }, []);
 
-
   const handleDragMouseUpStable = useCallback(() => {
     mouseUpImplRef.current?.();
   }, []);
-
 
   const handleDragMouseUpImpl = useCallback(() => {
     const wasDragging = dragSessionRef.current?.hasDragged ?? false;
 
     setIsDragging(false);
 
-
     window.removeEventListener('mousemove', handleDragMouseMove);
     window.removeEventListener('mouseup', handleDragMouseUpStable);
 
-
     if (wasDragging && onPositionChange) {
-      setPosition((currentPosition) => {
+      setPosition(currentPosition => {
         if (currentPosition) {
           onPositionChange(currentPosition);
         }
@@ -165,11 +157,9 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
       });
     }
 
-
     if (wasDragging) {
       hasJustDraggedRef.current = true;
     }
-
 
     if (dragCleanupTimerRef.current !== null) {
       window.clearTimeout(dragCleanupTimerRef.current);
@@ -181,13 +171,16 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
         window.removeEventListener('click', handlePostDragClickCapture, true);
       }
     }, 16);
-  }, [onPositionChange, handleDragMouseMove, handleDragMouseUpStable, handlePostDragClickCapture]);
-
+  }, [
+    onPositionChange,
+    handleDragMouseMove,
+    handleDragMouseUpStable,
+    handlePostDragClickCapture,
+  ]);
 
   useEffect(() => {
     mouseUpImplRef.current = handleDragMouseUpImpl;
   }, [handleDragMouseUpImpl]);
-
 
   useEffect(() => {
     return () => {
@@ -201,13 +194,15 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
         window.removeEventListener('click', handlePostDragClickCapture, true);
       }
     };
-  }, [handleDragMouseMove, handleDragMouseUpStable, handlePostDragClickCapture]);
+  }, [
+    handleDragMouseMove,
+    handleDragMouseUpStable,
+    handlePostDragClickCapture,
+  ]);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
-
       if (e.button !== 0) return;
-
 
       const startPositionX = position?.x ?? e.clientX;
       const startPositionY = position?.y ?? e.clientY;
@@ -221,13 +216,17 @@ export function useDraggable(options: UseDraggableOptions = {}): UseDraggableRet
         target: e.target,
       };
 
-
       window.addEventListener('mousemove', handleDragMouseMove);
       window.addEventListener('mouseup', handleDragMouseUpStable);
 
       window.addEventListener('click', handlePostDragClickCapture, true);
     },
-    [position, handleDragMouseMove, handleDragMouseUpStable, handlePostDragClickCapture]
+    [
+      position,
+      handleDragMouseMove,
+      handleDragMouseUpStable,
+      handlePostDragClickCapture,
+    ]
   );
 
   const reset = useCallback(() => {

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { act } from '@testing-library/react';
-import type { Annotation } from '@/types';
+import {describe, it, expect, beforeEach, vi, afterEach} from 'vitest';
+import {act} from '@testing-library/react';
+import type {Annotation} from '@/types';
 
 // Mock storage utilities before importing the store
 vi.mock('@/utils/storage', () => ({
@@ -13,7 +13,7 @@ vi.mock('@/utils/storage', () => ({
 }));
 
 // Import after mocking
-import { useAnnotationsStore } from './annotations';
+import {useAnnotationsStore} from './annotations';
 import * as storage from '@/utils/storage';
 
 const mockAnnotation: Annotation = {
@@ -69,7 +69,10 @@ describe('useAnnotationsStore', () => {
   describe('loadAnnotations', () => {
     it('should set isLoading to true while loading', async () => {
       vi.mocked(storage.loadAnnotations).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve([mockAnnotation]), 50))
+        () =>
+          new Promise(resolve =>
+            setTimeout(() => resolve([mockAnnotation]), 50)
+          )
       );
 
       const loadPromise = useAnnotationsStore.getState().loadAnnotations();
@@ -81,7 +84,10 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should load annotations from storage and update state', async () => {
-      vi.mocked(storage.loadAnnotations).mockResolvedValue([mockAnnotation, mockAnnotation2]);
+      vi.mocked(storage.loadAnnotations).mockResolvedValue([
+        mockAnnotation,
+        mockAnnotation2,
+      ]);
 
       await act(async () => {
         await useAnnotationsStore.getState().loadAnnotations();
@@ -105,8 +111,12 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should handle load errors gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(storage.loadAnnotations).mockRejectedValue(new Error('Load failed'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(storage.loadAnnotations).mockRejectedValue(
+        new Error('Load failed')
+      );
 
       await act(async () => {
         await useAnnotationsStore.getState().loadAnnotations();
@@ -150,8 +160,12 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should not add annotation if storage fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(storage.saveAnnotation).mockRejectedValue(new Error('Save failed'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(storage.saveAnnotation).mockRejectedValue(
+        new Error('Save failed')
+      );
 
       await act(async () => {
         await useAnnotationsStore.getState().annotationCreated(mockAnnotation);
@@ -209,8 +223,12 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should not remove annotation if storage fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(storage.deleteAnnotation).mockRejectedValue(new Error('Delete failed'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(storage.deleteAnnotation).mockRejectedValue(
+        new Error('Delete failed')
+      );
 
       await act(async () => {
         await useAnnotationsStore.getState().annotationDeleted('test-1');
@@ -265,8 +283,12 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should not clear annotations if storage fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(storage.clearAnnotations).mockRejectedValue(new Error('Clear failed'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(storage.clearAnnotations).mockRejectedValue(
+        new Error('Clear failed')
+      );
 
       await act(async () => {
         await useAnnotationsStore.getState().annotationsCleared();
@@ -293,11 +315,13 @@ describe('useAnnotationsStore', () => {
       vi.mocked(storage.saveAnnotation).mockResolvedValue(undefined);
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('test-1', { x: 500, y: 600 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('test-1', {x: 500, y: 600});
       });
 
       const state = useAnnotationsStore.getState();
-      const updated = state.annotations.find((a) => a.id === 'test-1');
+      const updated = state.annotations.find(a => a.id === 'test-1');
       expect(updated?.x).toBe(500);
       expect(updated?.y).toBe(600);
       // Other properties unchanged
@@ -308,7 +332,9 @@ describe('useAnnotationsStore', () => {
       vi.mocked(storage.saveAnnotation).mockResolvedValue(undefined);
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('test-1', { x: 500, y: 600 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('test-1', {x: 500, y: 600});
       });
 
       expect(storage.saveAnnotation).toHaveBeenCalledWith(
@@ -325,11 +351,13 @@ describe('useAnnotationsStore', () => {
       vi.mocked(storage.saveAnnotation).mockResolvedValue(undefined);
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('test-1', { x: 500 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('test-1', {x: 500});
       });
 
       const state = useAnnotationsStore.getState();
-      const updated = state.annotations.find((a) => a.id === 'test-1');
+      const updated = state.annotations.find(a => a.id === 'test-1');
       expect(updated?.x).toBe(500);
       expect(updated?.y).toBe(200); // Original value unchanged
     });
@@ -338,7 +366,9 @@ describe('useAnnotationsStore', () => {
       vi.mocked(storage.saveAnnotation).mockResolvedValue(undefined);
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('non-existent', { x: 500 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('non-existent', {x: 500});
       });
 
       expect(storage.saveAnnotation).not.toHaveBeenCalled();
@@ -347,15 +377,21 @@ describe('useAnnotationsStore', () => {
     });
 
     it('should not update state if storage fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(storage.saveAnnotation).mockRejectedValue(new Error('Save failed'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(storage.saveAnnotation).mockRejectedValue(
+        new Error('Save failed')
+      );
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('test-1', { x: 500 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('test-1', {x: 500});
       });
 
       const state = useAnnotationsStore.getState();
-      const annotation = state.annotations.find((a) => a.id === 'test-1');
+      const annotation = state.annotations.find(a => a.id === 'test-1');
       expect(annotation?.x).toBe(100); // Original value unchanged
 
       consoleSpy.mockRestore();
@@ -365,11 +401,13 @@ describe('useAnnotationsStore', () => {
       vi.mocked(storage.saveAnnotation).mockResolvedValue(undefined);
 
       await act(async () => {
-        await useAnnotationsStore.getState().annotationUpdated('test-1', { x: 500, y: 600 });
+        await useAnnotationsStore
+          .getState()
+          .annotationUpdated('test-1', {x: 500, y: 600});
       });
 
       const state = useAnnotationsStore.getState();
-      const other = state.annotations.find((a) => a.id === 'test-2');
+      const other = state.annotations.find(a => a.id === 'test-2');
       expect(other?.x).toBe(300);
       expect(other?.y).toBe(400);
     });

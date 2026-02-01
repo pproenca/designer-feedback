@@ -1,8 +1,12 @@
-
-
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
-import type { FeedbackCategory } from '@/types';
-import type { PendingAnnotation, AddMode } from './context';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useReducer,
+  type ReactNode,
+} from 'react';
+import type {FeedbackCategory} from '@/types';
+import type {PendingAnnotation, AddMode} from './context';
 
 export interface ToolbarState {
   isExpanded: boolean;
@@ -36,23 +40,23 @@ export interface ToolbarActions {
 }
 
 type ToolbarAction =
-  | { type: 'toolbarExpanded' }
-  | { type: 'toolbarCollapsed' }
-  | { type: 'categoryPanelOpened' }
-  | { type: 'categoryPanelClosed' }
-  | { type: 'categorySelected'; category: FeedbackCategory }
-  | { type: 'selectionModeEntered' }
-  | { type: 'selectionModeCancelled' }
-  | { type: 'elementSelected'; pending: PendingAnnotation }
-  | { type: 'pendingAnnotationCleared' }
-  | { type: 'annotationSelected'; id: string }
-  | { type: 'annotationDeselected' }
-  | { type: 'exportModalOpened' }
-  | { type: 'exportModalClosed' }
-  | { type: 'entranceCompleted' }
-  | { type: 'uiHidden' }
-  | { type: 'uiShown' }
-  | { type: 'toggleCategoryPanel' };
+  | {type: 'toolbarExpanded'}
+  | {type: 'toolbarCollapsed'}
+  | {type: 'categoryPanelOpened'}
+  | {type: 'categoryPanelClosed'}
+  | {type: 'categorySelected'; category: FeedbackCategory}
+  | {type: 'selectionModeEntered'}
+  | {type: 'selectionModeCancelled'}
+  | {type: 'elementSelected'; pending: PendingAnnotation}
+  | {type: 'pendingAnnotationCleared'}
+  | {type: 'annotationSelected'; id: string}
+  | {type: 'annotationDeselected'}
+  | {type: 'exportModalOpened'}
+  | {type: 'exportModalClosed'}
+  | {type: 'entranceCompleted'}
+  | {type: 'uiHidden'}
+  | {type: 'uiShown'}
+  | {type: 'toggleCategoryPanel'};
 
 export const initialToolbarState: ToolbarState = {
   isExpanded: true,
@@ -65,16 +69,19 @@ export const initialToolbarState: ToolbarState = {
   isHidden: false,
 };
 
-export function toolbarReducer(state: ToolbarState, action: ToolbarAction): ToolbarState {
+export function toolbarReducer(
+  state: ToolbarState,
+  action: ToolbarAction
+): ToolbarState {
   switch (action.type) {
     case 'toolbarExpanded':
-      return { ...state, isExpanded: true };
+      return {...state, isExpanded: true};
     case 'toolbarCollapsed':
-      return { ...state, isExpanded: false };
+      return {...state, isExpanded: false};
     case 'categoryPanelOpened':
-      return { ...state, addMode: 'category', pendingAnnotation: null };
+      return {...state, addMode: 'category', pendingAnnotation: null};
     case 'categoryPanelClosed':
-      return { ...state, addMode: 'idle' };
+      return {...state, addMode: 'idle'};
     case 'categorySelected':
       return {
         ...state,
@@ -83,31 +90,33 @@ export function toolbarReducer(state: ToolbarState, action: ToolbarAction): Tool
         pendingAnnotation: null,
       };
     case 'selectionModeEntered':
-      return { ...state, addMode: 'selecting' };
+      return {...state, addMode: 'selecting'};
     case 'selectionModeCancelled':
-      return { ...state, addMode: 'idle', pendingAnnotation: null };
+      return {...state, addMode: 'idle', pendingAnnotation: null};
     case 'elementSelected':
-      return { ...state, pendingAnnotation: action.pending, addMode: 'idle' };
+      return {...state, pendingAnnotation: action.pending, addMode: 'idle'};
     case 'pendingAnnotationCleared':
-      return { ...state, pendingAnnotation: null };
+      return {...state, pendingAnnotation: null};
     case 'annotationSelected':
-      return { ...state, selectedAnnotationId: action.id };
+      return {...state, selectedAnnotationId: action.id};
     case 'annotationDeselected':
-      return { ...state, selectedAnnotationId: null };
+      return {...state, selectedAnnotationId: null};
     case 'exportModalOpened':
-      return { ...state, isExportModalOpen: true };
+      return {...state, isExportModalOpen: true};
     case 'exportModalClosed':
-      return { ...state, isExportModalOpen: false };
+      return {...state, isExportModalOpen: false};
     case 'entranceCompleted':
-      return { ...state, isEntranceComplete: true };
+      return {...state, isEntranceComplete: true};
     case 'uiHidden':
-      return { ...state, isHidden: true };
+      return {...state, isHidden: true};
     case 'uiShown':
-      return { ...state, isHidden: false };
+      return {...state, isHidden: false};
     case 'toggleCategoryPanel': {
       const nextMode =
-        state.addMode === 'category' || state.addMode === 'selecting' ? 'idle' : 'category';
-      return { ...state, addMode: nextMode, pendingAnnotation: null };
+        state.addMode === 'category' || state.addMode === 'selecting'
+          ? 'idle'
+          : 'category';
+      return {...state, addMode: nextMode, pendingAnnotation: null};
     }
     default:
       return state;
@@ -122,32 +131,40 @@ interface ToolbarStateProviderProps {
   initialState?: Partial<ToolbarState>;
 }
 
-export function ToolbarStateProvider({ children, initialState }: ToolbarStateProviderProps) {
+export function ToolbarStateProvider({
+  children,
+  initialState,
+}: ToolbarStateProviderProps) {
   const [state, dispatch] = useReducer(
     toolbarReducer,
     initialToolbarState,
-    (baseState) => ({ ...baseState, ...initialState })
+    baseState => ({...baseState, ...initialState})
   );
 
-  const actions = useMemo<ToolbarActions>(() => ({
-    toolbarExpanded: () => dispatch({ type: 'toolbarExpanded' }),
-    toolbarCollapsed: () => dispatch({ type: 'toolbarCollapsed' }),
-    categoryPanelOpened: () => dispatch({ type: 'categoryPanelOpened' }),
-    categoryPanelClosed: () => dispatch({ type: 'categoryPanelClosed' }),
-    categorySelected: (category) => dispatch({ type: 'categorySelected', category }),
-    selectionModeEntered: () => dispatch({ type: 'selectionModeEntered' }),
-    selectionModeCancelled: () => dispatch({ type: 'selectionModeCancelled' }),
-    elementSelected: (pending) => dispatch({ type: 'elementSelected', pending }),
-    pendingAnnotationCleared: () => dispatch({ type: 'pendingAnnotationCleared' }),
-    annotationSelected: (id) => dispatch({ type: 'annotationSelected', id }),
-    annotationDeselected: () => dispatch({ type: 'annotationDeselected' }),
-    exportModalOpened: () => dispatch({ type: 'exportModalOpened' }),
-    exportModalClosed: () => dispatch({ type: 'exportModalClosed' }),
-    entranceCompleted: () => dispatch({ type: 'entranceCompleted' }),
-    uiHidden: () => dispatch({ type: 'uiHidden' }),
-    uiShown: () => dispatch({ type: 'uiShown' }),
-    toggleCategoryPanel: () => dispatch({ type: 'toggleCategoryPanel' }),
-  }), [dispatch]);
+  const actions = useMemo<ToolbarActions>(
+    () => ({
+      toolbarExpanded: () => dispatch({type: 'toolbarExpanded'}),
+      toolbarCollapsed: () => dispatch({type: 'toolbarCollapsed'}),
+      categoryPanelOpened: () => dispatch({type: 'categoryPanelOpened'}),
+      categoryPanelClosed: () => dispatch({type: 'categoryPanelClosed'}),
+      categorySelected: category =>
+        dispatch({type: 'categorySelected', category}),
+      selectionModeEntered: () => dispatch({type: 'selectionModeEntered'}),
+      selectionModeCancelled: () => dispatch({type: 'selectionModeCancelled'}),
+      elementSelected: pending => dispatch({type: 'elementSelected', pending}),
+      pendingAnnotationCleared: () =>
+        dispatch({type: 'pendingAnnotationCleared'}),
+      annotationSelected: id => dispatch({type: 'annotationSelected', id}),
+      annotationDeselected: () => dispatch({type: 'annotationDeselected'}),
+      exportModalOpened: () => dispatch({type: 'exportModalOpened'}),
+      exportModalClosed: () => dispatch({type: 'exportModalClosed'}),
+      entranceCompleted: () => dispatch({type: 'entranceCompleted'}),
+      uiHidden: () => dispatch({type: 'uiHidden'}),
+      uiShown: () => dispatch({type: 'uiShown'}),
+      toggleCategoryPanel: () => dispatch({type: 'toggleCategoryPanel'}),
+    }),
+    [dispatch]
+  );
 
   return (
     <ToolbarStateContext.Provider value={state}>
@@ -169,7 +186,9 @@ export function useToolbarState(): ToolbarState {
 export function useToolbarActions(): ToolbarActions {
   const actions = useContext(ToolbarActionsContext);
   if (!actions) {
-    throw new Error('useToolbarActions must be used within ToolbarStateProvider');
+    throw new Error(
+      'useToolbarActions must be used within ToolbarStateProvider'
+    );
   }
   return actions;
 }

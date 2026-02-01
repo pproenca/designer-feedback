@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {renderHook, act, waitFor} from '@testing-library/react';
 
 // Mock requestAnimationFrame for testing RAF batching
 type RafCallback = (time: number) => void;
@@ -16,7 +16,7 @@ const mockCancelRaf = vi.fn((id: number) => {
 const flushRaf = () => {
   const callbacks = [...rafCallbacks];
   rafCallbacks.length = 0;
-  callbacks.forEach((cb) => cb(performance.now()));
+  callbacks.forEach(cb => cb(performance.now()));
 };
 
 describe('useElementSelection', () => {
@@ -33,22 +33,22 @@ describe('useElementSelection', () => {
 
   describe('initial state', () => {
     it('returns null hoverInfo when not hovering', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       expect(result.current.hoverInfo).toBeNull();
     });
 
     it('returns hasTarget as false initially', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       expect(result.current.hasTarget).toBe(false);
     });
 
     it('returns motion values for highlight box', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       expect(result.current.highlightX).toBeDefined();
       expect(result.current.highlightY).toBeDefined();
@@ -57,8 +57,8 @@ describe('useElementSelection', () => {
     });
 
     it('returns motion values for tooltip position', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       expect(result.current.tooltipX).toBeDefined();
       expect(result.current.tooltipY).toBeDefined();
@@ -67,8 +67,8 @@ describe('useElementSelection', () => {
 
   describe('element tracking', () => {
     it('updates motion values on mouseover without triggering re-render', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       // Create a mock element
       const mockElement = document.createElement('div');
@@ -91,7 +91,7 @@ describe('useElementSelection', () => {
           bubbles: true,
           cancelable: true,
         });
-        Object.defineProperty(event, 'target', { value: mockElement });
+        Object.defineProperty(event, 'target', {value: mockElement});
         document.dispatchEvent(event);
       });
 
@@ -110,12 +110,12 @@ describe('useElementSelection', () => {
     });
 
     it('only triggers state update when element path changes', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const renderCount = { current: 0 };
+      const {useElementSelection} = await import('./useElementSelection');
+      const renderCount = {current: 0};
 
-      const { result } = renderHook(() => {
+      const {result} = renderHook(() => {
         renderCount.current++;
-        return useElementSelection({ enabled: true });
+        return useElementSelection({enabled: true});
       });
 
       // Create mock elements
@@ -136,8 +136,8 @@ describe('useElementSelection', () => {
 
       // First hover - should trigger state update for hoverInfo
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockDiv });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockDiv});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());
@@ -150,8 +150,8 @@ describe('useElementSelection', () => {
 
       // Hover same element again - should NOT trigger state update
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockDiv });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockDiv});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());
@@ -165,8 +165,8 @@ describe('useElementSelection', () => {
 
   describe('RAF batching', () => {
     it('batches rapid hover events using requestAnimationFrame', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      renderHook(() => useElementSelection({enabled: true}));
 
       const mockElement = document.createElement('div');
       mockElement.getBoundingClientRect = vi.fn(() => ({
@@ -185,8 +185,8 @@ describe('useElementSelection', () => {
       // Fire multiple rapid hover events
       for (let i = 0; i < 5; i++) {
         act(() => {
-          const event = new MouseEvent('mouseover', { bubbles: true });
-          Object.defineProperty(event, 'target', { value: mockElement });
+          const event = new MouseEvent('mouseover', {bubbles: true});
+          Object.defineProperty(event, 'target', {value: mockElement});
           document.dispatchEvent(event);
         });
       }
@@ -207,10 +207,10 @@ describe('useElementSelection', () => {
 
   describe('cleanup', () => {
     it('removes event listeners on unmount', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
+      const {useElementSelection} = await import('./useElementSelection');
       const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
 
-      const { unmount } = renderHook(() => useElementSelection({ enabled: true }));
+      const {unmount} = renderHook(() => useElementSelection({enabled: true}));
 
       unmount();
 
@@ -223,7 +223,7 @@ describe('useElementSelection', () => {
     });
 
     it('cancels pending RAF on unmount', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
+      const {useElementSelection} = await import('./useElementSelection');
 
       const mockElement = document.createElement('div');
       mockElement.getBoundingClientRect = vi.fn(() => ({
@@ -239,12 +239,12 @@ describe('useElementSelection', () => {
       }));
       document.body.appendChild(mockElement);
 
-      const { unmount } = renderHook(() => useElementSelection({ enabled: true }));
+      const {unmount} = renderHook(() => useElementSelection({enabled: true}));
 
       // Trigger a hover to schedule RAF
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockElement });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockElement});
         document.dispatchEvent(event);
       });
 
@@ -257,11 +257,11 @@ describe('useElementSelection', () => {
     });
 
     it('clears hover state when disabled', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
+      const {useElementSelection} = await import('./useElementSelection');
 
-      const { result, rerender } = renderHook(
-        ({ enabled }) => useElementSelection({ enabled }),
-        { initialProps: { enabled: true } }
+      const {result, rerender} = renderHook(
+        ({enabled}) => useElementSelection({enabled}),
+        {initialProps: {enabled: true}}
       );
 
       const mockElement = document.createElement('div');
@@ -281,8 +281,8 @@ describe('useElementSelection', () => {
 
       // Trigger hover
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockElement });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockElement});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());
@@ -292,7 +292,7 @@ describe('useElementSelection', () => {
       });
 
       // Disable selection
-      rerender({ enabled: false });
+      rerender({enabled: false});
 
       expect(result.current.hasTarget).toBe(false);
       expect(result.current.hoverInfo).toBeNull();
@@ -303,8 +303,8 @@ describe('useElementSelection', () => {
 
   describe('element filtering', () => {
     it('ignores elements with data-annotation-popup attribute', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       const mockPopup = document.createElement('div');
       mockPopup.setAttribute('data-annotation-popup', 'true');
@@ -322,8 +322,8 @@ describe('useElementSelection', () => {
       document.body.appendChild(mockPopup);
 
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockPopup });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockPopup});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());
@@ -334,8 +334,8 @@ describe('useElementSelection', () => {
     });
 
     it('ignores elements with data-toolbar attribute', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       const mockToolbar = document.createElement('div');
       mockToolbar.setAttribute('data-toolbar', 'true');
@@ -353,8 +353,8 @@ describe('useElementSelection', () => {
       document.body.appendChild(mockToolbar);
 
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: mockToolbar });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: mockToolbar});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());
@@ -365,8 +365,8 @@ describe('useElementSelection', () => {
     });
 
     it('ignores children of filtered elements', async () => {
-      const { useElementSelection } = await import('./useElementSelection');
-      const { result } = renderHook(() => useElementSelection({ enabled: true }));
+      const {useElementSelection} = await import('./useElementSelection');
+      const {result} = renderHook(() => useElementSelection({enabled: true}));
 
       const mockToolbar = document.createElement('div');
       mockToolbar.setAttribute('data-toolbar', 'true');
@@ -387,8 +387,8 @@ describe('useElementSelection', () => {
       }));
 
       act(() => {
-        const event = new MouseEvent('mouseover', { bubbles: true });
-        Object.defineProperty(event, 'target', { value: childButton });
+        const event = new MouseEvent('mouseover', {bubbles: true});
+        Object.defineProperty(event, 'target', {value: childButton});
         document.dispatchEvent(event);
       });
       act(() => flushRaf());

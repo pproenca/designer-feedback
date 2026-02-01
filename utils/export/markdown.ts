@@ -1,5 +1,5 @@
-import type { Annotation } from '@/types';
-import { getCategoryConfig } from '@/shared/categories';
+import type {Annotation} from '@/types';
+import {getCategoryConfig} from '@/shared/categories';
 
 type NotesMarkdownMeta = {
   title?: string;
@@ -16,7 +16,6 @@ export function generateNotesMarkdown(
   const pageUrl = meta.url ?? 'Unknown';
   const exportedAt = meta.exportedAt ?? new Date().toLocaleString();
 
-
   lines.push('# Feedback Notes');
   lines.push('');
   lines.push(`**Page:** ${pageTitle}`);
@@ -27,14 +26,21 @@ export function generateNotesMarkdown(
   lines.push('');
   lines.push('## Agent Steps');
   lines.push('');
-  lines.push('1. Review the annotations and map each item to the relevant code area.');
-  lines.push('2. Triage by category (bugs/accessibility first), then implement fixes in order.');
-  lines.push('3. Validate the UI against annotated elements and update tests if needed.');
-  lines.push('4. Report status for each annotation number and flag open questions.');
+  lines.push(
+    '1. Review the annotations and map each item to the relevant code area.'
+  );
+  lines.push(
+    '2. Triage by category (bugs/accessibility first), then implement fixes in order.'
+  );
+  lines.push(
+    '3. Validate the UI against annotated elements and update tests if needed.'
+  );
+  lines.push(
+    '4. Report status for each annotation number and flag open questions.'
+  );
   lines.push('');
   lines.push('## Annotations');
   lines.push('');
-
 
   annotations.forEach((annotation, index) => {
     const config = getCategoryConfig(annotation.category);

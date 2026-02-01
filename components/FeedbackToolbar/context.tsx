@@ -1,5 +1,3 @@
-
-
 export type PendingAnnotation = {
   x: number;
   y: number;

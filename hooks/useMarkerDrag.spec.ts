@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useMarkerDrag } from './useMarkerDrag';
-import type { Annotation } from '@/types';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {renderHook, act} from '@testing-library/react';
+import {useMarkerDrag} from './useMarkerDrag';
+import type {Annotation} from '@/types';
 
-const createMockAnnotation = (overrides: Partial<Annotation> = {}): Annotation => ({
+const createMockAnnotation = (
+  overrides: Partial<Annotation> = {}
+): Annotation => ({
   id: 'test-1',
   x: 100,
   y: 200,
@@ -15,7 +17,7 @@ const createMockAnnotation = (overrides: Partial<Annotation> = {}): Annotation =
   elementPath: 'body > div',
   timestamp: Date.now(),
   isFixed: false,
-  boundingBox: { x: 50, y: 150, width: 100, height: 50 },
+  boundingBox: {x: 50, y: 150, width: 100, height: 50},
   ...overrides,
 });
 
@@ -23,10 +25,10 @@ describe('useMarkerDrag', () => {
   const THRESHOLD = 5;
 
   beforeEach(() => {
-    Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true });
-    Object.defineProperty(window, 'innerHeight', { value: 768, writable: true });
-    Object.defineProperty(window, 'scrollX', { value: 0, writable: true });
-    Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+    Object.defineProperty(window, 'innerWidth', {value: 1024, writable: true});
+    Object.defineProperty(window, 'innerHeight', {value: 768, writable: true});
+    Object.defineProperty(window, 'scrollX', {value: 0, writable: true});
+    Object.defineProperty(window, 'scrollY', {value: 0, writable: true});
   });
 
   afterEach(() => {
@@ -35,24 +37,24 @@ describe('useMarkerDrag', () => {
 
   describe('initial state', () => {
     it('should not be dragging initially', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       expect(result.current.isDragging).toBe(false);
     });
 
     it('should have null draggedAnnotationId initially', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       expect(result.current.draggedAnnotationId).toBeNull();
     });
 
     it('should have null currentDragPosition initially', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       expect(result.current.currentDragPosition).toBeNull();
     });
   });
 
   describe('getMarkerHandlers', () => {
     it('should return handlers object with onMouseDown', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -63,7 +65,7 @@ describe('useMarkerDrag', () => {
 
   describe('drag threshold', () => {
     it('should not start dragging until movement exceeds threshold', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -92,7 +94,7 @@ describe('useMarkerDrag', () => {
     });
 
     it('should start dragging when movement exceeds threshold', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -123,13 +125,13 @@ describe('useMarkerDrag', () => {
 
   describe('coordinate systems', () => {
     it('should use viewport coordinates for fixed markers', () => {
-      const { result } = renderHook(() => useMarkerDrag());
-      const annotation = createMockAnnotation({ isFixed: true, x: 100, y: 200 });
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation = createMockAnnotation({isFixed: true, x: 100, y: 200});
       const handlers = result.current.getMarkerHandlers(annotation);
 
       // Set scroll position
-      Object.defineProperty(window, 'scrollX', { value: 500, writable: true });
-      Object.defineProperty(window, 'scrollY', { value: 300, writable: true });
+      Object.defineProperty(window, 'scrollX', {value: 500, writable: true});
+      Object.defineProperty(window, 'scrollY', {value: 300, writable: true});
 
       // Simulate mousedown
       act(() => {
@@ -158,13 +160,13 @@ describe('useMarkerDrag', () => {
     });
 
     it('should use document coordinates for absolute markers', () => {
-      const { result } = renderHook(() => useMarkerDrag());
-      const annotation = createMockAnnotation({ isFixed: false, x: 100, y: 200 });
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation = createMockAnnotation({isFixed: false, x: 100, y: 200});
       const handlers = result.current.getMarkerHandlers(annotation);
 
       // Set scroll position
-      Object.defineProperty(window, 'scrollX', { value: 500, writable: true });
-      Object.defineProperty(window, 'scrollY', { value: 300, writable: true });
+      Object.defineProperty(window, 'scrollX', {value: 500, writable: true});
+      Object.defineProperty(window, 'scrollY', {value: 300, writable: true});
 
       // Simulate mousedown - clientX/Y are viewport coords
       act(() => {
@@ -199,7 +201,7 @@ describe('useMarkerDrag', () => {
     it('should call onClick when no drag occurred (click)', () => {
       const onClick = vi.fn();
       const onDragEnd = vi.fn();
-      const { result } = renderHook(() => useMarkerDrag({ onClick, onDragEnd }));
+      const {result} = renderHook(() => useMarkerDrag({onClick, onDragEnd}));
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -235,7 +237,7 @@ describe('useMarkerDrag', () => {
     it('should call onDragEnd when drag completed', () => {
       const onClick = vi.fn();
       const onDragEnd = vi.fn();
-      const { result } = renderHook(() => useMarkerDrag({ onClick, onDragEnd }));
+      const {result} = renderHook(() => useMarkerDrag({onClick, onDragEnd}));
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -264,14 +266,14 @@ describe('useMarkerDrag', () => {
         window.dispatchEvent(new MouseEvent('mouseup'));
       });
 
-      expect(onDragEnd).toHaveBeenCalledWith('test-1', { x: 150, y: 200 });
+      expect(onDragEnd).toHaveBeenCalledWith('test-1', {x: 150, y: 200});
       expect(onClick).not.toHaveBeenCalled();
     });
   });
 
   describe('drag state management', () => {
     it('should set isDragging to false on mouseup', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -308,9 +310,9 @@ describe('useMarkerDrag', () => {
     });
 
     it('should track the correct annotation id during drag', () => {
-      const { result } = renderHook(() => useMarkerDrag());
-      const annotation1 = createMockAnnotation({ id: 'annotation-1' });
-      const annotation2 = createMockAnnotation({ id: 'annotation-2' });
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation1 = createMockAnnotation({id: 'annotation-1'});
+      const annotation2 = createMockAnnotation({id: 'annotation-2'});
 
       const handlers1 = result.current.getMarkerHandlers(annotation1);
 
@@ -368,7 +370,7 @@ describe('useMarkerDrag', () => {
 
   describe('disabled state', () => {
     it('should not start drag when disabled', () => {
-      const { result } = renderHook(() => useMarkerDrag({ disabled: true }));
+      const {result} = renderHook(() => useMarkerDrag({disabled: true}));
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 
@@ -399,8 +401,8 @@ describe('useMarkerDrag', () => {
 
   describe('draggedAnnotation', () => {
     it('should return the annotation being dragged', () => {
-      const { result } = renderHook(() => useMarkerDrag());
-      const annotation = createMockAnnotation({ id: 'test-drag' });
+      const {result} = renderHook(() => useMarkerDrag());
+      const annotation = createMockAnnotation({id: 'test-drag'});
       const handlers = result.current.getMarkerHandlers(annotation);
 
       // Simulate mousedown
@@ -425,19 +427,22 @@ describe('useMarkerDrag', () => {
 
       expect(result.current.draggedAnnotation?.id).toBe('test-drag');
       expect(result.current.draggedAnnotation?.boundingBox).toEqual({
-        x: 50, y: 150, width: 100, height: 50,
+        x: 50,
+        y: 150,
+        width: 100,
+        height: 50,
       });
     });
 
     it('should return null when not dragging', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       expect(result.current.draggedAnnotation).toBeNull();
     });
   });
 
   describe('mouse button handling', () => {
     it('should only handle left mouse button', () => {
-      const { result } = renderHook(() => useMarkerDrag());
+      const {result} = renderHook(() => useMarkerDrag());
       const annotation = createMockAnnotation();
       const handlers = result.current.getMarkerHandlers(annotation);
 

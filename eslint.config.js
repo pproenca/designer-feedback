@@ -1,6 +1,4 @@
-import js from '@eslint/js';
-import tsParser from '@typescript-eslint/parser';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
+import gts from 'gts';
 import globals from 'globals';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -20,7 +18,6 @@ const vitestGlobals = {
   vi: 'readonly',
 };
 
-// WXT globals - browser API polyfill
 const wxtGlobals = {
   browser: 'readonly',
   chrome: 'readonly',
@@ -35,20 +32,15 @@ export default [
       '.wxt/**',
       '.output/**',
       '.agents/**',
+      'build/**',
+      'eslint.config.js',
+      '*.config.js',
     ],
   },
-  js.configs.recommended,
+  ...gts,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
       globals: {
         ...globals.browser,
         ...globals.es2021,
@@ -56,25 +48,26 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': tsPlugin,
       react,
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
     },
     settings: {
-      react: { version: 'detect' },
+      react: {version: 'detect'},
     },
     rules: {
-      ...tsPlugin.configs.recommended.rules,
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
+      'n/no-unsupported-features/node-builtins': 'off',
+      'n/no-missing-import': 'off',
+      'n/no-unpublished-import': 'off',
     },
   },
   {
     files: ['**/*.spec.{ts,tsx}', '**/*.test.{ts,tsx}'],
-    plugins: { vitest },
+    plugins: {vitest},
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -102,7 +95,7 @@ export default [
   },
   {
     files: ['tests/**/*.ts'],
-    plugins: { playwright },
+    plugins: {playwright},
     rules: {
       ...playwright.configs.recommended.rules,
     },

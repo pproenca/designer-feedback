@@ -1,12 +1,10 @@
-
-
-import mitt, { type Handler } from 'mitt';
+import mitt, {type Handler} from 'mitt';
 
 type UiEvents = {
   'hide-ui': void;
   'show-ui': void;
   'open-export': void;
-  'location-changed': { newUrl: string; oldUrl: string };
+  'location-changed': {newUrl: string; oldUrl: string};
 };
 
 const emitter = mitt<UiEvents>();
@@ -21,15 +19,14 @@ export function onUiEvent<E extends UiEventName>(
   return () => emitter.off(event, handler);
 }
 
-/* eslint-disable no-redeclare -- function overloads */
 export function emitUiEvent(event: 'hide-ui' | 'show-ui' | 'open-export'): void;
 export function emitUiEvent(
   event: 'location-changed',
-  payload: { newUrl: string; oldUrl: string }
+  payload: {newUrl: string; oldUrl: string}
 ): void;
 export function emitUiEvent(
   event: UiEventName,
-  payload?: { newUrl: string; oldUrl: string }
+  payload?: {newUrl: string; oldUrl: string}
 ): void {
   if (event === 'location-changed' && payload) {
     emitter.emit('location-changed', payload);
@@ -37,4 +34,3 @@ export function emitUiEvent(
     emitter.emit(event as 'hide-ui' | 'show-ui' | 'open-export');
   }
 }
-/* eslint-enable no-redeclare */

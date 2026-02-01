@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import {useEffect} from 'react';
 
 type ClickOutsideHandler = () => void;
 
@@ -12,9 +12,8 @@ export function useClickOutside(
 
     const handlePointerDown = (event: MouseEvent) => {
       const path = event.composedPath ? event.composedPath() : [];
-      const isInside = path.some((node) => {
+      const isInside = path.some(node => {
         if (!(node instanceof HTMLElement)) return false;
-
 
         for (const selector of selectors) {
           if (node.hasAttribute(selector)) return true;

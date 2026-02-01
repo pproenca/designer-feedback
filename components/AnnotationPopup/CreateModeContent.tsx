@@ -1,6 +1,12 @@
-import { useRef, useEffect, useState, useCallback, type KeyboardEvent } from 'react';
-import { clsx } from 'clsx';
-import { BUTTON_BASE, BUTTON_SECONDARY, ELEMENT_LABEL } from './styles';
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type KeyboardEvent,
+} from 'react';
+import {clsx} from 'clsx';
+import {BUTTON_BASE, BUTTON_SECONDARY, ELEMENT_LABEL} from './styles';
 
 interface CreateModeContentProps {
   element: string;
@@ -27,7 +33,6 @@ export function CreateModeContent({
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoFocusTimerRef = useRef<number | null>(null);
-
 
   useEffect(() => {
     autoFocusTimerRef.current = window.setTimeout(() => {
@@ -94,12 +99,14 @@ export function CreateModeContent({
         )}
         style={{
           borderColor: isTextareaFocused ? accentColor : undefined,
-          boxShadow: isTextareaFocused ? `0 0 0 3px color-mix(in srgb, ${accentColor} 15%, transparent)` : undefined,
+          boxShadow: isTextareaFocused
+            ? `0 0 0 3px color-mix(in srgb, ${accentColor} 15%, transparent)`
+            : undefined,
         }}
         placeholder={placeholder}
         aria-label="Annotation comment"
         value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
+        onChange={e => setCommentText(e.target.value)}
         onFocus={() => setIsTextareaFocused(true)}
         onBlur={() => setIsTextareaFocused(false)}
         rows={2}
@@ -118,7 +125,7 @@ export function CreateModeContent({
             'hover:enabled:brightness-110 hover:enabled:shadow-[0_2px_8px_rgba(0,0,0,0.15)]',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
-          style={{ backgroundColor: accentColor }}
+          style={{backgroundColor: accentColor}}
           type="button"
           onClick={handleSubmit}
           disabled={!commentText.trim()}

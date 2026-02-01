@@ -1,6 +1,8 @@
-
-
-export type FeedbackCategory = 'bug' | 'suggestion' | 'question' | 'accessibility';
+export type FeedbackCategory =
+  | 'bug'
+  | 'suggestion'
+  | 'question'
+  | 'accessibility';
 
 export type Annotation = {
   id: string;
@@ -20,7 +22,7 @@ export type Annotation = {
     height: number;
   };
   selectedText?: string;
-  boundingBox?: { x: number; y: number; width: number; height: number };
+  boundingBox?: {x: number; y: number; width: number; height: number};
   nearbyText?: string;
   cssClasses?: string;
   nearbyElements?: string;

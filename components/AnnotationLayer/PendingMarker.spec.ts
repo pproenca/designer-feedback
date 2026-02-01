@@ -1,16 +1,24 @@
-import { describe, it, expect } from 'vitest';
-import { getCategoryConfig } from '@/shared/categories';
-import type { FeedbackCategory } from '@/types';
+import {describe, it, expect} from 'vitest';
+import {getCategoryConfig} from '@/shared/categories';
+import type {FeedbackCategory} from '@/types';
 
 describe('PendingMarker', () => {
   describe('category color mapping', () => {
-    const categories: FeedbackCategory[] = ['bug', 'suggestion', 'question', 'accessibility'];
+    const categories: FeedbackCategory[] = [
+      'bug',
+      'suggestion',
+      'question',
+      'accessibility',
+    ];
 
-    it.each(categories)('should use correct background color for %s category', (category) => {
-      const config = getCategoryConfig(category);
-      expect(config.tw.bg).toBeDefined();
-      expect(config.tw.bg).not.toBe('');
-    });
+    it.each(categories)(
+      'should use correct background color for %s category',
+      category => {
+        const config = getCategoryConfig(category);
+        expect(config.tw.bg).toBeDefined();
+        expect(config.tw.bg).not.toBe('');
+      }
+    );
 
     it('bug category should have red background', () => {
       expect(getCategoryConfig('bug').tw.bg).toBe('bg-df-red');

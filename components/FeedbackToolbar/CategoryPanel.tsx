@@ -1,28 +1,26 @@
-
-
-import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Bug, Lightbulb, CircleHelp, Accessibility } from 'lucide-react';
-import { useToolbarActions, useToolbarState } from './ToolbarStateProvider';
+import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {Bug, Lightbulb, CircleHelp, Accessibility} from 'lucide-react';
+import {useToolbarActions, useToolbarState} from './ToolbarStateProvider';
 
 const getVariants = (reduceMotion: boolean) => ({
   panel: {
-    hidden: { opacity: 0, ...(reduceMotion ? {} : { scale: 0.95, y: -8 }) },
+    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: -8})},
     visible: {
       opacity: 1,
-      ...(reduceMotion ? {} : { scale: 1, y: 0 }),
-      transition: { duration: 0.15, ease: 'easeOut' as const },
+      ...(reduceMotion ? {} : {scale: 1, y: 0}),
+      transition: {duration: 0.15, ease: 'easeOut' as const},
     },
     exit: {
       opacity: 0,
-      ...(reduceMotion ? {} : { scale: 0.95, y: -8 }),
-      transition: { duration: 0.1, ease: 'easeIn' as const },
+      ...(reduceMotion ? {} : {scale: 0.95, y: -8}),
+      transition: {duration: 0.1, ease: 'easeIn' as const},
     },
   },
 });
 
 export function CategoryPanel() {
-  const { addMode } = useToolbarState();
-  const { categorySelected } = useToolbarActions();
+  const {addMode} = useToolbarState();
+  const {categorySelected} = useToolbarActions();
   const isOpen = addMode === 'category';
   const reduceMotion = useReducedMotion() ?? false;
   const variants = getVariants(reduceMotion);

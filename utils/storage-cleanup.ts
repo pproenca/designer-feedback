@@ -1,9 +1,7 @@
-
-
-import type { Annotation } from '@/types';
-import { ANNOTATIONS_PREFIX } from '@/utils/storage-constants';
-import { lastCleanupTimestamp } from '@/utils/storage-items';
-import { storage } from 'wxt/utils/storage';
+import type {Annotation} from '@/types';
+import {ANNOTATIONS_PREFIX} from '@/utils/storage-constants';
+import {lastCleanupTimestamp} from '@/utils/storage-items';
+import {storage} from 'wxt/utils/storage';
 
 const DEFAULT_RETENTION_DAYS = 7;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -24,7 +22,7 @@ function normalizeStoredAnnotations(value: unknown): Annotation[] {
         id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`;
       }
       seen.add(id);
-      return { ...annotation, id };
+      return {...annotation, id};
     })
     .filter(Boolean) as Annotation[];
 }
@@ -43,7 +41,7 @@ async function setLocal(values: Record<string, unknown>): Promise<void> {
 }
 
 async function removeLocal(keys: string | string[]): Promise<void> {
-  const entries = (Array.isArray(keys) ? keys : [keys]).map((key) => ({
+  const entries = (Array.isArray(keys) ? keys : [keys]).map(key => ({
     key: `local:${key}` as const,
   }));
   if (!entries.length) return;
@@ -126,7 +124,9 @@ export async function cleanupExpiredAnnotations(cutoff: number): Promise<void> {
       return;
     }
     const filtered = items.filter(
-      (annotation) => typeof annotation.timestamp === 'number' && annotation.timestamp > cutoff
+      annotation =>
+        typeof annotation.timestamp === 'number' &&
+        annotation.timestamp > cutoff
     );
     if (filtered.length === 0) {
       removals.push(key);
@@ -153,7 +153,7 @@ export async function maybeRunCleanup(): Promise<boolean> {
     await lastCleanupTimestamp.setValue(now);
     const cutoff = now - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
-    cleanupExpiredAnnotations(cutoff).catch((error) => {
+    cleanupExpiredAnnotations(cutoff).catch(error => {
       console.warn('Failed to clean expired annotations:', error);
     });
     return true;
