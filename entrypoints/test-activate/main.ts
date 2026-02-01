@@ -1,26 +1,47 @@
 import {browser} from 'wxt/browser';
 
-async function activate(): Promise<void> {
-  window.__dfActivateStatus = 'pending';
+interface TargetInfo {
+  targetOrigin: string;
+  targetUrl: string;
+}
+
+function getTargetInfo(params: URLSearchParams): TargetInfo {
+  const target = params.get('target') ?? '';
+  const targetUrl = target.trim();
+  if (!targetUrl) {
+    return {targetOrigin: '', targetUrl: ''};
+  }
 
   try {
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get('target') || '';
-    const targetUrl = target.trim();
-    const targetOrigin = targetUrl ? new URL(targetUrl).origin : '';
+    return {targetOrigin: new URL(targetUrl).origin, targetUrl};
+  } catch {
+    return {targetOrigin: '', targetUrl: ''};
+  }
+}
 
+async function activate(targetInfo: TargetInfo): Promise<void> {
+  window.__dfActivateStatus = 'pending';
+  const debug: Record<string, unknown> = {
+    mode: 'auto',
+    targetOrigin: targetInfo.targetOrigin,
+    targetUrl: targetInfo.targetUrl,
+  };
+
+  try {
     const tabs = await browser.tabs.query({});
-    window.__dfActivateDebug = {
-      tabs: tabs.map(tab => tab.url || ''),
-    };
+    debug.tabs = tabs.map(tab => tab.url || '');
 
-    const exactMatch = tabs.find(tab => tab.url === targetUrl);
+    const exactMatch = tabs.find(tab => tab.url === targetInfo.targetUrl);
     const originMatch = tabs.find(
-      tab => targetOrigin && tab.url && tab.url.startsWith(targetOrigin)
+      tab =>
+        targetInfo.targetOrigin &&
+        tab.url &&
+        tab.url.startsWith(targetInfo.targetOrigin)
     );
     const targetTab = exactMatch || originMatch;
 
     if (!targetTab?.id) {
+      window.__dfActivateDebug = debug;
       window.__dfActivateStatus = 'error:target-tab-not-found';
       return;
     }
@@ -32,16 +53,17 @@ async function activate(): Promise<void> {
     const scriptFiles =
       uniqueFiles.length > 0 ? uniqueFiles : ['content-scripts/content.js'];
 
-    window.__dfActivateDebug.scriptFiles = scriptFiles;
+    debug.scriptFiles = scriptFiles;
 
     try {
       const injectionResult = await browser.scripting.executeScript({
         target: {tabId: targetTab.id},
         files: scriptFiles,
       });
-      window.__dfActivateDebug.injectionResult = injectionResult;
+      debug.injectionResult = injectionResult;
     } catch (injectionError) {
-      window.__dfActivateDebug.injectionError = String(injectionError);
+      debug.injectionError = String(injectionError);
+      window.__dfActivateDebug = debug;
       window.__dfActivateStatus = `error:injection-failed:${String(injectionError)}`;
       return;
     }
@@ -53,7 +75,7 @@ async function activate(): Promise<void> {
         url: window.location.href,
       }),
     });
-    window.__dfActivateDebug.flagCheck = flagCheckResult?.result;
+    debug.flagCheck = flagCheckResult?.result;
 
     const sendShowToolbar = async (): Promise<boolean> => {
       try {
@@ -70,13 +92,17 @@ async function activate(): Promise<void> {
     };
 
     const firstAttempt = await sendShowToolbar();
+    let shown = firstAttempt;
     if (!firstAttempt) {
       await new Promise(resolve => setTimeout(resolve, 100));
-      await sendShowToolbar();
+      shown = await sendShowToolbar();
     }
 
+    debug.toolbarShown = shown;
+
+    window.__dfActivateDebug = debug;
     window.__dfActivateStatus = 'done';
-  } catch (error) {
+  } catch (error: unknown) {
     window.__dfActivateStatus = `error:${String(error)}`;
     window.__dfActivateDebug = {
       error: String(error),
@@ -84,4 +110,6 @@ async function activate(): Promise<void> {
   }
 }
 
-void activate();
+const params = new URLSearchParams(window.location.search);
+const targetInfo = getTargetInfo(params);
+void activate(targetInfo);

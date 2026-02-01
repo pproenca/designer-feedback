@@ -75,8 +75,7 @@ export default defineConfig({
      entrypointsDir: 'entrypoints',
      manifest: {
        name: 'Designer Feedback',
-       permissions: ['tabs', 'storage'],
-       optional_host_permissions: ['https://*/*', 'http://*/*'],
+      permissions: ['tabs', 'storage'],
      },
    });
    ```

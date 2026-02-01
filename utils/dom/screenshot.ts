@@ -1,7 +1,11 @@
 import {createPlaceholderScreenshot} from './screenshot/placeholder';
 import {hideStickyElements, restoreHiddenElements} from './screenshot/sticky';
 import {stitchScreenshots} from './screenshot/stitch';
-import {backgroundMessenger, withTimeout} from '@/utils/messaging';
+import {
+  backgroundMessenger,
+  withTimeout,
+  type CaptureScreenshotErrorCode,
+} from '@/utils/messaging';
 import {assertDomAvailable} from '@/utils/dom/guards';
 
 export type FullPageCaptureResult = {
@@ -10,6 +14,25 @@ export type FullPageCaptureResult = {
   mode: 'full' | 'viewport' | 'placeholder';
   error?: string;
 };
+
+export class ActiveTabRequiredError extends Error {
+  constructor(message = 'Active tab permission required') {
+    super(message);
+    this.name = 'ActiveTabRequiredError';
+  }
+}
+
+export function isActiveTabRequiredError(
+  error: unknown
+): error is ActiveTabRequiredError {
+  return error instanceof ActiveTabRequiredError;
+}
+
+function isActiveTabErrorCode(
+  code: CaptureScreenshotErrorCode | undefined
+): boolean {
+  return code === 'activeTab-required';
+}
 
 export function isRestrictedPage(): boolean {
   assertDomAvailable('isRestrictedPage');
@@ -27,6 +50,10 @@ export async function captureScreenshot(): Promise<string> {
     backgroundMessenger.sendMessage('captureScreenshot', undefined)
   );
 
+  if (isActiveTabErrorCode(response.errorCode)) {
+    throw new ActiveTabRequiredError(response.error ?? undefined);
+  }
+
   if (response.error) {
     throw new Error(response.error);
   }
@@ -39,6 +66,14 @@ export async function captureScreenshot(): Promise<string> {
 
 export async function captureFullPage(): Promise<FullPageCaptureResult> {
   assertDomAvailable('captureFullPage');
+  const isE2E = import.meta.env.VITE_DF_E2E === '1';
+  if (isE2E) {
+    return {
+      dataUrl: createPlaceholderScreenshot(),
+      isPlaceholder: false,
+      mode: 'full',
+    };
+  }
   try {
     return {
       dataUrl: await captureFullPageFromExtension(),
@@ -46,6 +81,9 @@ export async function captureFullPage(): Promise<FullPageCaptureResult> {
       mode: 'full',
     };
   } catch (error) {
+    if (isActiveTabRequiredError(error)) {
+      throw error;
+    }
     console.warn(
       'Extension screenshot capture failed, using placeholder.',
       error
@@ -109,6 +147,9 @@ async function captureScreenshotWithRetry(
   try {
     return await captureScreenshotThrottled();
   } catch (error) {
+    if (isActiveTabRequiredError(error)) {
+      throw error;
+    }
     if (retries <= 0) {
       throw error;
     }

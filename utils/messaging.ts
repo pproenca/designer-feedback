@@ -1,8 +1,15 @@
 import {defineExtensionMessaging} from '@webext-core/messaging';
 import type {Settings} from '@/types';
 
+export type CaptureScreenshotErrorCode = 'activeTab-required';
+export type CaptureScreenshotResponse = {
+  data: string;
+  error?: string;
+  errorCode?: CaptureScreenshotErrorCode;
+};
+
 interface BackgroundProtocolMap {
-  captureScreenshot(): {data: string; error?: string};
+  captureScreenshot(): CaptureScreenshotResponse;
   downloadFile(params: {filename: string; dataUrl: string}): {
     ok: boolean;
     error?: string;
@@ -17,6 +24,7 @@ interface ContentProtocolMap {
   showToolbar(): void;
   triggerExport(): void;
   toggleToolbar(enabled: boolean): void;
+  resumeExport(): void;
 }
 
 export const backgroundMessenger =

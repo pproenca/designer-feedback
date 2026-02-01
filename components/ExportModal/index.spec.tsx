@@ -33,6 +33,7 @@ vi.mock('@/utils/export', () => ({
 
 vi.mock('@/utils/dom/screenshot', () => ({
   isRestrictedPage: vi.fn().mockReturnValue(false),
+  isActiveTabRequiredError: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('@/hooks/useSettings', () => ({
@@ -182,14 +183,12 @@ describe('ExportModal', () => {
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     // Click on the Markdown label to select it (Base UI RadioGroup structure)
-    const markdownLabel = screen
-      .getByText('Markdown (Clipboard)')
-      .closest('label');
+    const markdownLabel = screen.getByText('Copy Notes').closest('label');
     await act(async () => {
       fireEvent.click(markdownLabel!);
     });
 
-    const exportButton = screen.getByRole('button', {name: /copy markdown/i});
+    const exportButton = screen.getByRole('button', {name: /copy notes/i});
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -217,7 +216,7 @@ describe('ExportModal', () => {
 
     // Should show "not available" message
     expect(
-      screen.getByText(/not available on browser pages/i)
+      screen.getByText(/unavailable on browser pages/i)
     ).toBeInTheDocument();
   });
 

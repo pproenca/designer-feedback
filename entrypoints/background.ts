@@ -1,10 +1,8 @@
 import {defineBackground} from '#imports';
+import type {Browser} from 'wxt/browser';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
   isInjectableUrl,
-  getOrigin,
-  getOriginHash,
-  normalizeOriginHash,
   captureVisibleTabScreenshot,
   getWindowIdForCapture,
   downloadFile,
@@ -12,52 +10,31 @@ import {
   saveSettings,
   updateBadge,
   isExtensionSender,
-  persistActivatedTabs,
-  restoreActivatedTabs,
-  ensureHostPermission,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
-import {activatedTabs as activatedTabsStorage} from '@/utils/storage-items';
 import {backgroundMessenger, contentMessenger} from '@/utils/messaging';
 
 export default defineBackground(() => {
-  const activatedTabs = new Map<number, string>();
+  const pendingCaptureTabs = new Map<number, number>();
+  const pendingCaptureTtlMs = 120000;
+  const contextMenuId = 'df-export-snapshot';
 
-  restoreActivatedTabs(activatedTabs)
-    .then(changed => {
-      if (changed) {
-        persistActivatedTabs(activatedTabs);
-      }
-    })
-    .catch(error => {
-      console.warn('Failed to restore activated tabs:', error);
-    });
+  function markPendingCapture(tabId: number): void {
+    pendingCaptureTabs.set(tabId, Date.now());
+  }
 
-  async function getActivatedOriginHash(tabId: number): Promise<string | null> {
-    const cached = activatedTabs.get(tabId);
-    if (cached) return cached;
-    try {
-      const stored = await activatedTabsStorage.getValue();
-      const origin = stored?.[String(tabId)];
-      if (origin) {
-        const normalized = normalizeOriginHash(origin);
-        activatedTabs.set(tabId, normalized);
-        return normalized;
-      }
-    } catch (error) {
-      console.warn('Failed to read activated tab origin:', error);
+  function hasPendingCapture(tabId: number): boolean {
+    const startedAt = pendingCaptureTabs.get(tabId);
+    if (!startedAt) return false;
+    if (Date.now() - startedAt > pendingCaptureTtlMs) {
+      pendingCaptureTabs.delete(tabId);
+      return false;
     }
-    return null;
+    return true;
   }
 
-  function setActivatedTab(tabId: number, originHash: string): void {
-    activatedTabs.set(tabId, originHash);
-    persistActivatedTabs(activatedTabs);
-  }
-
-  function clearActivatedTab(tabId: number): void {
-    activatedTabs.delete(tabId);
-    persistActivatedTabs(activatedTabs);
+  function clearPendingCapture(tabId: number): void {
+    pendingCaptureTabs.delete(tabId);
   }
 
   async function injectContentScripts(tabId: number): Promise<boolean> {
@@ -102,46 +79,72 @@ export default defineBackground(() => {
     return false;
   }
 
+  async function sendResumeExport(tabId: number): Promise<void> {
+    await contentMessenger.sendMessage('resumeExport', undefined, tabId);
+  }
+
+  async function sendResumeExportWithRetry(tabId: number): Promise<boolean> {
+    try {
+      await sendResumeExport(tabId);
+      return true;
+    } catch {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 80));
+        await sendResumeExport(tabId);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  function isActiveTabPermissionError(error: string): boolean {
+    const normalized = error.toLowerCase();
+    if (
+      normalized.includes('max_capture_visible_tab_calls_per_second') ||
+      normalized.includes('rate') ||
+      normalized.includes('quota')
+    ) {
+      return false;
+    }
+    return (
+      normalized.includes('activetab') ||
+      normalized.includes('not allowed to access') ||
+      normalized.includes('cannot access contents of the page') ||
+      normalized.includes('permission') ||
+      normalized.includes('missing host permission')
+    );
+  }
+
+  async function handleUserInvocation(tab: Browser.tabs.Tab | undefined) {
+    if (!tab?.id || !tab.url) return;
+    if (!isInjectableUrl(tab.url)) return;
+
+    await showToolbar(tab.id);
+
+    if (hasPendingCapture(tab.id)) {
+      const resumed = await sendResumeExportWithRetry(tab.id);
+      if (resumed) {
+        clearPendingCapture(tab.id);
+      }
+    }
+  }
+
   browser.action.onClicked.addListener(async tab => {
-    if (!tab.id || !tab.url) return;
-
-    if (!isInjectableUrl(tab.url)) {
-      return;
-    }
-
-    const origin = getOrigin(tab.url);
-    const originHash = getOriginHash(origin);
-    const canPersist = await ensureHostPermission(origin);
-    const shown = await showToolbar(tab.id);
-    if (shown && canPersist) {
-      setActivatedTab(tab.id, originHash);
-    } else {
-      clearActivatedTab(tab.id);
-    }
+    await handleUserInvocation(tab);
   });
 
-  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status !== 'complete' || !tab.url) return;
-    const url = tab.url;
-    void (async () => {
-      const previousOriginHash = await getActivatedOriginHash(tabId);
-      if (!previousOriginHash) return;
-
-      const currentOrigin = getOrigin(url);
-      const currentOriginHash = getOriginHash(currentOrigin);
-      if (currentOriginHash === previousOriginHash) {
-        const shown = await showToolbar(tabId);
-        if (!shown) {
-          clearActivatedTab(tabId);
-        }
-      } else {
-        clearActivatedTab(tabId);
-      }
-    })();
+  browser.commands.onCommand.addListener(async command => {
+    if (command !== 'activate-toolbar') return;
+    const [activeTab] = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    await handleUserInvocation(activeTab);
   });
 
   browser.tabs.onRemoved.addListener(tabId => {
-    clearActivatedTab(tabId);
+    clearPendingCapture(tabId);
   });
 
   backgroundMessenger.onMessage('captureScreenshot', async ({sender}) => {
@@ -151,6 +154,14 @@ export default defineBackground(() => {
     try {
       const windowId = await getWindowIdForCapture(sender.tab?.windowId);
       const result = await captureVisibleTabScreenshot(windowId);
+      if (result.error && sender.tab?.id) {
+        if (isActiveTabPermissionError(result.error)) {
+          markPendingCapture(sender.tab.id);
+          return {...result, errorCode: 'activeTab-required' as const};
+        }
+      } else if (sender.tab?.id) {
+        clearPendingCapture(sender.tab.id);
+      }
       return result;
     } catch (error) {
       console.error('[Background] captureScreenshot error:', error);
@@ -204,5 +215,19 @@ export default defineBackground(() => {
 
   browser.runtime.onInstalled.addListener(() => {
     updateBadge(0);
+    try {
+      browser.contextMenus?.create({
+        id: contextMenuId,
+        title: 'Export feedback snapshot',
+        contexts: ['page', 'selection', 'image', 'link'],
+      });
+    } catch (error) {
+      console.warn('Failed to create context menu:', error);
+    }
+  });
+
+  browser.contextMenus?.onClicked.addListener((info, tab) => {
+    if (info.menuItemId !== contextMenuId) return;
+    void handleUserInvocation(tab);
   });
 });

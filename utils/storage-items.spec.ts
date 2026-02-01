@@ -1,6 +1,5 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {fakeBrowser} from 'wxt/testing/fake-browser';
-import {activatedTabs} from './storage-items';
 import {
   ANNOTATIONS_PREFIX,
   STORAGE_KEY_VERSION,
@@ -11,29 +10,6 @@ import {
 describe('storage-items', () => {
   beforeEach(() => {
     fakeBrowser.reset();
-  });
-
-  describe('activatedTabs', () => {
-    it('getValue returns empty object when not set', async () => {
-      const value = await activatedTabs.getValue();
-      expect(value).toEqual({});
-    });
-
-    it('setValue persists record', async () => {
-      const tabs = {'1': 'hash123', '2': 'hash456'};
-      await activatedTabs.setValue(tabs);
-      const value = await activatedTabs.getValue();
-      expect(value).toEqual(tabs);
-    });
-
-    it('getValue retrieves persisted value', async () => {
-      const tabs = {'10': 'origin-hash'};
-      await activatedTabs.setValue(tabs);
-
-      // Create new reference to test persistence
-      const retrieved = await activatedTabs.getValue();
-      expect(retrieved).toEqual(tabs);
-    });
   });
 
   describe('constants', () => {

@@ -1,14 +1,6 @@
 import {storage} from 'wxt/utils/storage';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 
-export const activatedTabs = storage.defineItem<Record<string, string>>(
-  'session:designer-feedback:activated-tabs',
-  {
-    fallback: {},
-    version: 1,
-  }
-);
-
 export const settingsEnabled = storage.defineItem<boolean>('sync:enabled', {
   fallback: DEFAULT_SETTINGS.enabled,
   version: 1,

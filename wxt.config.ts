@@ -14,11 +14,20 @@ export default defineConfig({
       'storage',
       'tabs',
       'downloads',
+      'offscreen',
       'activeTab',
       'scripting',
-      'offscreen',
+      'contextMenus',
     ],
-    host_permissions: ['http://*/*', 'https://*/*'],
+    commands: {
+      'activate-toolbar': {
+        suggested_key: {
+          default: 'Ctrl+Shift+S',
+          mac: 'Command+Shift+S',
+        },
+        description: 'Open Designer Feedback on the current page',
+      },
+    },
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'none';",
     },

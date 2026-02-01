@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `entrypoints/` houses WXT entrypoints: `background.ts` (service worker), `content/` (content script + UI), `offscreen/`, `test-activate/`.
+- `entrypoints/` houses WXT entrypoints: `background.ts` (service worker), `content/` (content script + UI), `test-activate/`.
 - `components/` contains shared React UI components (toolbar, panels, modals).
 - `hooks/`, `stores/`, `utils/`, `shared/`, and `types/` contain hooks, Zustand stores, utilities, shared constants, and TS types.
 - `tests/` contains Playwright end-to-end specs and fixtures.

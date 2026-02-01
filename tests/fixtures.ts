@@ -1,6 +1,7 @@
 import {
   test as base,
   chromium,
+  firefox,
   type BrowserContext,
   type Page,
   expect as baseExpect,
@@ -14,29 +15,50 @@ import {ToolbarPage, ExportModalPage} from './pages';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const extensionPath =
-  process.env.EXTENSION_PATH ??
-  path.join(__dirname, '..', '.output', 'chrome-mv3');
 
-if (!fs.existsSync(extensionPath)) {
+function resolveExtensionPath(projectName: string): string {
+  if (process.env.EXTENSION_PATH) {
+    return process.env.EXTENSION_PATH;
+  }
+
+  const wxtBrowser = projectName === 'chromium' ? 'chrome' : projectName;
+  const candidates = [
+    path.join(__dirname, '..', '.output', `${wxtBrowser}-mv3`),
+    path.join(__dirname, '..', '.output', `${wxtBrowser}-mv2`),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
   throw new Error(
-    `Extension build not found at "${extensionPath}". Run "npm run build" before Playwright tests or set EXTENSION_PATH.`
+    `Extension build not found for "${projectName}". Run "npm run build" or set EXTENSION_PATH.`
   );
 }
 
-async function createTestExtensionDir(workerIndex: number): Promise<string> {
+async function createTestExtensionDir(
+  workerIndex: number,
+  extensionPath: string
+): Promise<string> {
   const tempDir = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), `designer-feedback-ext-${workerIndex}-`)
   );
   await fs.promises.cp(extensionPath, tempDir, {recursive: true});
 
-  // For testing, we need to add host_permissions so the scripting API works
-  // In production, activeTab grants these permissions when user clicks the icon
+  // For test automation, we inject broad host permissions so scripting can run
+  // without activeTab user gestures. Production builds omit host permissions.
   const manifestPath = path.join(tempDir, 'manifest.json');
   const manifest = JSON.parse(
     await fs.promises.readFile(manifestPath, 'utf-8')
   );
-  manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  const permissionsMode = process.env.E2E_HOST_PERMISSIONS ?? 'broad';
+  if (permissionsMode === 'broad') {
+    manifest.host_permissions = ['http://*/*', 'https://*/*'];
+  } else {
+    delete manifest.host_permissions;
+  }
   await fs.promises.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
   return tempDir;
 }
@@ -205,22 +227,33 @@ export const test = base.extend<{
   exportModal: ExportModalPage;
 }>({
   context: async ({}, use, testInfo) => {
+    if (testInfo.project.name === 'firefox') {
+      testInfo.skip(true, 'Playwright extension support is Chromium-only');
+    }
     const useHeadless = process.env.PWHEADLESS === '1';
     const userDataDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), `designer-feedback-${testInfo.workerIndex}-`)
     );
+    const extensionPath = resolveExtensionPath(testInfo.project.name);
     const testExtensionPath = await createTestExtensionDir(
-      testInfo.workerIndex
+      testInfo.workerIndex,
+      extensionPath
     );
+    const isChromium = testInfo.project.name === 'chromium';
+    const browserType = isChromium ? chromium : firefox;
 
-    const context = await chromium.launchPersistentContext(userDataDir, {
+    const launchArgs = isChromium
+      ? [
+          useHeadless ? '--headless=new' : '',
+          `--disable-extensions-except=${testExtensionPath}`,
+          `--load-extension=${testExtensionPath}`,
+          ...(process.env.CI ? ['--disable-gpu', '--no-sandbox'] : []),
+        ].filter(Boolean)
+      : [];
+
+    const context = await browserType.launchPersistentContext(userDataDir, {
       headless: false,
-      args: [
-        useHeadless ? '--headless=new' : '',
-        `--disable-extensions-except=${testExtensionPath}`,
-        `--load-extension=${testExtensionPath}`,
-        ...(process.env.CI ? ['--disable-gpu', '--no-sandbox'] : []),
-      ].filter(Boolean),
+      args: launchArgs,
     });
 
     await use(context);
@@ -228,8 +261,9 @@ export const test = base.extend<{
     await fs.promises.rm(userDataDir, {recursive: true, force: true});
     await fs.promises.rm(testExtensionPath, {recursive: true, force: true});
   },
-  extensionId: async ({context}, use) => {
+  extensionId: async ({context}, use, testInfo) => {
     let background: {url(): string};
+    const extensionPath = resolveExtensionPath(testInfo.project.name);
     const isMV3 = extensionPath.endsWith('-mv3');
 
     if (isMV3) {

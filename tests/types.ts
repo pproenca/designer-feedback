@@ -4,11 +4,15 @@
  */
 
 export interface DfActivateDebug {
+  mode?: 'auto';
+  targetOrigin?: string;
+  targetUrl?: string;
   tabs?: string[];
   scriptFiles?: string[];
   injectionResult?: unknown;
   injectionError?: string;
   flagCheck?: unknown;
+  toolbarShown?: boolean;
   error?: string;
 }
 

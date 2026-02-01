@@ -12,8 +12,8 @@ Tests annotation persistence across navigation using MCP chrome-devtools.
 
 ## Test Steps
 1. Use `mcp__chrome-devtools__new_page` to open https://example.com
-2. Activate extension via test-activate:
-   `chrome-extension://{extensionId}/test-activate.html?target=https://example.com`
+2. Activate extension via test-activate (extensionBaseUrl = protocol + extension id):
+   `{extensionBaseUrl}/test-activate.html?target=https://example.com`
 3. Navigate to https://example.com
 4. Create an annotation:
    - Click add button
@@ -24,10 +24,12 @@ Tests annotation persistence across navigation using MCP chrome-devtools.
 5. Take snapshot - verify marker visible
 6. Navigate to a different path: https://www.iana.org/domains/example (linked from example.com)
 7. Navigate back to https://example.com
-8. Take snapshot - verify annotation marker still visible with same position
-9. Click the clear all/trash button in toolbar
-10. Handle confirmation dialog if present via `mcp__chrome-devtools__handle_dialog`
-11. Take snapshot - verify all markers removed
+8. Re-activate extension via test-activate (extensionBaseUrl = protocol + extension id):
+   `{extensionBaseUrl}/test-activate.html?target=https://example.com`
+9. Take snapshot - verify annotation marker still visible with same position
+10. Click the clear all/trash button in toolbar
+11. Handle confirmation dialog if present via `mcp__chrome-devtools__handle_dialog`
+12. Take snapshot - verify all markers removed
 </prompt>
 
 <expectation>

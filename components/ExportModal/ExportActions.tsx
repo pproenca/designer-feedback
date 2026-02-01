@@ -21,15 +21,15 @@ export function ExportActions() {
       return (
         <>
           <Check size={16} aria-hidden="true" />
-          {exportOutcome === 'copied' ? 'Copied!' : 'Downloaded!'}
+          {exportOutcome === 'copied' ? 'Copied' : 'Downloaded'}
         </>
       );
     }
     if (isExporting) {
-      return isClipboardFormat ? 'Copying…' : 'Exporting…';
+      return isClipboardFormat ? 'Copying…' : 'Downloading…';
     }
     if (isSnapshotFormat) return 'Download Snapshot';
-    if (isMarkdownFormat) return 'Copy Markdown';
+    if (isMarkdownFormat) return 'Copy Notes';
     return 'Export';
   };
 

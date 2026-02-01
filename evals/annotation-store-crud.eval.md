@@ -13,7 +13,7 @@ Tests creating, viewing, and deleting annotations via browser UI using MCP chrom
 ## Test Steps
 1. Use `mcp__chrome-devtools__new_page` to open https://example.com
 2. Use `mcp__chrome-devtools__navigate_page` to activate via test-activate:
-   `chrome-extension://{extensionId}/test-activate.html?target=https://example.com`
+   `{extensionBaseUrl}/test-activate.html?target=https://example.com`
 3. Wait for activation, then navigate back to https://example.com
 4. Use `mcp__chrome-devtools__take_snapshot` - verify toolbar with [data-toolbar] visible
 5. Click the add button (uid with "Add" or plus icon)

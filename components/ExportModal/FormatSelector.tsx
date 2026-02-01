@@ -1,4 +1,4 @@
-import {useState, type ReactNode} from 'react';
+import {useState} from 'react';
 import {Radio} from '@base-ui/react/radio';
 import {RadioGroup} from '@base-ui/react/radio-group';
 import type {ExportFormat} from '@/types';
@@ -9,7 +9,6 @@ export type ExportFormatOption = {
   id: ExportFormat;
   label: string;
   description: string;
-  icon: ReactNode;
   disabled?: boolean;
   disabledHint?: string;
 };
@@ -59,7 +58,7 @@ export function FormatSelector({options}: FormatSelectorProps) {
             <label
               key={option.id}
               className={clsx(
-                'flex items-start gap-3 py-3 px-3.5 border rounded-xl',
+                'flex items-start gap-2.5 py-3 px-3.5 border rounded-xl',
                 'cursor-pointer text-left relative',
                 'transition duration-150 ease-out',
                 'active:scale-[0.97]',
@@ -92,19 +91,6 @@ export function FormatSelector({options}: FormatSelectorProps) {
                     isSelected ? 'bg-df-blue scale-100' : 'scale-0'
                   )}
                 />
-              </span>
-              {/* Icon */}
-              <span
-                className={clsx(
-                  'inline-flex items-center justify-center w-8 h-8 rounded-xl leading-none',
-                  'transition-colors duration-150',
-                  !isSelected && 'bg-black/5 text-black/60',
-                  !isSelected && 'dark:bg-white/8 dark:text-white/70',
-                  isSelected && 'bg-df-blue/10 text-df-blue',
-                  isSelected && 'dark:bg-df-blue/15 dark:text-df-blue'
-                )}
-              >
-                {option.icon}
               </span>
               <div className="flex flex-col gap-0.5 flex-1">
                 <span
