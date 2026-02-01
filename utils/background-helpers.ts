@@ -191,10 +191,10 @@ export async function saveSettings(
 
 export function updateBadge(count: number): void {
   if (count > 0) {
-    browser.action.setBadgeText({text: String(count)});
-    browser.action.setBadgeBackgroundColor({color: '#3C82F7'});
+    void browser.action.setBadgeText({text: String(count)});
+    void browser.action.setBadgeBackgroundColor({color: '#3C82F7'});
   } else {
-    browser.action.setBadgeText({text: ''});
+    void browser.action.setBadgeText({text: ''});
   }
 }
 

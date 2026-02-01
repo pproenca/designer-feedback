@@ -113,7 +113,7 @@ export function Toolbar({children}: ToolbarProps) {
       }
     };
 
-    loadInitialPosition();
+    void loadInitialPosition();
     return () => {
       isCancelled = true;
     };

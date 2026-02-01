@@ -26,7 +26,7 @@ export function AnnotationLayer() {
 
   const handleDragEnd = useCallback(
     (annotationId: string, position: Position) => {
-      annotationUpdated(annotationId, {x: position.x, y: position.y});
+      void annotationUpdated(annotationId, {x: position.x, y: position.y});
     },
     [annotationUpdated]
   );

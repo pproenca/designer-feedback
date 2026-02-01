@@ -21,13 +21,10 @@ export async function downloadDataUrl(
 export async function exportAsSnapshotImage(
   annotations: Annotation[]
 ): Promise<{captureMode: 'full' | 'viewport' | 'placeholder'; error?: string}> {
-  let screenshot: string;
-  let captureMode: 'full' | 'viewport' | 'placeholder' = 'full';
-  let captureError: string | undefined;
   const capture = await captureFullPage();
-  screenshot = capture.dataUrl;
-  captureMode = capture.mode;
-  captureError = capture.error;
+  const screenshot: string = capture.dataUrl;
+  const captureMode: 'full' | 'viewport' | 'placeholder' = capture.mode;
+  const captureError: string | undefined = capture.error;
 
   const composite = await createSnapshotImage(screenshot, annotations);
   const timestamp = new Date().toISOString().split('T')[0];

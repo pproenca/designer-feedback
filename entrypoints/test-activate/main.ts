@@ -84,4 +84,4 @@ async function activate(): Promise<void> {
   }
 }
 
-activate();
+void activate();

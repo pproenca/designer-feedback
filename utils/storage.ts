@@ -152,5 +152,5 @@ export async function getAnnotationCount(url: string): Promise<number> {
 }
 
 export function updateBadgeCount(count: number): void {
-  backgroundMessenger.sendMessage('updateBadge', count);
+  void backgroundMessenger.sendMessage('updateBadge', count);
 }

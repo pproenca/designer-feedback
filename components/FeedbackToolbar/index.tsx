@@ -102,7 +102,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   }, [selectedAnnotationId, selectedAnnotation, annotationDeselected]);
 
   useEffect(() => {
-    loadAnnotations();
+    void loadAnnotations();
   }, [loadAnnotations]);
 
   useEffect(() => {
@@ -116,7 +116,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
     const offLocation = onUiEvent('location-changed', () => {
       annotationDeselected();
-      loadAnnotations();
+      void loadAnnotations();
     });
 
     return () => {
