@@ -7,12 +7,14 @@
     "prepare": "lefthook install",
     "dev": "wxt",
     "build": "wxt build",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "vitest run && npm run test:e2e",
+    "test:coverage": "wxt prepare && vitest run --coverage",
     "test:e2e": "VITE_DF_E2E=1 wxt build && playwright test",
     "typecheck": "wxt prepare && tsc --noEmit",
-    "lint": "gts lint",
-    "lint:fix": "gts fix",
+    "lint": "wxt prepare && gts lint",
+    "check": "npm run lint && npm run typecheck",
+    "lint:fix": "wxt prepare && gts fix",
+    "format": "wxt prepare && gts fix",
     "zip": "wxt zip"
   },
   "dependencies": {

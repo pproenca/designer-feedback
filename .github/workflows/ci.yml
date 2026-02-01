@@ -56,9 +56,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Generate WXT types
-        run: npx wxt prepare
-
       - run: npm run test:coverage
 
       - name: Upload coverage to Codecov
@@ -114,9 +111,10 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npm run test:e2e
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
           CI: true
+          EXTENSION_PATH: .output/chrome-mv3
 
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
