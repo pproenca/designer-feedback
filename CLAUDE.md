@@ -16,6 +16,7 @@ npm run lint         # ESLint (zero warnings enforced)
 npm run lint:fix     # Auto-fix ESLint violations
 npm run test         # Run Vitest unit tests
 npm run test:e2e     # Build with E2E flag + run Playwright tests
+npm run test:e2e:firefox # Firefox E2E smoke test via Selenium + geckodriver
 npm run zip          # Create ZIP for Chrome Web Store
 ```
 
@@ -76,6 +77,9 @@ designer-feedback/
 - Unit tests: `*.spec.ts` alongside source files, uses `wxt/testing/fake-browser`
 - E2E tests: `tests/*.spec.ts`, sequential workers, 2 retries in CI
 - E2E build flag: `VITE_DF_E2E=1` switches shadow DOM to open mode
+- E2E snapshot capture uses a placeholder image when `VITE_DF_E2E=1` to avoid activeTab user-gesture limits
+- Playwright extension testing is Chromium-only; Firefox project is configured but skipped
+- Firefox E2E automation uses `scripts/firefox-e2e.mjs` (Selenium + geckodriver) and loads the Firefox zip
 - Test setup configures global `browser` and `chrome` objects from fakeBrowser
 
 ## Key Types

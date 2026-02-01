@@ -34,6 +34,9 @@ export async function captureVisibleTabScreenshot(
 export type DownloadResult = {ok: boolean; downloadId?: number; error?: string};
 
 const DOWNLOAD_URL_REVOKE_DELAY_MS = 60000;
+const OFFSCREEN_DOCUMENT_URL = 'offscreen.html';
+const OFFSCREEN_JUSTIFICATION =
+  'Create blob URLs for large downloads when service workers lack DOM APIs';
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, data] = dataUrl.split(',');
@@ -51,25 +54,127 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], {type: mime});
 }
 
-function createBlobUrl(dataUrl: string): string {
-  const blob = dataUrlToBlob(dataUrl);
-  return URL.createObjectURL(blob);
+function createDownloadUrl(
+  dataUrl: string
+): {url: string; revoke?: () => void} {
+  if (typeof URL?.createObjectURL !== 'function') {
+    return {url: dataUrl};
+  }
+  try {
+    const blob = dataUrlToBlob(dataUrl);
+    const url = URL.createObjectURL(blob);
+    return {url, revoke: () => URL.revokeObjectURL(url)};
+  } catch (error) {
+    console.warn(
+      '[Background] createObjectURL failed, falling back to data URL:',
+      error
+    );
+    return {url: dataUrl};
+  }
 }
 
-function scheduleRevokeBlobUrl(blobUrl: string): void {
-  setTimeout(() => URL.revokeObjectURL(blobUrl), DOWNLOAD_URL_REVOKE_DELAY_MS);
+function scheduleRevokeBlobUrl(revoke?: () => void): void {
+  if (!revoke) {
+    return;
+  }
+  setTimeout(revoke, DOWNLOAD_URL_REVOKE_DELAY_MS);
+}
+
+async function ensureOffscreenDocument(): Promise<boolean> {
+  if (!browser.offscreen?.createDocument || !browser.offscreen?.hasDocument) {
+    return false;
+  }
+
+  const hasDocument = await browser.offscreen.hasDocument();
+  if (hasDocument) {
+    return true;
+  }
+
+  await browser.offscreen.createDocument({
+    url: browser.runtime.getURL(OFFSCREEN_DOCUMENT_URL),
+    reasons: [browser.offscreen.Reason.BLOBS],
+    justification: OFFSCREEN_JUSTIFICATION,
+  });
+
+  return true;
+}
+
+async function downloadFileViaOffscreen(
+  dataUrl: string,
+  filename: string
+): Promise<DownloadResult | null> {
+  if (
+    !browser.offscreen?.createDocument ||
+    !browser.offscreen?.hasDocument ||
+    !browser.runtime?.sendMessage
+  ) {
+    return null;
+  }
+
+  let hadDocument = false;
+  try {
+    hadDocument = await browser.offscreen.hasDocument();
+    if (!hadDocument) {
+      const created = await ensureOffscreenDocument();
+      if (!created) {
+        return null;
+      }
+    }
+
+    const response = (await browser.runtime.sendMessage({
+      dfOffscreen: 'download',
+      dataUrl,
+      filename,
+    })) as DownloadResult | undefined;
+
+    if (response?.ok) {
+      return response;
+    }
+
+    return {ok: false, error: response?.error ?? 'Offscreen download failed'};
+  } catch (error) {
+    console.warn('[Background] Offscreen download failed:', error);
+    return {ok: false, error: String(error)};
+  } finally {
+    if (!hadDocument) {
+      try {
+        await browser.offscreen?.closeDocument?.();
+      } catch (error) {
+        console.warn('[Background] Failed to close offscreen document:', error);
+      }
+    }
+  }
 }
 
 export async function downloadFile(
   dataUrl: string,
   filename: string
 ): Promise<DownloadResult> {
-  let blobUrl: string | null = null;
+  let revokeBlobUrl: (() => void) | undefined;
+  let downloadUrl: string | null = null;
   try {
-    blobUrl = createBlobUrl(dataUrl);
+    if (typeof URL?.createObjectURL !== 'function') {
+      const offscreenResult = await downloadFileViaOffscreen(
+        dataUrl,
+        filename
+      );
+      if (offscreenResult?.ok) {
+        return offscreenResult;
+      }
+      if (offscreenResult?.error) {
+        console.warn(
+          '[Background] Offscreen download unavailable, using data URL:',
+          offscreenResult.error
+        );
+      }
+    }
+
+    const {url, revoke} = createDownloadUrl(dataUrl);
+    downloadUrl = url;
+    revokeBlobUrl = revoke;
 
     const downloadId = await browser.downloads.download({
-      url: blobUrl,
+      url: downloadUrl,
       filename,
       saveAs: false,
     });
@@ -78,12 +183,12 @@ export async function downloadFile(
       return {ok: false, error: 'Download failed to start'};
     }
 
-    scheduleRevokeBlobUrl(blobUrl);
+    scheduleRevokeBlobUrl(revokeBlobUrl);
     return {ok: true, downloadId};
   } catch (error) {
     console.error('[Background] Download failed:', error);
-    if (blobUrl) {
-      scheduleRevokeBlobUrl(blobUrl);
+    if (downloadUrl) {
+      scheduleRevokeBlobUrl(revokeBlobUrl);
     }
     return {ok: false, error: String(error)};
   }

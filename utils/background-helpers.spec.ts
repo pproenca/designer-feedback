@@ -17,6 +17,8 @@ import {
   // Settings
   getSettings,
   saveSettings,
+  // Downloads
+  downloadFile,
   // Badge
   updateBadge,
   // Security
@@ -140,6 +142,84 @@ describe('Background Helpers', () => {
     it('returns WINDOW_ID_CURRENT when sender.tab.windowId is undefined', async () => {
       const windowId = await getWindowIdForCapture(undefined);
       expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+    });
+  });
+
+  // =============================================================================
+  // Downloads
+  // =============================================================================
+
+  describe('downloadFile', () => {
+    it('uses a blob URL when createObjectURL is available', async () => {
+      const originalCreate = URL.createObjectURL;
+      const originalRevoke = URL.revokeObjectURL;
+      const createSpy = vi.fn().mockReturnValue('blob:mock');
+      const revokeSpy = vi.fn();
+      Object.defineProperty(URL, 'createObjectURL', {
+        value: createSpy,
+        configurable: true,
+      });
+      Object.defineProperty(URL, 'revokeObjectURL', {
+        value: revokeSpy,
+        configurable: true,
+      });
+
+      const downloadSpy = vi
+        .spyOn(fakeBrowser.downloads, 'download')
+        .mockResolvedValue(101);
+
+      vi.useFakeTimers();
+      const result = await downloadFile(
+        'data:text/plain;base64,SGVsbG8=',
+        'test.txt'
+      );
+
+      expect(downloadSpy).toHaveBeenCalledWith({
+        url: 'blob:mock',
+        filename: 'test.txt',
+        saveAs: false,
+      });
+      expect(result.ok).toBe(true);
+
+      vi.runAllTimers();
+      expect(revokeSpy).toHaveBeenCalledWith('blob:mock');
+
+      vi.useRealTimers();
+      Object.defineProperty(URL, 'createObjectURL', {
+        value: originalCreate,
+        configurable: true,
+      });
+      Object.defineProperty(URL, 'revokeObjectURL', {
+        value: originalRevoke,
+        configurable: true,
+      });
+    });
+
+    it('falls back to data URL when createObjectURL is unavailable', async () => {
+      const originalCreate = URL.createObjectURL;
+      Object.defineProperty(URL, 'createObjectURL', {
+        value: undefined,
+        configurable: true,
+      });
+
+      const downloadSpy = vi
+        .spyOn(fakeBrowser.downloads, 'download')
+        .mockResolvedValue(202);
+
+      const dataUrl = 'data:text/plain;base64,SGVsbG8=';
+      const result = await downloadFile(dataUrl, 'test.txt');
+
+      expect(downloadSpy).toHaveBeenCalledWith({
+        url: dataUrl,
+        filename: 'test.txt',
+        saveAs: false,
+      });
+      expect(result.ok).toBe(true);
+
+      Object.defineProperty(URL, 'createObjectURL', {
+        value: originalCreate,
+        configurable: true,
+      });
     });
   });
 

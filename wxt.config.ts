@@ -14,12 +14,13 @@ export default defineConfig({
       'storage',
       'tabs',
       'downloads',
+      'offscreen',
       'activeTab',
       'scripting',
       'contextMenus',
     ],
     commands: {
-      _execute_action: {
+      'activate-toolbar': {
         suggested_key: {
           default: 'Ctrl+Shift+S',
           mac: 'Command+Shift+S',

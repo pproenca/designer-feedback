@@ -134,6 +134,15 @@ export default defineBackground(() => {
     await handleUserInvocation(tab);
   });
 
+  browser.commands.onCommand.addListener(async command => {
+    if (command !== 'activate-toolbar') return;
+    const [activeTab] = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    await handleUserInvocation(activeTab);
+  });
+
   browser.tabs.onRemoved.addListener(tabId => {
     clearPendingCapture(tabId);
   });

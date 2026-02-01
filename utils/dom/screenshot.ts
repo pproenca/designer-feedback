@@ -66,6 +66,14 @@ export async function captureScreenshot(): Promise<string> {
 
 export async function captureFullPage(): Promise<FullPageCaptureResult> {
   assertDomAvailable('captureFullPage');
+  const isE2E = import.meta.env.VITE_DF_E2E === '1';
+  if (isE2E) {
+    return {
+      dataUrl: createPlaceholderScreenshot(),
+      isPlaceholder: false,
+      mode: 'full',
+    };
+  }
   try {
     return {
       dataUrl: await captureFullPageFromExtension(),

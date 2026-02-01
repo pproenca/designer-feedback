@@ -31,6 +31,11 @@ export class ExportModalPage {
     return this.page.getByRole('button', {name: 'Snapshot'});
   }
 
+  /** Get the primary export button when snapshot format is selected */
+  getDownloadSnapshotButton() {
+    return this.page.getByRole('button', {name: 'Download Snapshot'});
+  }
+
   /** Get annotation text in the export preview */
   getAnnotationText(comment: string) {
     return this.getDialog().getByText(comment);
@@ -54,6 +59,11 @@ export class ExportModalPage {
   /** Click the Snapshot button */
   async clickSnapshot() {
     await this.getSnapshotButton().click();
+  }
+
+  /** Click the Download Snapshot action */
+  async clickDownloadSnapshot() {
+    await this.getDownloadSnapshotButton().click();
   }
 
   // ============================================================================
