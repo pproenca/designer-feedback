@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "npm run compile",
+    "prepare": "lefthook install",
     "dev": "wxt",
     "build": "wxt build",
     "test": "vitest run",
@@ -12,12 +12,8 @@
     "test:e2e": "VITE_DF_E2E=1 wxt build && playwright test",
     "typecheck": "wxt prepare && tsc --noEmit",
     "lint": "gts lint",
-    "zip": "wxt zip",
-    "clean": "gts clean",
-    "compile": "tsc",
-    "fix": "gts fix",
-    "pretest": "npm run compile",
-    "posttest": "npm run lint"
+    "lint:fix": "gts fix",
+    "zip": "wxt zip"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -61,9 +57,8 @@
     "puppeteer": "^24.36.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.6.3",
+    "typescript": "^5.7.2",
     "vitest": "^4.0.18",
-    "wxt": "^0.20.13",
-    "@types/node": "^22.7.5"
+    "wxt": "^0.20.13"
   }
 }
