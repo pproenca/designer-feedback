@@ -1,11 +1,16 @@
 name: Release Extension
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
+      bump:
+        description: 'Version bump (major, minor, patch)'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       skip_tests:
         description: 'Skip tests (for hotfixes only)'
         required: false
@@ -16,10 +21,9 @@ permissions:
   contents: write
 
 jobs:
-  test:
-    name: Run Tests
+  release:
+    name: Release Extension
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_tests }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,40 +37,41 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - run: npx playwright install chromium --with-deps
+      - name: Bump version, commit, and tag
+        id: bump
+        run: |
+          NEW_VERSION=$(npm version "${{ inputs.bump }}" -m "chore: release v%s" --no-commit-hooks)
+          NEW_VERSION="${NEW_VERSION#v}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build for tests
+        if: ${{ !inputs.skip_tests }}
+        run: npm run build
+
+      - name: Install Playwright
+        if: ${{ !inputs.skip_tests }}
+        run: npx playwright install chromium --with-deps
 
       - name: Run Playwright tests
+        if: ${{ !inputs.skip_tests }}
         run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npm run test:e2e
         env:
           CI: true
 
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: failure() && !inputs.skip_tests
         with:
           name: playwright-report
           path: |
             playwright-report/
             test-results/
           retention-days: 7
-
-  build:
-    name: Build Extension
-    runs-on: ubuntu-latest
-    needs: test
-    if: ${{ always() && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
 
       - name: Build and package extensions
         run: |
@@ -76,35 +81,41 @@ jobs:
       - name: List zip outputs
         run: |
           ls -la .output
-          find .output -maxdepth 1 -type f -name "*.zip" -print
+          find .output -type f -name "*.zip" -print
 
-      - name: Get version from built manifest
-        id: version
+      - name: Resolve zip paths
+        id: zips
+        run: |
+          CHROME_ZIP=$(find .output -type f -name "*-chrome.zip" -print -quit)
+          FIREFOX_ZIP=$(find .output -type f -name "*-firefox.zip" -print -quit)
+          SOURCES_ZIP=$(find .output -type f -name "*-sources.zip" -print -quit)
+          if [ -z "$CHROME_ZIP" ] || [ -z "$FIREFOX_ZIP" ] || [ -z "$SOURCES_ZIP" ]; then
+            echo "Error: expected zip assets not found."
+            find .output -type f -name "*.zip" -print
+            exit 1
+          fi
+          echo "chrome=$CHROME_ZIP" >> $GITHUB_OUTPUT
+          echo "firefox=$FIREFOX_ZIP" >> $GITHUB_OUTPUT
+          echo "sources=$SOURCES_ZIP" >> $GITHUB_OUTPUT
+
+      - name: Validate manifest version matches bump
         run: |
           MANIFEST_PATH=".output/chrome-mv3/manifest.json"
           if [ ! -f "$MANIFEST_PATH" ]; then
             echo "Error: $MANIFEST_PATH not found. Build output is missing."
             exit 1
           fi
-          VERSION=$(jq -r '.version' "$MANIFEST_PATH")
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+          MANIFEST_VERSION=$(jq -r '.version' "$MANIFEST_PATH")
+          if [ -z "$MANIFEST_VERSION" ] || [ "$MANIFEST_VERSION" = "null" ]; then
             echo "Error: version could not be resolved from manifest."
             exit 1
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Validate tag matches manifest version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          MANIFEST_VERSION=$(jq -r '.version' .output/chrome-mv3/manifest.json)
-          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "Error: Tag ($TAG_VERSION) != manifest ($MANIFEST_VERSION)"
+          if [ "$MANIFEST_VERSION" != "${{ steps.bump.outputs.version }}" ]; then
+            echo "Error: manifest ($MANIFEST_VERSION) != bump (${{ steps.bump.outputs.version }})"
             exit 1
           fi
 
       - name: Generate release changelog
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
           {
@@ -118,23 +129,34 @@ jobs:
             echo
           } > release-notes.md
 
+      - name: Push version commit and tag
+        run: |
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "${{ steps.bump.outputs.tag }}"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: extension-${{ steps.version.outputs.version }}
-          path: .output/*.zip
+          name: extension-${{ steps.bump.outputs.version }}
+          path: |
+            ${{ steps.zips.outputs.chrome }}
+            ${{ steps.zips.outputs.firefox }}
+            ${{ steps.zips.outputs.sources }}
           if-no-files-found: error
           retention-days: 90
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: .output/*.zip
+          tag_name: ${{ steps.bump.outputs.tag }}
+          name: Release ${{ steps.bump.outputs.tag }}
+          files: |
+            ${{ steps.zips.outputs.chrome }}
+            ${{ steps.zips.outputs.firefox }}
+            ${{ steps.zips.outputs.sources }}
           body_path: release-notes.md
 
       - name: Submit to Chrome Web Store
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: npx wxt submit --chrome-zip .output/*-chrome.zip
+        run: npx wxt submit --chrome-zip "${{ steps.zips.outputs.chrome }}"
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
@@ -142,11 +164,10 @@ jobs:
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
 
       - name: Submit to Firefox Add-ons
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           npx wxt submit \
-            --firefox-zip .output/*-firefox.zip \
-            --firefox-sources-zip .output/*-sources.zip
+            --firefox-zip "${{ steps.zips.outputs.firefox }}" \
+            --firefox-sources-zip "${{ steps.zips.outputs.sources }}"
         env:
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
