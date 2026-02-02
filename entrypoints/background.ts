@@ -12,29 +12,53 @@ import {
   isExtensionSender,
   getContentScriptFiles,
 } from '@/utils/background-helpers';
+import {pendingCaptureTabs} from '@/utils/storage-items';
 import {backgroundMessenger, contentMessenger} from '@/utils/messaging';
 
 export default defineBackground(() => {
-  const pendingCaptureTabs = new Map<number, number>();
   const pendingCaptureTtlMs = 120000;
   const contextMenuId = 'df-export-snapshot';
 
-  function markPendingCapture(tabId: number): void {
-    pendingCaptureTabs.set(tabId, Date.now());
-  }
-
-  function hasPendingCapture(tabId: number): boolean {
-    const startedAt = pendingCaptureTabs.get(tabId);
-    if (!startedAt) return false;
-    if (Date.now() - startedAt > pendingCaptureTtlMs) {
-      pendingCaptureTabs.delete(tabId);
-      return false;
+  function trimExpiredPending(
+    current: Record<string, number>
+  ): Record<string, number> {
+    const now = Date.now();
+    let changed = false;
+    const next: Record<string, number> = {...current};
+    for (const [key, startedAt] of Object.entries(current)) {
+      if (!startedAt || now - startedAt > pendingCaptureTtlMs) {
+        delete next[key];
+        changed = true;
+      }
     }
-    return true;
+    return changed ? next : current;
   }
 
-  function clearPendingCapture(tabId: number): void {
-    pendingCaptureTabs.delete(tabId);
+  async function markPendingCapture(tabId: number): Promise<void> {
+    const key = String(tabId);
+    const current = await pendingCaptureTabs.getValue();
+    const trimmed = trimExpiredPending(current);
+    await pendingCaptureTabs.setValue({...trimmed, [key]: Date.now()});
+  }
+
+  async function hasPendingCapture(tabId: number): Promise<boolean> {
+    const key = String(tabId);
+    const current = await pendingCaptureTabs.getValue();
+    if (!current[key]) return false;
+    const trimmed = trimExpiredPending(current);
+    if (trimmed !== current) {
+      await pendingCaptureTabs.setValue(trimmed);
+    }
+    return Boolean(trimmed[key]);
+  }
+
+  async function clearPendingCapture(tabId: number): Promise<void> {
+    const key = String(tabId);
+    const current = await pendingCaptureTabs.getValue();
+    if (!current[key]) return;
+    const next = {...current};
+    delete next[key];
+    await pendingCaptureTabs.setValue(next);
   }
 
   async function injectContentScripts(tabId: number): Promise<boolean> {
@@ -122,10 +146,10 @@ export default defineBackground(() => {
 
     await showToolbar(tab.id);
 
-    if (hasPendingCapture(tab.id)) {
+    if (await hasPendingCapture(tab.id)) {
       const resumed = await sendResumeExportWithRetry(tab.id);
       if (resumed) {
-        clearPendingCapture(tab.id);
+        await clearPendingCapture(tab.id);
       }
     }
   }
@@ -143,10 +167,6 @@ export default defineBackground(() => {
     await handleUserInvocation(activeTab);
   });
 
-  browser.tabs.onRemoved.addListener(tabId => {
-    clearPendingCapture(tabId);
-  });
-
   backgroundMessenger.onMessage('captureScreenshot', async ({sender}) => {
     if (!isExtensionSender(sender)) {
       throw new Error('Invalid sender');
@@ -156,11 +176,11 @@ export default defineBackground(() => {
       const result = await captureVisibleTabScreenshot(windowId);
       if (result.error && sender.tab?.id) {
         if (isActiveTabPermissionError(result.error)) {
-          markPendingCapture(sender.tab.id);
+          await markPendingCapture(sender.tab.id);
           return {...result, errorCode: 'activeTab-required' as const};
         }
       } else if (sender.tab?.id) {
-        clearPendingCapture(sender.tab.id);
+        await clearPendingCapture(sender.tab.id);
       }
       return result;
     } catch (error) {

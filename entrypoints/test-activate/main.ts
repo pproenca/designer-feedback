@@ -5,6 +5,8 @@ interface TargetInfo {
   targetUrl: string;
 }
 
+const isE2E = import.meta.env.VITE_DF_E2E === '1';
+
 function getTargetInfo(params: URLSearchParams): TargetInfo {
   const target = params.get('target') ?? '';
   const targetUrl = target.trim();
@@ -112,4 +114,11 @@ async function activate(targetInfo: TargetInfo): Promise<void> {
 
 const params = new URLSearchParams(window.location.search);
 const targetInfo = getTargetInfo(params);
-void activate(targetInfo);
+if (!isE2E) {
+  window.__dfActivateStatus = 'disabled';
+  window.__dfActivateDebug = {
+    reason: 'test-activate is only available in E2E builds',
+  };
+} else {
+  void activate(targetInfo);
+}

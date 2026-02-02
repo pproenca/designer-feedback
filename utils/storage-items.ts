@@ -25,3 +25,11 @@ export const toolbarPositions = storage.defineItem<
   fallback: {},
   version: 1,
 });
+
+export const pendingCaptureTabs = storage.defineItem<Record<string, number>>(
+  'session:designer-feedback:pending-capture-tabs',
+  {
+    fallback: {},
+    version: 1,
+  }
+);
