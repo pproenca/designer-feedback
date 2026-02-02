@@ -6,12 +6,8 @@ import {StatusMessage} from '../StatusMessage';
 import {useExportState, useExportActions} from './ExportContext';
 
 export function ExportActions() {
-  const {
-    isExporting,
-    exportOutcome,
-    statusMessage,
-    statusMessageId,
-  } = useExportState();
+  const {isExporting, exportOutcome, statusMessage, statusMessageId} =
+    useExportState();
   const {onClose, handleExport} = useExportActions();
   const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
