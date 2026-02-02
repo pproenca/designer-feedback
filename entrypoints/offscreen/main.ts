@@ -57,7 +57,7 @@ async function handleDownload(
   }
 }
 
-browser.runtime.onMessage.addListener((message, sender) => {
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id && sender.id !== browser.runtime.id) {
     return;
   }
@@ -68,5 +68,8 @@ browser.runtime.onMessage.addListener((message, sender) => {
   ) {
     return;
   }
-  return handleDownload(message as OffscreenDownloadMessage);
+  handleDownload(message as OffscreenDownloadMessage)
+    .then(response => sendResponse(response))
+    .catch(error => sendResponse({ok: false, error: String(error)}));
+  return true;
 });

@@ -14,6 +14,7 @@ export interface DfActivateDebug {
   flagCheck?: unknown;
   toolbarShown?: boolean;
   error?: string;
+  reason?: string;
 }
 
 declare global {

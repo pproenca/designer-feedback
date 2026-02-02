@@ -6,7 +6,11 @@ import {
 import {hashString} from '@/utils/hash';
 import {storage} from 'wxt/utils/storage';
 import {backgroundMessenger} from '@/utils/messaging';
-import {maybeRunCleanup, getRetentionCutoff} from '@/utils/storage-cleanup';
+import {
+  maybeRunCleanup,
+  getRetentionCutoff,
+  cleanupExpiredAnnotations,
+} from '@/utils/storage-cleanup';
 import {getWindow} from '@/utils/dom/guards';
 
 export function getStorageKey(targetUrl?: string): string {
@@ -62,6 +66,12 @@ async function getLocal<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
+function isQuotaError(error: unknown): boolean {
+  if (!error) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes('quota');
+}
+
 async function setLocal(values: Record<string, unknown>): Promise<void> {
   const entries = Object.entries(values).map(([key, value]) => ({
     key: `local:${key}` as const,
@@ -71,6 +81,15 @@ async function setLocal(values: Record<string, unknown>): Promise<void> {
   try {
     await storage.setItems(entries);
   } catch (error) {
+    if (isQuotaError(error)) {
+      try {
+        await cleanupExpiredAnnotations(getRetentionCutoff());
+        await storage.setItems(entries);
+        return;
+      } catch (retryError) {
+        console.warn('Storage quota exceeded; retry failed:', retryError);
+      }
+    }
     console.warn('Storage access failed (set):', error);
   }
 }

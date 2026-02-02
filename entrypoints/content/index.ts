@@ -16,6 +16,7 @@ export default defineContentScript({
   registration: 'runtime',
   world: 'ISOLATED',
   cssInjectionMode: 'ui',
+  allFrames: false,
 
   main(ctx) {
     const isEligibleDocument =
