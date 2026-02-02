@@ -1,7 +1,5 @@
 import {defineConfig} from 'wxt';
 
-const manifestVersion = '1.0.2';
-
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],
   srcDir: '.',
@@ -9,7 +7,6 @@ export default defineConfig({
 
   manifest: {
     name: 'Designer Feedback',
-    version: manifestVersion,
     description:
       'Annotate any webpage and share visual feedback with developers',
     permissions: [
