@@ -15,7 +15,6 @@ import {
 import {X} from 'lucide-react';
 import {clsx} from 'clsx';
 import {FormatSelector, type ExportFormatOption} from './FormatSelector';
-import {AnnotationPreview} from './AnnotationPreview';
 import {ExportActions} from './ExportActions';
 import {
   ExportProvider,
@@ -325,9 +324,6 @@ export function ExportModal({
             >
               <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
                 <FormatSelector options={formatOptions} />
-                {annotations.length > 0 ? (
-                  <AnnotationPreview annotations={annotations} />
-                ) : null}
               </div>
 
               <ExportActions />
