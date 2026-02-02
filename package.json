@@ -1,6 +1,6 @@
 {
   "name": "designer-feedback",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,7 +17,10 @@
     "check": "npm run lint && npm run typecheck",
     "lint:fix": "wxt prepare && gts fix",
     "format": "wxt prepare && gts fix",
-    "zip": "wxt zip"
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "publish": "npm run zip && npm run zip:firefox && wxt submit --chrome-zip .output/*-chrome.zip --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip",
+    "publish:dry-run": "npm run zip && npm run zip:firefox && wxt submit --dry-run --chrome-zip .output/*-chrome.zip --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",

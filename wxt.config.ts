@@ -1,4 +1,12 @@
+import {readFileSync} from 'node:fs';
 import {defineConfig} from 'wxt';
+
+const packageJson = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as {version?: string};
+
+const manifestVersion =
+  process.env.EXTENSION_VERSION?.trim() || packageJson.version || '0.0.0';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],
@@ -7,7 +15,7 @@ export default defineConfig({
 
   manifest: {
     name: 'Designer Feedback',
-    version: '1.0.1',
+    version: manifestVersion,
     description:
       'Annotate any webpage and share visual feedback with developers',
     permissions: [
