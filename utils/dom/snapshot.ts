@@ -194,6 +194,7 @@ function drawSidebarPanel(
   const categoryLineHeight = 12 * scale;
   const elementLineHeight = 16 * scale;
   const commentLineHeight = 18 * scale;
+  const commentFont = `500 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
 
   ctx.save();
   ctx.textBaseline = 'top';
@@ -222,7 +223,7 @@ function drawSidebarPanel(
     const annotation = annotations[i];
     const config = getCategoryConfig(annotation.category);
 
-    ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+    ctx.font = commentFont;
     const baseContentHeight =
       categoryLineHeight + 6 * scale + elementLineHeight + 4 * scale;
     const minCardHeight =
@@ -339,7 +340,7 @@ function drawSidebarPanel(
     textY += elementLineHeight + 4 * scale;
     ctx.save();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.76)';
-    ctx.font = `500 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+    ctx.font = commentFont;
     ctx.textBaseline = 'top';
     commentLines.forEach(line => {
       ctx.fillText(line, textX, textY);
