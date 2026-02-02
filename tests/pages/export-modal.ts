@@ -18,7 +18,7 @@ export class ExportModalPage {
 
   /** Get the export heading */
   getHeading() {
-    return this.page.getByRole('heading', {name: 'Export Feedback'});
+    return this.getDialog().getByRole('heading', {name: 'Export Feedback'});
   }
 
   /** Get the close button (the visible X button, not the backdrop) */
@@ -26,19 +26,14 @@ export class ExportModalPage {
     return this.getDialog().getByLabel('Close export dialog');
   }
 
-  /** Get the Snapshot button */
-  getSnapshotButton() {
-    return this.page.getByRole('button', {name: 'Snapshot'});
+  /** Get a format option label by text */
+  getFormatOption(label: 'Copy Notes' | 'Download Snapshot') {
+    return this.getDialog().locator('label').filter({hasText: label}).first();
   }
 
-  /** Get the primary export button when snapshot format is selected */
-  getDownloadSnapshotButton() {
-    return this.page.getByRole('button', {name: 'Download Snapshot'});
-  }
-
-  /** Get annotation text in the export preview */
-  getAnnotationText(comment: string) {
-    return this.getDialog().getByText(comment);
+  /** Get the primary export action button */
+  getExportButton() {
+    return this.getDialog().getByRole('button', {name: 'Export feedback'});
   }
 
   // ============================================================================
@@ -56,14 +51,14 @@ export class ExportModalPage {
     await expect(this.getDialog()).toBeHidden();
   }
 
-  /** Click the Snapshot button */
-  async clickSnapshot() {
-    await this.getSnapshotButton().click();
+  /** Select a format option */
+  async selectFormat(label: 'Copy Notes' | 'Download Snapshot') {
+    await this.getFormatOption(label).click();
   }
 
-  /** Click the Download Snapshot action */
-  async clickDownloadSnapshot() {
-    await this.getDownloadSnapshotButton().click();
+  /** Click the primary export action */
+  async clickExport() {
+    await this.getExportButton().click();
   }
 
   // ============================================================================
@@ -75,8 +70,8 @@ export class ExportModalPage {
     return this.getDialog().isVisible();
   }
 
-  /** Check if an annotation comment is shown in the export */
-  async hasAnnotation(comment: string) {
-    return this.getAnnotationText(comment).isVisible();
+  /** Check if the export action is available */
+  async canExport() {
+    return this.getExportButton().isEnabled();
   }
 }

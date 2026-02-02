@@ -26,7 +26,6 @@ test.describe('Annotation Workflow', () => {
 
     await exportModal.waitForOpen();
     await expect(exportModal.getHeading()).toBeVisible();
-    await expect(exportModal.getAnnotationText(comment)).toBeVisible();
     await exportModal.close();
   });
 
@@ -55,12 +54,11 @@ test.describe('Annotation Workflow', () => {
       )
       .first();
 
-    await Promise.all([
-      toastLocator.waitFor({state: 'visible', timeout: 30000}),
-      exportModal.clickDownloadSnapshot(),
-    ]);
+    await exportModal.selectFormat('Download Snapshot');
+    await exportModal.clickExport();
 
     await expect(exportModal.getDialog()).toBeHidden({timeout: 10000});
+    await toastLocator.waitFor({state: 'visible', timeout: 30000});
     const toastText = (await toastLocator.textContent()) ?? '';
     expect(toastText).toMatch(/Snapshot (downloaded|captured)/);
   });
