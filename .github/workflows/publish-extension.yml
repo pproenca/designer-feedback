@@ -24,6 +24,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -67,36 +70,38 @@ jobs:
 
       - run: npm ci
 
-      - name: Resolve release version
-        id: version
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION=$(jq -r '.version' package.json)
-          fi
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "Error: version could not be resolved."
-            exit 1
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "EXTENSION_VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Build and package extensions
         run: |
           npm run zip
           npm run zip:firefox
 
-      - name: Validate manifest version
+      - name: List zip outputs
+        run: |
+          ls -la .output
+          find .output -maxdepth 1 -type f -name "*.zip" -print
+
+      - name: Get version from built manifest
+        id: version
         run: |
           MANIFEST_PATH=".output/chrome-mv3/manifest.json"
           if [ ! -f "$MANIFEST_PATH" ]; then
             echo "Error: $MANIFEST_PATH not found. Build output is missing."
             exit 1
           fi
-          MANIFEST_VERSION=$(jq -r '.version' "$MANIFEST_PATH")
-          if [ "$MANIFEST_VERSION" != "${{ steps.version.outputs.version }}" ]; then
-            echo "Error: Manifest ($MANIFEST_VERSION) != expected (${{ steps.version.outputs.version }})"
+          VERSION=$(jq -r '.version' "$MANIFEST_PATH")
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Error: version could not be resolved from manifest."
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate tag matches manifest version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          MANIFEST_VERSION=$(jq -r '.version' .output/chrome-mv3/manifest.json)
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "Error: Tag ($TAG_VERSION) != manifest ($MANIFEST_VERSION)"
             exit 1
           fi
 
@@ -118,10 +123,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: extension-${{ steps.version.outputs.version }}
-          path: |
-            .output/*-chrome.zip
-            .output/*-firefox.zip
-            .output/*-sources.zip
+          path: .output/*.zip
           if-no-files-found: error
           retention-days: 90
 
@@ -129,10 +131,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            .output/*-chrome.zip
-            .output/*-firefox.zip
-            .output/*-sources.zip
+          files: .output/*.zip
           body_path: release-notes.md
 
       - name: Submit to Chrome Web Store

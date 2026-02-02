@@ -227,9 +227,6 @@ export const test = base.extend<{
   exportModal: ExportModalPage;
 }>({
   context: async ({}, use, testInfo) => {
-    if (testInfo.project.name === 'firefox') {
-      testInfo.skip(true, 'Playwright extension support is Chromium-only');
-    }
     const useHeadless = process.env.PWHEADLESS === '1';
     const userDataDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), `designer-feedback-${testInfo.workerIndex}-`)

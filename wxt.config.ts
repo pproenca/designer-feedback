@@ -1,12 +1,6 @@
-import {readFileSync} from 'node:fs';
 import {defineConfig} from 'wxt';
 
-const packageJson = JSON.parse(
-  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
-) as {version?: string};
-
-const manifestVersion =
-  process.env.EXTENSION_VERSION?.trim() || packageJson.version || '0.0.0';
+const manifestVersion = '1.0.2';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],

@@ -2,11 +2,6 @@ import {test, expect} from './fixtures';
 import './types';
 
 test.describe('Annotation Workflow', () => {
-  test.skip(
-    ({browserName}) => browserName === 'firefox',
-    'Playwright extension support is Chromium-only'
-  );
-
   test.beforeEach(async ({page, helpers, toolbarPage}) => {
     await page.goto('https://example.com', {waitUntil: 'domcontentloaded'});
     await helpers.activateToolbar();
