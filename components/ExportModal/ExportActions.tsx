@@ -9,9 +9,6 @@ export function ExportActions() {
   const {
     isExporting,
     exportOutcome,
-    isSnapshotFormat,
-    isMarkdownFormat,
-    isClipboardFormat,
     statusMessage,
     statusMessageId,
   } = useExportState();
@@ -21,16 +18,14 @@ export function ExportActions() {
       return (
         <>
           <Check size={16} aria-hidden="true" />
-          {exportOutcome === 'copied' ? 'Copied' : 'Downloaded'}
+          Exported
         </>
       );
     }
     if (isExporting) {
-      return isClipboardFormat ? 'Copying…' : 'Downloading…';
+      return 'Exporting…';
     }
-    if (isSnapshotFormat) return 'Download Snapshot';
-    if (isMarkdownFormat) return 'Copy Notes';
-    return 'Export';
+    return 'Export feedback';
   };
 
   return (

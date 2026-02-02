@@ -130,7 +130,7 @@ describe('ExportModal', () => {
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     const exportButton = screen.getByRole('button', {
-      name: /download snapshot/i,
+      name: /export feedback/i,
     });
     await act(async () => {
       fireEvent.click(exportButton);
@@ -150,7 +150,7 @@ describe('ExportModal', () => {
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     const exportButton = screen.getByRole('button', {
-      name: /download snapshot/i,
+      name: /export feedback/i,
     });
     await act(async () => {
       fireEvent.click(exportButton);
@@ -167,7 +167,7 @@ describe('ExportModal', () => {
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     const exportButton = screen.getByRole('button', {
-      name: /download snapshot/i,
+      name: /export feedback/i,
     });
     await act(async () => {
       fireEvent.click(exportButton);
@@ -188,7 +188,9 @@ describe('ExportModal', () => {
       fireEvent.click(markdownLabel!);
     });
 
-    const exportButton = screen.getByRole('button', {name: /copy notes/i});
+    const exportButton = screen.getByRole('button', {
+      name: /export feedback/i,
+    });
     await act(async () => {
       fireEvent.click(exportButton);
       await vi.runAllTimersAsync();
@@ -249,7 +251,7 @@ describe('ExportModal', () => {
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
     const exportButton = screen.getByRole('button', {
-      name: /download snapshot/i,
+      name: /export feedback/i,
     });
     await act(async () => {
       fireEvent.click(exportButton);

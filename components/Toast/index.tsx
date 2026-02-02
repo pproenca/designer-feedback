@@ -176,7 +176,7 @@ export function ToastViewport() {
               variants={variants}
               className={clsx(
                 'pointer-events-auto w-72 max-w-[calc(100vw-2rem)]',
-                'flex items-start gap-2.5 px-3.5 py-3 rounded-xl border',
+                'flex items-center gap-2.5 px-3.5 py-3 rounded-xl border',
                 'bg-white/95 text-df-ink border-black/8 shadow-popup-light',
                 'dark:bg-df-dark-strong dark:text-white dark:border-white/8 dark:shadow-popup'
               )}
