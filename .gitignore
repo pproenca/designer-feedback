@@ -9,7 +9,9 @@ dist/*
 ._*
 
 
-*/skills/*
+.agents/skills/
+.claude/skills/
+.codex/skills/
 
 # WXT build outputs
 .wxt/
@@ -20,3 +22,8 @@ dist/*
 
 # Store submission credentials
 .env.submit
+
+# Build/test artifacts
+publish/
+test-results/
+*.crx
