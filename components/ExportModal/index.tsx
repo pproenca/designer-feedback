@@ -1,4 +1,11 @@
-import {useReducer, useEffect, useMemo, useCallback, useState} from 'react';
+import {
+  useReducer,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useState,
+} from 'react';
 import {
   m,
   AnimatePresence,
@@ -68,6 +75,41 @@ interface ExportModalProps {
   onAutoStartConsumed?: () => void;
 }
 
+type InlineStyleSnapshot = {
+  value: string;
+  priority: string;
+};
+
+type HostStyleSnapshot = {
+  display: InlineStyleSnapshot;
+  opacity: InlineStyleSnapshot;
+  pointerEvents: InlineStyleSnapshot;
+  visibility: InlineStyleSnapshot;
+  transition: InlineStyleSnapshot;
+};
+
+function readInlineStyle(
+  style: CSSStyleDeclaration,
+  property: string
+): InlineStyleSnapshot {
+  return {
+    value: style.getPropertyValue(property),
+    priority: style.getPropertyPriority(property),
+  };
+}
+
+function restoreInlineStyle(
+  style: CSSStyleDeclaration,
+  property: string,
+  snapshot: InlineStyleSnapshot
+): void {
+  if (!snapshot.value) {
+    style.removeProperty(property);
+    return;
+  }
+  style.setProperty(property, snapshot.value, snapshot.priority);
+}
+
 export function ExportModal({
   annotations,
   onClose,
@@ -80,6 +122,7 @@ export function ExportModal({
   const lightMode = settings.lightMode;
   const [isDialogOpen, setDialogOpen] = useState(true);
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
+  const hostStyleSnapshotRef = useRef<HostStyleSnapshot | null>(null);
   const reduceMotion = useReducedMotion() ?? false;
   const {pushToast} = useToasts();
   const overlayVariants = useMemo(
@@ -114,8 +157,6 @@ export function ExportModal({
     ],
     [restricted]
   );
-  const dialogCloseDelayMs = reduceMotion ? 80 : 160;
-  const captureDelayMs = reduceMotion ? 40 : 140;
   const toastDelayMs = reduceMotion ? 0 : 80;
 
   useEffect(() => {
@@ -130,10 +171,61 @@ export function ExportModal({
     return 'Export failed. Please try again.';
   };
 
-  const closeDialogForCapture = useCallback(async () => {
-    setDialogOpen(false);
-    await new Promise(resolve => setTimeout(resolve, dialogCloseDelayMs));
-  }, [dialogCloseDelayMs]);
+  const setCaptureMode = useCallback(
+    (isCapturing: boolean) => {
+      onCaptureChange?.(isCapturing);
+      const host = shadowRoot.host as HTMLElement | null;
+      if (!host) {
+        return;
+      }
+      const hostStyle = host.style;
+      if (isCapturing) {
+        if (!hostStyleSnapshotRef.current) {
+          hostStyleSnapshotRef.current = {
+            display: readInlineStyle(hostStyle, 'display'),
+            opacity: readInlineStyle(hostStyle, 'opacity'),
+            pointerEvents: readInlineStyle(hostStyle, 'pointer-events'),
+            visibility: readInlineStyle(hostStyle, 'visibility'),
+            transition: readInlineStyle(hostStyle, 'transition'),
+          };
+        }
+        host.setAttribute('data-capture', 'true');
+        hostStyle.setProperty('display', 'none', 'important');
+        hostStyle.setProperty('opacity', '0', 'important');
+        hostStyle.setProperty('pointer-events', 'none', 'important');
+        hostStyle.setProperty('visibility', 'hidden', 'important');
+        hostStyle.setProperty('transition', 'none', 'important');
+      } else {
+        host.removeAttribute('data-capture');
+        const snapshot = hostStyleSnapshotRef.current;
+        if (snapshot) {
+          restoreInlineStyle(hostStyle, 'display', snapshot.display);
+          restoreInlineStyle(hostStyle, 'opacity', snapshot.opacity);
+          restoreInlineStyle(
+            hostStyle,
+            'pointer-events',
+            snapshot.pointerEvents
+          );
+          restoreInlineStyle(hostStyle, 'visibility', snapshot.visibility);
+          restoreInlineStyle(hostStyle, 'transition', snapshot.transition);
+          hostStyleSnapshotRef.current = null;
+        }
+      }
+    },
+    [onCaptureChange, shadowRoot]
+  );
+
+  const waitForCaptureUiFlush = useCallback(async () => {
+    const raf =
+      typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0);
+    await new Promise<void>(resolve => {
+      raf(() => {
+        raf(() => resolve());
+      });
+    });
+  }, []);
 
   const runExport = useCallback(
     async (overrideFormat?: ExportFormat) => {
@@ -157,10 +249,10 @@ export function ExportModal({
       let pendingToast: ToastInput | null = null;
       try {
         if (format === 'snapshot') {
-          await closeDialogForCapture();
           captureActive = true;
-          onCaptureChange?.(true);
-          await new Promise(resolve => setTimeout(resolve, captureDelayMs));
+          setCaptureMode(true);
+          setDialogOpen(false);
+          await waitForCaptureUiFlush();
           const result = await exportAsSnapshotImage(annotations);
           pendingToast =
             result.captureMode === 'full'
@@ -197,7 +289,7 @@ export function ExportModal({
         onClose();
       } finally {
         if (captureActive) {
-          onCaptureChange?.(false);
+          setCaptureMode(false);
         }
         if (pendingToast) {
           const toast = pendingToast;
@@ -211,13 +303,12 @@ export function ExportModal({
     },
     [
       annotations,
-      captureDelayMs,
-      closeDialogForCapture,
-      onCaptureChange,
       onClose,
       pushToast,
       selectedFormat,
+      setCaptureMode,
       toastDelayMs,
+      waitForCaptureUiFlush,
     ]
   );
 

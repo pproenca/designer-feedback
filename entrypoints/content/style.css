@@ -76,6 +76,7 @@
   :host([data-capture='true']) {
     opacity: 0;
     pointer-events: none;
+    transition: none;
   }
 
   :host {
@@ -95,6 +96,7 @@
   .df-root[data-capture='true'] {
     opacity: 0;
     pointer-events: none;
+    transition: none;
   }
 
   :host,

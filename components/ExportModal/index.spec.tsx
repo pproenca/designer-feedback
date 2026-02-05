@@ -8,7 +8,7 @@ import {
   isActiveTabRequiredError,
   isRestrictedPage,
 } from '@/utils/dom/screenshot';
-import type {Annotation} from '@/types';
+import type {Annotation, ExportFormat} from '@/types';
 import {ToastProvider} from '@/components/Toast';
 
 // Verify ExportModal is a named export (supports lazy loading with transform)
@@ -92,6 +92,8 @@ describe('ExportModal', () => {
   const renderModal = (props: {
     onClose: () => void;
     onCaptureChange?: (isCapturing: boolean) => void;
+    autoStartFormat?: ExportFormat;
+    onAutoStartConsumed?: () => void;
   }) =>
     render(
       <ToastProvider>
@@ -100,6 +102,8 @@ describe('ExportModal', () => {
           onClose={props.onClose}
           onCaptureChange={props.onCaptureChange ?? defaultCaptureChange}
           shadowRoot={mockShadowRoot}
+          autoStartFormat={props.autoStartFormat}
+          onAutoStartConsumed={props.onAutoStartConsumed}
         />
       </ToastProvider>
     );
@@ -107,6 +111,7 @@ describe('ExportModal', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    defaultCaptureChange.mockReset();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
     mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'full'});
     mockedIsActiveTabRequiredError.mockReturnValue(false);
@@ -129,8 +134,18 @@ describe('ExportModal', () => {
     }
   });
 
-  it('downloads snapshot and auto-closes on success', async () => {
+  it('enables capture mode before snapshot export and restores it after success', async () => {
     const onClose = vi.fn();
+    const callOrder: string[] = [];
+    defaultCaptureChange.mockImplementation((isCapturing: boolean) => {
+      callOrder.push(isCapturing ? 'capture-on' : 'capture-off');
+    });
+    mockedExportAsSnapshotImage.mockImplementation(async () => {
+      callOrder.push('export');
+      expect(mockShadowHost.getAttribute('data-capture')).toBe('true');
+      expect(mockShadowHost.style.display).toBe('none');
+      return {captureMode: 'full'};
+    });
 
     renderModal({onClose, onCaptureChange: defaultCaptureChange});
 
@@ -144,8 +159,48 @@ describe('ExportModal', () => {
 
     expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations);
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(defaultCaptureChange).toHaveBeenCalledWith(true);
-    expect(defaultCaptureChange).toHaveBeenCalledWith(false);
+    expect(callOrder.indexOf('capture-on')).toBeLessThan(
+      callOrder.indexOf('export')
+    );
+    expect(callOrder).toContain('capture-off');
+    expect(mockShadowHost.hasAttribute('data-capture')).toBe(false);
+    expect(mockShadowHost.style.display).toBe('');
+  });
+
+  it('enables capture mode before auto-start snapshot export and restores it after completion', async () => {
+    const onClose = vi.fn();
+    const onAutoStartConsumed = vi.fn();
+    const callOrder: string[] = [];
+    defaultCaptureChange.mockImplementation((isCapturing: boolean) => {
+      callOrder.push(isCapturing ? 'capture-on' : 'capture-off');
+    });
+    mockedExportAsSnapshotImage.mockImplementation(async () => {
+      callOrder.push('export');
+      expect(mockShadowHost.getAttribute('data-capture')).toBe('true');
+      expect(mockShadowHost.style.display).toBe('none');
+      return {captureMode: 'full'};
+    });
+
+    renderModal({
+      onClose,
+      onCaptureChange: defaultCaptureChange,
+      autoStartFormat: 'snapshot',
+      onAutoStartConsumed,
+    });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(onAutoStartConsumed).toHaveBeenCalledTimes(1);
+    expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations);
+    expect(callOrder.indexOf('capture-on')).toBeLessThan(
+      callOrder.indexOf('export')
+    );
+    expect(callOrder).toContain('capture-off');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockShadowHost.hasAttribute('data-capture')).toBe(false);
+    expect(mockShadowHost.style.display).toBe('');
   });
 
   it('closes after snapshot uses placeholder', async () => {
@@ -264,6 +319,10 @@ describe('ExportModal', () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(true);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(false);
+    expect(mockShadowHost.hasAttribute('data-capture')).toBe(false);
+    expect(mockShadowHost.style.display).toBe('');
     expect(consoleSpy).toHaveBeenCalledWith(
       'Export failed:',
       expect.any(Error)
@@ -290,6 +349,10 @@ describe('ExportModal', () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(true);
+    expect(defaultCaptureChange).toHaveBeenCalledWith(false);
+    expect(mockShadowHost.hasAttribute('data-capture')).toBe(false);
+    expect(mockShadowHost.style.display).toBe('');
     expect(consoleSpy).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
