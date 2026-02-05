@@ -47,7 +47,8 @@ See `docs/privacy.html` for the full policy.
 - `storage` to save annotations and settings locally.
 - `activeTab` and `scripting` to inject the toolbar and capture screenshots on demand (no persistent host permissions).
 - `downloads` to save snapshot exports to your device.
-- `contextMenus` to expose a right-click “Export feedback snapshot” shortcut.
+- `contextMenus` to expose a right-click “Designer Feedback” submenu with
+  “Open Feedback Toolbar” and “Export Feedback Snapshot” actions.
 
 Snapshot capture uses `activeTab` runtime access. If access expires, click the extension action (or keyboard shortcut) and the export resumes automatically.
 

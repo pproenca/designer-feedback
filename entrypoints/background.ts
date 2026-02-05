@@ -34,10 +34,12 @@ import {
   type ResumeExportRequest,
   type ResumeExportResponse,
 } from '@/utils/messaging';
+import {
+  createContextMenuDefinitions,
+  getContextMenuAction,
+} from '@/utils/context-menu';
 
 export default defineBackground(() => {
-  const contextMenuId = 'df-export-snapshot';
-
   async function readPendingCaptureStore(): Promise<
     Record<string, PendingCaptureRequest>
   > {
@@ -221,6 +223,30 @@ export default defineBackground(() => {
     return true;
   }
 
+  async function queueSnapshotExport(tabId: number): Promise<boolean> {
+    try {
+      await markPendingCapture(tabId);
+    } catch (error) {
+      console.error('Failed to queue snapshot export request:', error);
+      return false;
+    }
+    return await activateToolbar(tabId);
+  }
+
+  async function registerContextMenus(): Promise<void> {
+    if (!browser.contextMenus?.create || !browser.contextMenus?.removeAll) {
+      return;
+    }
+    try {
+      await browser.contextMenus.removeAll();
+      for (const menuItem of createContextMenuDefinitions()) {
+        browser.contextMenus.create(menuItem);
+      }
+    } catch (error) {
+      console.warn('Failed to register context menus:', error);
+    }
+  }
+
   async function toggleToolbarForInvocation(tab: Browser.tabs.Tab | undefined) {
     if (!tab?.id || !tab.url) return;
     if (!isInjectableUrl(tab.url)) return;
@@ -249,6 +275,15 @@ export default defineBackground(() => {
 
   browser.action.onClicked.addListener(async tab => {
     await toggleToolbarForInvocation(tab);
+  });
+
+  browser.runtime.onInstalled.addListener(() => {
+    updateBadge(0);
+    void registerContextMenus();
+  });
+
+  browser.runtime.onStartup?.addListener(() => {
+    void registerContextMenus();
   });
 
   browser.commands.onCommand.addListener(async command => {
@@ -341,23 +376,15 @@ export default defineBackground(() => {
     updateBadge(count);
   });
 
-  browser.runtime.onInstalled.addListener(() => {
-    updateBadge(0);
-    try {
-      browser.contextMenus?.create({
-        id: contextMenuId,
-        title: 'Export feedback snapshot',
-        contexts: ['page', 'selection', 'image', 'link'],
-      });
-    } catch (error) {
-      console.warn('Failed to create context menu:', error);
-    }
-  });
-
   browser.contextMenus?.onClicked.addListener((info, tab) => {
-    if (info.menuItemId !== contextMenuId) return;
+    const action = getContextMenuAction(info.menuItemId);
+    if (!action) return;
     if (!tab?.id || !tab.url) return;
     if (!isInjectableUrl(tab.url)) return;
-    void activateToolbar(tab.id);
+    if (action === 'open-toolbar') {
+      void activateToolbar(tab.id);
+      return;
+    }
+    void queueSnapshotExport(tab.id);
   });
 });
