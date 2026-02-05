@@ -9,6 +9,7 @@ import {
   type ResumeExportResponse,
 } from '@/utils/messaging';
 import {enqueueResumeExportRequest} from '@/utils/resume-export-queue';
+import {createToolbarLifecycle} from './toolbar-lifecycle';
 
 declare global {
   interface Window {
@@ -34,26 +35,10 @@ export default defineContentScript({
     }
 
     window.__designerFeedbackInjected = true;
-
-    let uiPromise: Promise<Awaited<ReturnType<typeof mountUI>>> | null = null;
-    let uiInstance: Awaited<ReturnType<typeof mountUI>> | null = null;
+    const lifecycle = createToolbarLifecycle(() => mountUI(ctx));
 
     async function ensureInjected(): Promise<void> {
-      if (uiInstance) return;
-      if (!uiPromise) {
-        uiPromise = mountUI(ctx)
-          .then(ui => {
-            uiInstance = ui;
-            return ui;
-          })
-          .catch(error => {
-            uiPromise = null;
-            uiInstance = null;
-            window.__designerFeedbackInjected = false;
-            throw error;
-          });
-      }
-      await uiPromise;
+      await lifecycle.enable();
     }
 
     contentMessenger.onMessage('showToolbar', () => {
@@ -115,6 +100,8 @@ export default defineContentScript({
         ensureInjected().catch(error => {
           console.error('Failed to toggle toolbar:', error);
         });
+      } else {
+        lifecycle.disable();
       }
     });
 
@@ -139,9 +126,7 @@ export default defineContentScript({
     });
 
     ctx.onInvalidated(() => {
-      uiInstance?.remove();
-      uiInstance = null;
-      uiPromise = null;
+      lifecycle.dispose();
       delete window.__designerFeedbackInjected;
     });
   },

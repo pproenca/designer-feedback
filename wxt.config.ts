@@ -35,14 +35,14 @@ export default defineConfig({
             default: 'Ctrl+Shift+S',
             mac: 'Command+Shift+S',
           },
-          description: 'Open Designer Feedback on the current page',
+          description: 'Toggle Designer Feedback on the current page',
         },
       },
       content_security_policy: {
         extension_pages: "script-src 'self'; object-src 'none';",
       },
       action: {
-        default_title: 'Click to activate Designer Feedback',
+        default_title: 'Click to toggle Designer Feedback',
       },
       // CSS must be accessible from all URLs for runtime content script injection
       web_accessible_resources: [

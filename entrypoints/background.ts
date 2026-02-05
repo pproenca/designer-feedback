@@ -22,7 +22,12 @@ import {
   setPendingCaptureForTab,
   trimExpiredPendingCaptures,
 } from '@/utils/pending-capture';
-import {pendingCaptureTabs} from '@/utils/storage-items';
+import {pendingCaptureTabs, toolbarEnabledTabs} from '@/utils/storage-items';
+import {
+  clearToolbarEnabledForTab,
+  isToolbarEnabledForTab,
+  setToolbarEnabledForTab,
+} from '@/utils/toolbar-toggle-state';
 import {
   backgroundMessenger,
   contentMessenger,
@@ -70,6 +75,34 @@ export default defineBackground(() => {
     }
   }
 
+  async function isToolbarEnabled(tabId: number): Promise<boolean> {
+    const current = await toolbarEnabledTabs.getValue();
+    return isToolbarEnabledForTab(current, tabId);
+  }
+
+  async function setToolbarEnabled(
+    tabId: number,
+    enabled: boolean
+  ): Promise<void> {
+    const current = await toolbarEnabledTabs.getValue();
+    const next = setToolbarEnabledForTab(current, tabId, enabled);
+    if (next !== current) {
+      await toolbarEnabledTabs.setValue(next);
+    }
+  }
+
+  async function clearToolbarEnabled(tabId: number): Promise<void> {
+    const current = await toolbarEnabledTabs.getValue();
+    const next = clearToolbarEnabledForTab(current, tabId);
+    if (next !== current) {
+      await toolbarEnabledTabs.setValue(next);
+    }
+  }
+
+  async function clearTabInvocationState(tabId: number): Promise<void> {
+    await Promise.all([clearPendingCapture(tabId), clearToolbarEnabled(tabId)]);
+  }
+
   async function injectContentScripts(tabId: number): Promise<boolean> {
     if (!browser.scripting?.executeScript) return false;
     const files = getContentScriptFiles();
@@ -80,6 +113,29 @@ export default defineBackground(() => {
 
   async function sendShowToolbar(tabId: number): Promise<void> {
     await contentMessenger.sendMessage('showToolbar', undefined, tabId);
+  }
+
+  function isNoReceiverError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('receiving end does not exist') ||
+      message.includes('could not establish connection') ||
+      message.includes('message port closed before a response was received')
+    );
+  }
+
+  async function hideToolbar(tabId: number): Promise<boolean> {
+    try {
+      await contentMessenger.sendMessage('toggleToolbar', false, tabId);
+      return true;
+    } catch (error) {
+      if (isNoReceiverError(error)) {
+        return true;
+      }
+      console.error('Failed to hide toolbar:', error);
+      return false;
+    }
   }
 
   async function sendShowToolbarWithRetry(tabId: number): Promise<void> {
@@ -135,27 +191,64 @@ export default defineBackground(() => {
     }
   }
 
-  async function handleUserInvocation(tab: Browser.tabs.Tab | undefined) {
-    if (!tab?.id || !tab.url) return;
-    if (!isInjectableUrl(tab.url)) return;
-
-    await showToolbar(tab.id);
-
-    const pendingRequest = await getPendingCapture(tab.id);
+  async function resumePendingCaptureIfAny(tabId: number): Promise<void> {
+    const pendingRequest = await getPendingCapture(tabId);
     if (pendingRequest) {
       const resumeRequest: ResumeExportRequest = {
         requestId: pendingRequest.requestId,
         format: pendingRequest.format,
       };
-      const resumed = await sendResumeExportWithRetry(tab.id, resumeRequest);
+      const resumed = await sendResumeExportWithRetry(tabId, resumeRequest);
       if (didResumeExportAcknowledgeRequest(pendingRequest, resumed)) {
-        await clearPendingCapture(tab.id);
+        await clearPendingCapture(tabId);
       }
     }
   }
 
+  async function activateToolbar(tabId: number): Promise<boolean> {
+    const shown = await showToolbar(tabId);
+    if (!shown) {
+      return false;
+    }
+
+    try {
+      await setToolbarEnabled(tabId, true);
+    } catch (error) {
+      console.error('Failed to persist toolbar enabled state:', error);
+    }
+
+    await resumePendingCaptureIfAny(tabId);
+    return true;
+  }
+
+  async function toggleToolbarForInvocation(tab: Browser.tabs.Tab | undefined) {
+    if (!tab?.id || !tab.url) return;
+    if (!isInjectableUrl(tab.url)) return;
+
+    const pendingRequest = await getPendingCapture(tab.id);
+    if (pendingRequest) {
+      await activateToolbar(tab.id);
+      return;
+    }
+
+    const enabled = await isToolbarEnabled(tab.id);
+    if (enabled) {
+      const hidden = await hideToolbar(tab.id);
+      if (hidden) {
+        try {
+          await setToolbarEnabled(tab.id, false);
+        } catch (error) {
+          console.error('Failed to persist toolbar disabled state:', error);
+        }
+      }
+      return;
+    }
+
+    await activateToolbar(tab.id);
+  }
+
   browser.action.onClicked.addListener(async tab => {
-    await handleUserInvocation(tab);
+    await toggleToolbarForInvocation(tab);
   });
 
   browser.commands.onCommand.addListener(async command => {
@@ -164,18 +257,18 @@ export default defineBackground(() => {
       active: true,
       currentWindow: true,
     });
-    await handleUserInvocation(activeTab);
+    await toggleToolbarForInvocation(activeTab);
   });
 
   browser.tabs.onRemoved.addListener(tabId => {
-    void clearPendingCapture(tabId);
+    void clearTabInvocationState(tabId);
   });
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status !== 'complete') {
       return;
     }
-    void clearPendingCapture(tabId);
+    void clearTabInvocationState(tabId);
   });
 
   backgroundMessenger.onMessage('captureScreenshot', async ({sender}) => {
@@ -263,6 +356,8 @@ export default defineBackground(() => {
 
   browser.contextMenus?.onClicked.addListener((info, tab) => {
     if (info.menuItemId !== contextMenuId) return;
-    void handleUserInvocation(tab);
+    if (!tab?.id || !tab.url) return;
+    if (!isInjectableUrl(tab.url)) return;
+    void activateToolbar(tab.id);
   });
 });
