@@ -14,6 +14,7 @@ import {
   // Screenshot
   captureVisibleTabScreenshot,
   getWindowIdForCapture,
+  getCaptureScreenshotErrorCode,
   // Settings
   getSettings,
   saveSettings,
@@ -142,6 +143,46 @@ describe('Background Helpers', () => {
     it('returns WINDOW_ID_CURRENT when sender.tab.windowId is undefined', async () => {
       const windowId = await getWindowIdForCapture(undefined);
       expect(windowId).toBe(fakeBrowser.windows.WINDOW_ID_CURRENT);
+    });
+  });
+
+  describe('getCaptureScreenshotErrorCode', () => {
+    it('detects activeTab permission failures for Chrome and Firefox messages', () => {
+      expect(
+        getCaptureScreenshotErrorCode(
+          'Error: Either the "<all_urls>" or "activeTab" permission is required.'
+        )
+      ).toBe('activeTab-required');
+      expect(
+        getCaptureScreenshotErrorCode(
+          'Error: Missing host permission for the tab'
+        )
+      ).toBe('activeTab-required');
+      expect(
+        getCaptureScreenshotErrorCode(
+          'Error: Cannot access contents of the page.'
+        )
+      ).toBe('activeTab-required');
+    });
+
+    it('detects rate limiting separately from permission failures', () => {
+      expect(
+        getCaptureScreenshotErrorCode(
+          'Error: MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND quota exceeded'
+        )
+      ).toBe('capture-rate-limited');
+      expect(
+        getCaptureScreenshotErrorCode(
+          'Too many calls to tabs.captureVisibleTab'
+        )
+      ).toBe('capture-rate-limited');
+    });
+
+    it('returns undefined for unrelated errors', () => {
+      expect(getCaptureScreenshotErrorCode('Unexpected capture error')).toBe(
+        undefined
+      );
+      expect(getCaptureScreenshotErrorCode(undefined)).toBe(undefined);
     });
   });
 

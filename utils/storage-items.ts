@@ -1,4 +1,5 @@
 import {storage} from 'wxt/utils/storage';
+import type {PendingCaptureRequest} from '@/types';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 
 export const settingsEnabled = storage.defineItem<boolean>('sync:enabled', {
@@ -26,10 +27,9 @@ export const toolbarPositions = storage.defineItem<
   version: 1,
 });
 
-export const pendingCaptureTabs = storage.defineItem<Record<string, number>>(
-  'session:designer-feedback:pending-capture-tabs',
-  {
-    fallback: {},
-    version: 1,
-  }
-);
+export const pendingCaptureTabs = storage.defineItem<
+  Record<string, PendingCaptureRequest>
+>('session:designer-feedback:pending-capture-tabs', {
+  fallback: {},
+  version: 1,
+});

@@ -22,16 +22,35 @@ export class ActiveTabRequiredError extends Error {
   }
 }
 
+export class CaptureRateLimitedError extends Error {
+  constructor(message = 'Screenshot capture is rate-limited') {
+    super(message);
+    this.name = 'CaptureRateLimitedError';
+  }
+}
+
 export function isActiveTabRequiredError(
   error: unknown
 ): error is ActiveTabRequiredError {
   return error instanceof ActiveTabRequiredError;
 }
 
+export function isCaptureRateLimitedError(
+  error: unknown
+): error is CaptureRateLimitedError {
+  return error instanceof CaptureRateLimitedError;
+}
+
 function isActiveTabErrorCode(
   code: CaptureScreenshotErrorCode | undefined
 ): boolean {
   return code === 'activeTab-required';
+}
+
+function isCaptureRateLimitCode(
+  code: CaptureScreenshotErrorCode | undefined
+): boolean {
+  return code === 'capture-rate-limited';
 }
 
 export function isRestrictedPage(): boolean {
@@ -52,6 +71,10 @@ export async function captureScreenshot(): Promise<string> {
 
   if (isActiveTabErrorCode(response.errorCode)) {
     throw new ActiveTabRequiredError(response.error ?? undefined);
+  }
+
+  if (isCaptureRateLimitCode(response.errorCode)) {
+    throw new CaptureRateLimitedError(response.error ?? undefined);
   }
 
   if (response.error) {
@@ -136,9 +159,15 @@ async function captureScreenshotThrottled(): Promise<string> {
 }
 
 function isRateLimitError(error: unknown): boolean {
+  if (isCaptureRateLimitedError(error)) return true;
   if (!error) return false;
   const message = error instanceof Error ? error.message : String(error);
-  return message.includes('MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND');
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('max_capture_visible_tab_calls_per_second') ||
+    normalized.includes('rate limit') ||
+    normalized.includes('too many calls')
+  );
 }
 
 async function captureScreenshotWithRetry(

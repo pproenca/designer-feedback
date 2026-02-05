@@ -39,3 +39,11 @@ export type Settings = {
 };
 
 export type ExportFormat = 'image-notes' | 'snapshot';
+
+export type PendingCaptureFormat = Extract<ExportFormat, 'snapshot'>;
+
+export type PendingCaptureRequest = {
+  requestId: string;
+  format: PendingCaptureFormat;
+  createdAt: number;
+};

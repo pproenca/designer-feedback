@@ -3,7 +3,12 @@ import {defineContentScript} from '#imports';
 import {getAnnotationCount, getStorageKey} from '@/utils/storage';
 import {emitUiEvent} from '@/utils/ui-events';
 import {mountUI} from './mount';
-import {contentMessenger} from '@/utils/messaging';
+import {
+  contentMessenger,
+  type ResumeExportRequest,
+  type ResumeExportResponse,
+} from '@/utils/messaging';
+import {enqueueResumeExportRequest} from '@/utils/resume-export-queue';
 
 declare global {
   interface Window {
@@ -79,16 +84,30 @@ export default defineContentScript({
         });
     });
 
-    contentMessenger.onMessage('resumeExport', () => {
-      ensureInjected()
-        .then(() => {
-          ctx.setTimeout(() => {
-            emitUiEvent('resume-export');
-          }, 0);
-        })
-        .catch(error => {
-          console.error('Failed to resume export:', error);
-        });
+    contentMessenger.onMessage('resumeExport', async ({data}) => {
+      const request: ResumeExportRequest = data;
+      if (request.format !== 'snapshot') {
+        return {
+          accepted: false,
+          requestId: request.requestId,
+          reason: 'unsupported-format',
+        } satisfies ResumeExportResponse;
+      }
+      try {
+        await ensureInjected();
+        enqueueResumeExportRequest(request);
+        return {
+          accepted: true,
+          requestId: request.requestId,
+        } satisfies ResumeExportResponse;
+      } catch (error) {
+        console.error('Failed to resume export:', error);
+        return {
+          accepted: false,
+          requestId: request.requestId,
+          reason: 'injection-failed',
+        } satisfies ResumeExportResponse;
+      }
     });
 
     contentMessenger.onMessage('toggleToolbar', ({data: enabled}) => {

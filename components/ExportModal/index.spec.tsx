@@ -4,7 +4,10 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {render, fireEvent, cleanup, act, within} from '@testing-library/react';
 import {ExportModal} from './index';
 import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
-import {isRestrictedPage} from '@/utils/dom/screenshot';
+import {
+  isActiveTabRequiredError,
+  isRestrictedPage,
+} from '@/utils/dom/screenshot';
 import type {Annotation} from '@/types';
 import {ToastProvider} from '@/components/Toast';
 
@@ -75,6 +78,7 @@ const mockAnnotations: Annotation[] = [
 describe('ExportModal', () => {
   const mockedExportAsImageWithNotes = vi.mocked(exportAsImageWithNotes);
   const mockedExportAsSnapshotImage = vi.mocked(exportAsSnapshotImage);
+  const mockedIsActiveTabRequiredError = vi.mocked(isActiveTabRequiredError);
   const mockedIsRestrictedPage = vi.mocked(isRestrictedPage);
 
   // Create a mock shadow root for portal rendering
@@ -105,6 +109,7 @@ describe('ExportModal', () => {
     vi.clearAllMocks();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
     mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'full'});
+    mockedIsActiveTabRequiredError.mockReturnValue(false);
     mockedIsRestrictedPage.mockReturnValue(false);
 
     // Set up mock shadow DOM
@@ -263,6 +268,29 @@ describe('ExportModal', () => {
       'Export failed:',
       expect.any(Error)
     );
+    consoleSpy.mockRestore();
+  });
+
+  it('handles activeTab permission loss without logging export failure', async () => {
+    mockedExportAsSnapshotImage.mockRejectedValue(
+      new Error('activeTab permission required')
+    );
+    mockedIsActiveTabRequiredError.mockReturnValue(true);
+    const onClose = vi.fn();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderModal({onClose, onCaptureChange: defaultCaptureChange});
+
+    const exportButton = screen.getByRole('button', {
+      name: /export feedback/i,
+    });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      await vi.runAllTimersAsync();
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(consoleSpy).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 });

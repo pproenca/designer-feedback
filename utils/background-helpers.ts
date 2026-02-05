@@ -1,4 +1,5 @@
 import type {Settings} from '@/types';
+import type {CaptureScreenshotErrorCode} from '@/utils/messaging';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {settingsEnabled, settingsLightMode} from '@/utils/storage-items';
 
@@ -7,6 +8,37 @@ export function isInjectableUrl(url: string): boolean {
 }
 
 export type ScreenshotResult = {data: string; error?: string};
+
+const RATE_LIMIT_ERROR_PATTERNS = [
+  'max_capture_visible_tab_calls_per_second',
+  'too many calls',
+  'rate limit',
+  'quota',
+];
+
+const ACTIVE_TAB_ERROR_PATTERNS = [
+  'activetab',
+  'not allowed to access',
+  'cannot access contents of the page',
+  'missing host permission',
+  'permission is required to use tabs.capturevisibletab',
+];
+
+export function getCaptureScreenshotErrorCode(
+  error: string | undefined
+): CaptureScreenshotErrorCode | undefined {
+  if (!error) {
+    return undefined;
+  }
+  const normalized = error.toLowerCase();
+  if (RATE_LIMIT_ERROR_PATTERNS.some(pattern => normalized.includes(pattern))) {
+    return 'capture-rate-limited';
+  }
+  if (ACTIVE_TAB_ERROR_PATTERNS.some(pattern => normalized.includes(pattern))) {
+    return 'activeTab-required';
+  }
+  return undefined;
+}
 
 export async function getWindowIdForCapture(
   senderTabWindowId: number | undefined

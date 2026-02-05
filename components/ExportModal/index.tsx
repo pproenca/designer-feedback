@@ -66,7 +66,6 @@ interface ExportModalProps {
   shadowRoot: ShadowRoot;
   autoStartFormat?: ExportFormat;
   onAutoStartConsumed?: () => void;
-  onPermissionRequired?: (format: ExportFormat) => void;
 }
 
 export function ExportModal({
@@ -76,7 +75,6 @@ export function ExportModal({
   shadowRoot,
   autoStartFormat,
   onAutoStartConsumed,
-  onPermissionRequired,
 }: ExportModalProps) {
   const {settings} = useSettings();
   const lightMode = settings.lightMode;
@@ -186,7 +184,6 @@ export function ExportModal({
         }
       } catch (error) {
         if (isActiveTabRequiredError(error) && format === 'snapshot') {
-          onPermissionRequired?.(format);
           pendingToast = {
             type: 'warning',
             message:
@@ -218,7 +215,6 @@ export function ExportModal({
       closeDialogForCapture,
       onCaptureChange,
       onClose,
-      onPermissionRequired,
       pushToast,
       selectedFormat,
       toastDelayMs,

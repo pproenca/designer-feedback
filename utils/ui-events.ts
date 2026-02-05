@@ -4,7 +4,6 @@ type UiEvents = {
   'hide-ui': void;
   'show-ui': void;
   'open-export': void;
-  'resume-export': void;
   'location-changed': {newUrl: string; oldUrl: string};
 };
 
@@ -20,9 +19,7 @@ export function onUiEvent<E extends UiEventName>(
   return () => emitter.off(event, handler);
 }
 
-export function emitUiEvent(
-  event: 'hide-ui' | 'show-ui' | 'open-export' | 'resume-export'
-): void;
+export function emitUiEvent(event: 'hide-ui' | 'show-ui' | 'open-export'): void;
 export function emitUiEvent(
   event: 'location-changed',
   payload: {newUrl: string; oldUrl: string}
@@ -34,8 +31,6 @@ export function emitUiEvent(
   if (event === 'location-changed' && payload) {
     emitter.emit('location-changed', payload);
   } else {
-    emitter.emit(
-      event as 'hide-ui' | 'show-ui' | 'open-export' | 'resume-export'
-    );
+    emitter.emit(event as 'hide-ui' | 'show-ui' | 'open-export');
   }
 }

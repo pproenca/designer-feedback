@@ -22,6 +22,7 @@ import {useEscapeKey} from '@/hooks/useEscapeKey';
 import {useClickOutside} from '@/hooks/useClickOutside';
 import {useSettings} from '@/hooks/useSettings';
 import type {PendingAnnotation} from './context';
+import {subscribeResumeExportRequests} from '@/utils/resume-export-queue';
 
 import {useAnnotationsStore} from '@/stores/annotations';
 import {
@@ -53,8 +54,6 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   const {settings} = useSettings();
   const lightMode = settings.lightMode;
   const [isCaptureActive, setCaptureActive] = useState(false);
-  const [pendingExportFormat, setPendingExportFormat] =
-    useState<ExportFormat | null>(null);
   const [autoStartExportFormat, setAutoStartExportFormat] =
     useState<ExportFormat | null>(null);
   const {
@@ -99,19 +98,6 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   const isCategoryPanelOpen = addMode === 'category';
   const hasSelectedAnnotation = Boolean(selectedAnnotation);
 
-  const handlePermissionRequired = useCallback((format: ExportFormat) => {
-    setPendingExportFormat(format);
-  }, []);
-
-  useEffect(() => {
-    if (!pendingExportFormat) return undefined;
-    const timeout = window.setTimeout(
-      () => setPendingExportFormat(null),
-      120000
-    );
-    return () => window.clearTimeout(timeout);
-  }, [pendingExportFormat]);
-
   useEffect(() => {
     if (selectedAnnotationId && !selectedAnnotation) {
       annotationDeselected();
@@ -142,12 +128,6 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
     const offHide = onUiEvent('hide-ui', () => uiHidden());
     const offShow = onUiEvent('show-ui', () => uiShown());
     const offOpen = onUiEvent('open-export', () => exportModalOpened());
-    const offResume = onUiEvent('resume-export', () => {
-      if (!pendingExportFormat) return;
-      setAutoStartExportFormat(pendingExportFormat);
-      setPendingExportFormat(null);
-      exportModalOpened();
-    });
     const offLocation = onUiEvent('location-changed', () => {
       annotationDeselected();
       void loadAnnotations();
@@ -157,17 +137,22 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
       offHide();
       offShow();
       offOpen();
-      offResume();
       offLocation();
     };
   }, [
     annotationDeselected,
     exportModalOpened,
     loadAnnotations,
-    pendingExportFormat,
     uiHidden,
     uiShown,
   ]);
+
+  useEffect(() => {
+    return subscribeResumeExportRequests(request => {
+      setAutoStartExportFormat(request.format);
+      exportModalOpened();
+    });
+  }, [exportModalOpened]);
 
   useEffect(() => {
     if (!isSelectingElement) return undefined;
@@ -400,7 +385,6 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
               onAutoStartConsumed={() => setAutoStartExportFormat(null)}
               onClose={() => exportModalClosed()}
               onCaptureChange={setCaptureActive}
-              onPermissionRequired={handlePermissionRequired}
               shadowRoot={shadowRoot}
             />
           </Suspense>

@@ -1,0 +1,71 @@
+import type {PendingCaptureFormat, PendingCaptureRequest} from '@/types';
+import type {ResumeExportResponse} from '@/utils/messaging';
+
+export const PENDING_CAPTURE_TTL_MS = 5 * 60 * 1000;
+
+export type PendingCaptureStore = Record<string, PendingCaptureRequest>;
+
+export function createPendingCaptureRequest(
+  format: PendingCaptureFormat,
+  now = Date.now()
+): PendingCaptureRequest {
+  return {
+    requestId: `${now}-${Math.random().toString(36).slice(2, 10)}`,
+    format,
+    createdAt: now,
+  };
+}
+
+export function trimExpiredPendingCaptures(
+  current: PendingCaptureStore,
+  now = Date.now(),
+  ttlMs = PENDING_CAPTURE_TTL_MS
+): PendingCaptureStore {
+  let changed = false;
+  const next: PendingCaptureStore = {...current};
+  for (const [tabKey, request] of Object.entries(current)) {
+    if (!request?.createdAt || now - request.createdAt > ttlMs) {
+      delete next[tabKey];
+      changed = true;
+    }
+  }
+  return changed ? next : current;
+}
+
+export function setPendingCaptureForTab(
+  current: PendingCaptureStore,
+  tabId: number,
+  request: PendingCaptureRequest
+): PendingCaptureStore {
+  return {...current, [String(tabId)]: request};
+}
+
+export function getPendingCaptureForTab(
+  current: PendingCaptureStore,
+  tabId: number
+): PendingCaptureRequest | null {
+  return current[String(tabId)] ?? null;
+}
+
+export function clearPendingCaptureForTab(
+  current: PendingCaptureStore,
+  tabId: number
+): PendingCaptureStore {
+  const tabKey = String(tabId);
+  if (!current[tabKey]) {
+    return current;
+  }
+  const next: PendingCaptureStore = {...current};
+  delete next[tabKey];
+  return next;
+}
+
+export function didResumeExportAcknowledgeRequest(
+  pending: PendingCaptureRequest,
+  response: ResumeExportResponse | null
+): boolean {
+  if (!response?.accepted) {
+    return false;
+  }
+  return response.requestId === pending.requestId;
+}
