@@ -2,16 +2,13 @@ import {useCallback, useEffect, useMemo, useState, lazy, Suspense} from 'react';
 import {createPortal} from 'react-dom';
 import {AnimatePresence} from 'framer-motion';
 import {useShallow} from 'zustand/react/shallow';
-import {AnnotationPopup} from '../AnnotationPopup';
+import {CreateAnnotationPopup, ViewAnnotationPopup} from '../AnnotationPopup';
 import {Toolbar} from './Toolbar';
 import {CategoryPanel} from './CategoryPanel';
 import {SelectionOverlay} from '../SelectionOverlay';
 import {AnnotationLayer} from '../AnnotationLayer';
 import {onUiEvent} from '@/utils/ui-events';
-import {
-  identifyElement,
-  hasFixedPositioning,
-} from '@/utils/dom/element-identification';
+import {useSelectionMode} from '@/hooks/useSelectionMode';
 import {
   calculatePopupPosition,
   getPopupDisplayPosition,
@@ -155,57 +152,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
     });
   }, [exportModalOpened]);
 
-  useEffect(() => {
-    if (!isSelectingElement) return undefined;
-
-    const handleAddModeClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (
-        target.closest('[data-annotation-popup]') ||
-        target.closest('[data-toolbar]')
-      ) {
-        return;
-      }
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const rect = target.getBoundingClientRect();
-      const scrollTop = window.scrollY;
-      const scrollLeft = window.scrollX;
-      const isFixed = hasFixedPositioning(target);
-      const clickX = e.clientX;
-      const clickY = e.clientY;
-
-      const {name, path} = identifyElement(target);
-
-      elementSelected({
-        x: isFixed ? clickX : clickX + scrollLeft,
-        y: isFixed ? clickY : clickY + scrollTop,
-        element: name,
-        elementPath: path,
-        target,
-        rect,
-        isFixed,
-        scrollX: scrollLeft,
-        scrollY: scrollTop,
-      });
-    };
-
-    document.addEventListener('click', handleAddModeClick, true);
-    return () =>
-      document.removeEventListener('click', handleAddModeClick, true);
-  }, [isSelectingElement, elementSelected]);
-
-  useEffect(() => {
-    if (isSelectingElement) {
-      document.body.classList.add('designer-feedback-add-mode');
-    } else {
-      document.body.classList.remove('designer-feedback-add-mode');
-    }
-    return () => document.body.classList.remove('designer-feedback-add-mode');
-  }, [isSelectingElement]);
+  useSelectionMode(isSelectingElement, elementSelected);
 
   type EscapeState = {
     hasSelectedAnnotation: boolean;
@@ -351,8 +298,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
 
       {/* Annotation popup - create mode */}
       {pendingAnnotation && createPopupPosition ? (
-        <AnnotationPopup
-          mode="create"
+        <CreateAnnotationPopup
           element={pendingAnnotation.element}
           onSubmit={handleAnnotationSubmit}
           onCancel={() => pendingAnnotationCleared()}
@@ -364,8 +310,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
 
       {/* Annotation popup - view mode */}
       {selectedAnnotation && viewPopupPosition ? (
-        <AnnotationPopup
-          mode="view"
+        <ViewAnnotationPopup
           element={selectedAnnotation.element}
           annotation={selectedAnnotation}
           onDelete={() => handleDeleteAnnotation(selectedAnnotation.id)}

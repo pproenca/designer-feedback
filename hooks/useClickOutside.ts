@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 
 type ClickOutsideHandler = () => void;
 
@@ -7,6 +7,14 @@ export function useClickOutside(
   selectors: string[],
   onClickOutside: ClickOutsideHandler
 ) {
+  const selectorsRef = useRef(selectors);
+  const onClickOutsideRef = useRef(onClickOutside);
+
+  useEffect(() => {
+    selectorsRef.current = selectors;
+    onClickOutsideRef.current = onClickOutside;
+  });
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -15,7 +23,7 @@ export function useClickOutside(
       const isInside = path.some(node => {
         if (!(node instanceof HTMLElement)) return false;
 
-        for (const selector of selectors) {
+        for (const selector of selectorsRef.current) {
           if (node.hasAttribute(selector)) return true;
           if (node.closest?.(`[${selector}]`)) return true;
         }
@@ -23,11 +31,11 @@ export function useClickOutside(
       });
 
       if (!isInside) {
-        onClickOutside();
+        onClickOutsideRef.current();
       }
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [enabled, selectors, onClickOutside]);
+  }, [enabled]);
 }

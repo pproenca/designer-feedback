@@ -11,6 +11,7 @@ import {useDraggable} from '@/hooks/useDraggable';
 import type {Position} from '@/types/position';
 import {clsx} from 'clsx';
 import {X, Trash2, Sun, Moon, Download, MessageCircleMore} from 'lucide-react';
+import {ToolbarButton} from './ToolbarButton';
 import {loadToolbarPosition, saveToolbarPosition} from './toolbar-position';
 import {useAnnotationsStore} from '@/stores/annotations';
 import {useToolbarActions, useToolbarState} from './ToolbarStateProvider';
@@ -308,40 +309,25 @@ export function Toolbar({children}: ToolbarProps) {
           <div className="toolbar-divider" />
 
           {/* Export button */}
-          <div className="relative flex items-center justify-center group">
-            <button
-              className="btn-toolbar"
-              type="button"
-              aria-label="Export feedback"
-              aria-describedby="tooltip-export"
-              onClick={handleExportClick}
-              disabled={annotationsCount === 0}
-            >
-              <Download size={18} />
-            </button>
-            <span className="tooltip" role="tooltip" id="tooltip-export">
-              Export feedback
-            </span>
-          </div>
+          <ToolbarButton
+            icon={<Download size={18} />}
+            label="Export feedback"
+            tooltipId="tooltip-export"
+            onClick={handleExportClick}
+            disabled={annotationsCount === 0}
+          />
 
           <div className="toolbar-divider" />
 
           {/* Clear button */}
-          <div className="relative flex items-center justify-center group">
-            <button
-              className={clsx('btn-toolbar', 'danger')}
-              type="button"
-              aria-label="Clear all annotations"
-              aria-describedby="tooltip-clear"
-              onClick={handleClearClick}
-              disabled={annotationsCount === 0}
-            >
-              <Trash2 size={18} />
-            </button>
-            <span className="tooltip" role="tooltip" id="tooltip-clear">
-              Clear all
-            </span>
-          </div>
+          <ToolbarButton
+            icon={<Trash2 size={18} />}
+            label="Clear all"
+            tooltipId="tooltip-clear"
+            onClick={handleClearClick}
+            disabled={annotationsCount === 0}
+            danger
+          />
 
           <div className="toolbar-divider" />
 
@@ -388,20 +374,12 @@ export function Toolbar({children}: ToolbarProps) {
           </div>
 
           {/* Collapse button */}
-          <div className="relative flex items-center justify-center group">
-            <button
-              className="btn-toolbar"
-              type="button"
-              aria-label="Minimize toolbar"
-              aria-describedby="tooltip-minimize"
-              onClick={() => handleExpandedChange(false)}
-            >
-              <X size={18} />
-            </button>
-            <span className="tooltip" role="tooltip" id="tooltip-minimize">
-              Minimize
-            </span>
-          </div>
+          <ToolbarButton
+            icon={<X size={18} />}
+            label="Minimize"
+            tooltipId="tooltip-minimize"
+            onClick={() => handleExpandedChange(false)}
+          />
         </div>
       </m.div>
     </div>

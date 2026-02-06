@@ -4,6 +4,7 @@ import {LazyMotion, domAnimation} from 'framer-motion';
 import {createShadowRootUi, type ContentScriptContext} from '#imports';
 import {App} from './App';
 import {ErrorBoundary} from './ErrorBoundary';
+import {initBadgeSync} from '@/stores/annotations';
 import './style.css';
 
 const GLOBAL_STYLE_ID = 'designer-feedback-global-style';
@@ -48,6 +49,8 @@ export async function mountUI(ctx: ContentScriptContext) {
 
   const isE2E = import.meta.env.VITE_DF_E2E === '1';
 
+  const unsubscribeBadgeSync = initBadgeSync();
+
   const ui = await createShadowRootUi(ctx, {
     name: 'designer-feedback-root',
     position: 'inline',
@@ -71,6 +74,7 @@ export async function mountUI(ctx: ContentScriptContext) {
       return {root, appRoot};
     },
     onRemove: handle => {
+      unsubscribeBadgeSync();
       if (handle) {
         handle.root.unmount();
         handle.appRoot.remove();

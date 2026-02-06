@@ -5,6 +5,7 @@ export type FeedbackCategory =
   | 'accessibility';
 
 export type Annotation = {
+  /** Core fields — always present after creation */
   id: string;
   x: number;
   y: number;
@@ -14,15 +15,12 @@ export type Annotation = {
   elementPath: string;
   timestamp: number;
 
-  screenshot?: string;
-  screenshotBounds?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  selectedText?: string;
+  /** Position metadata — set at creation based on target element */
   boundingBox?: {x: number; y: number; width: number; height: number};
+  isFixed?: boolean;
+
+  /** Element metadata — populated by enrichment after annotation creation */
+  selectedText?: string;
   nearbyText?: string;
   cssClasses?: string;
   nearbyElements?: string;
@@ -30,7 +28,15 @@ export type Annotation = {
   fullPath?: string;
   accessibility?: string;
   isMultiSelect?: boolean;
-  isFixed?: boolean;
+
+  /** Export-time fields — populated during snapshot export only */
+  screenshot?: string;
+  screenshotBounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };
 
 export type Settings = {

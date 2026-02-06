@@ -1,4 +1,4 @@
-import {useCallback, useMemo} from 'react';
+import {useMemo, type ReactNode} from 'react';
 import {
   m,
   AnimatePresence,
@@ -38,57 +38,21 @@ const getPopupVariants = (reduceMotion: boolean): Variants => ({
   },
 });
 
-interface AnnotationPopupProps {
-  mode?: 'create' | 'view';
-  element: string;
-  annotation?: Annotation;
-  selectedText?: string;
-  placeholder?: string;
-  initialValue?: string;
-  submitLabel?: string;
-  onSubmit?: (text: string) => void;
-  onDelete?: () => void;
-  onCancel: () => void;
+interface PopupShellProps {
   x: number;
   y: number;
   isFixed: boolean;
-  accentColor?: string;
+  ariaLabel: string;
+  children: ReactNode;
 }
 
-export function AnnotationPopup({
-  mode = 'create',
-  element,
-  annotation,
-  selectedText,
-  placeholder = 'What should change?…',
-  initialValue = '',
-  submitLabel = 'Add',
-  onSubmit,
-  onDelete,
-  onCancel,
-  x,
-  y,
-  isFixed,
-  accentColor = 'var(--color-df-blue)',
-}: AnnotationPopupProps) {
+function PopupShell({x, y, isFixed, ariaLabel, children}: PopupShellProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const popupVariants = useMemo(
     () => getPopupVariants(reduceMotion),
     [reduceMotion]
   );
   const position = usePopupPosition({x, y, isFixed});
-
-  const handleCancel = useCallback(() => {
-    onCancel();
-  }, [onCancel]);
-
-  const handleSubmit = useCallback(
-    (text: string) => {
-      if (!onSubmit) return;
-      onSubmit(text);
-    },
-    [onSubmit]
-  );
 
   const popupStyle = useMemo(
     () =>
@@ -115,35 +79,93 @@ export function AnnotationPopup({
         data-annotation-popup
         style={popupStyle}
         role="dialog"
-        aria-label={
-          mode === 'view' ? 'Annotation details' : 'Create annotation'
-        }
+        aria-label={ariaLabel}
         tabIndex={-1}
         variants={popupVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
-        {mode === 'view' && annotation ? (
-          <ViewModeContent
-            element={element}
-            annotation={annotation}
-            onClose={handleCancel}
-            onDelete={onDelete ?? (() => {})}
-          />
-        ) : (
-          <CreateModeContent
-            element={element}
-            selectedText={selectedText}
-            placeholder={placeholder}
-            initialValue={initialValue}
-            submitLabel={submitLabel}
-            accentColor={accentColor}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-          />
-        )}
+        {children}
       </m.div>
     </AnimatePresence>
+  );
+}
+
+// --- Create Annotation Popup ---
+
+interface CreateAnnotationPopupProps {
+  element: string;
+  selectedText?: string;
+  placeholder?: string;
+  initialValue?: string;
+  submitLabel?: string;
+  onSubmit: (text: string) => void;
+  onCancel: () => void;
+  x: number;
+  y: number;
+  isFixed: boolean;
+  accentColor?: string;
+}
+
+export function CreateAnnotationPopup({
+  element,
+  selectedText,
+  placeholder = 'What should change?…',
+  initialValue = '',
+  submitLabel = 'Add',
+  onSubmit,
+  onCancel,
+  x,
+  y,
+  isFixed,
+  accentColor = 'var(--color-df-blue)',
+}: CreateAnnotationPopupProps) {
+  return (
+    <PopupShell x={x} y={y} isFixed={isFixed} ariaLabel="Create annotation">
+      <CreateModeContent
+        element={element}
+        selectedText={selectedText}
+        placeholder={placeholder}
+        initialValue={initialValue}
+        submitLabel={submitLabel}
+        accentColor={accentColor}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      />
+    </PopupShell>
+  );
+}
+
+// --- View Annotation Popup ---
+
+interface ViewAnnotationPopupProps {
+  element: string;
+  annotation: Annotation;
+  onDelete: () => void;
+  onCancel: () => void;
+  x: number;
+  y: number;
+  isFixed: boolean;
+}
+
+export function ViewAnnotationPopup({
+  element,
+  annotation,
+  onDelete,
+  onCancel,
+  x,
+  y,
+  isFixed,
+}: ViewAnnotationPopupProps) {
+  return (
+    <PopupShell x={x} y={y} isFixed={isFixed} ariaLabel="Annotation details">
+      <ViewModeContent
+        element={element}
+        annotation={annotation}
+        onClose={onCancel}
+        onDelete={onDelete}
+      />
+    </PopupShell>
   );
 }

@@ -61,8 +61,9 @@ export const useAnnotationsStore = create<
   },
 
   annotationUpdated: async (id: string, updates: Partial<Annotation>) => {
-    const state = useAnnotationsStore.getState();
-    const annotation = state.annotations.find(a => a.id === id);
+    const annotation = useAnnotationsStore
+      .getState()
+      .annotations.find(a => a.id === id);
     if (!annotation) return;
 
     const updated = {...annotation, ...updates};
@@ -101,8 +102,10 @@ const debouncedUpdateBadge = debounce((count: number) => {
   updateBadgeCount(count);
 }, BADGE_DEBOUNCE_MS);
 
-useAnnotationsStore.subscribe((state, prevState) => {
-  if (state.annotations.length !== prevState.annotations.length) {
-    debouncedUpdateBadge(state.annotations.length);
-  }
-});
+export function initBadgeSync() {
+  return useAnnotationsStore.subscribe((state, prevState) => {
+    if (state.annotations.length !== prevState.annotations.length) {
+      debouncedUpdateBadge(state.annotations.length);
+    }
+  });
+}

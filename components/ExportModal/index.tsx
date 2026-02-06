@@ -28,19 +28,23 @@ import {useSettings} from '@/hooks/useSettings';
 import {useCaptureMode} from '@/hooks/useCaptureMode';
 import {useToasts, type ToastInput} from '@/components/Toast';
 import type {ResumeExportRequest} from '@/utils/messaging';
+import {EASE_OUT, EASE_IN} from '@/utils/animation';
 
-const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
-const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
+function getReadableError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Export failed. Please try again.';
+}
 
 const getOverlayVariants = (reduceMotion: boolean): Variants => ({
   hidden: {opacity: 0},
   visible: {
     opacity: 1,
-    transition: {duration: reduceMotion ? 0.1 : 0.15, ease: EMIL_EASE_OUT},
+    transition: {duration: reduceMotion ? 0.1 : 0.15, ease: EASE_OUT},
   },
   exit: {
     opacity: 0,
-    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN},
+    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EASE_IN},
   },
 });
 
@@ -54,13 +58,13 @@ const getModalVariants = (reduceMotion: boolean): Variants => ({
     ...(reduceMotion ? {} : {y: 0, scale: 1}),
     transition: {
       duration: reduceMotion ? 0.12 : 0.2,
-      ease: EMIL_EASE_OUT,
+      ease: EASE_OUT,
     },
   },
   exit: {
     opacity: 0,
     ...(reduceMotion ? {} : {y: -4, scale: 0.98}),
-    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EMIL_EASE_IN},
+    transition: {duration: reduceMotion ? 0.08 : 0.1, ease: EASE_IN},
   },
 });
 
@@ -127,12 +131,6 @@ export function ExportModal({
       dispatch({type: 'formatSelected', format: 'image-notes'});
     }
   }, [restricted, selectedFormat]);
-
-  const getReadableError = (error: unknown): string => {
-    if (error instanceof Error && error.message) return error.message;
-    if (typeof error === 'string') return error;
-    return 'Export failed. Please try again.';
-  };
 
   const setCaptureMode = useCaptureMode(shadowRoot, onCaptureChange);
 
