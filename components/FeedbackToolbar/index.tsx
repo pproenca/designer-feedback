@@ -17,12 +17,13 @@ import {
   getPopupDisplayPosition,
 } from '@/utils/annotation-position';
 import {clsx} from 'clsx';
-import type {Annotation, ExportFormat} from '@/types';
+import type {Annotation} from '@/types';
 import {useEscapeKey} from '@/hooks/useEscapeKey';
 import {useClickOutside} from '@/hooks/useClickOutside';
 import {useSettings} from '@/hooks/useSettings';
 import type {PendingAnnotation} from './context';
 import {subscribeResumeExportRequests} from '@/utils/resume-export-queue';
+import type {ResumeExportRequest} from '@/utils/messaging';
 
 import {useAnnotationsStore} from '@/stores/annotations';
 import {
@@ -54,8 +55,8 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   const {settings} = useSettings();
   const lightMode = settings.lightMode;
   const [isCaptureActive, setCaptureActive] = useState(false);
-  const [autoStartExportFormat, setAutoStartExportFormat] =
-    useState<ExportFormat | null>(null);
+  const [autoStartRequest, setAutoStartRequest] =
+    useState<ResumeExportRequest | null>(null);
   const {
     addMode,
     selectedCategory,
@@ -149,7 +150,7 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
 
   useEffect(() => {
     return subscribeResumeExportRequests(request => {
-      setAutoStartExportFormat(request.format);
+      setAutoStartRequest(request);
       exportModalOpened();
     });
   }, [exportModalOpened]);
@@ -381,8 +382,8 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
           <Suspense fallback={null}>
             <ExportModal
               annotations={annotations}
-              autoStartFormat={autoStartExportFormat ?? undefined}
-              onAutoStartConsumed={() => setAutoStartExportFormat(null)}
+              autoStartRequest={autoStartRequest ?? undefined}
+              onAutoStartConsumed={() => setAutoStartRequest(null)}
               onClose={() => exportModalClosed()}
               onCaptureChange={setCaptureActive}
               shadowRoot={shadowRoot}

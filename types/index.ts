@@ -42,8 +42,11 @@ export type ExportFormat = 'image-notes' | 'snapshot';
 
 export type PendingCaptureFormat = Extract<ExportFormat, 'snapshot'>;
 
+export type PendingCaptureSource = 'context-menu' | 'active-tab-retry';
+
 export type PendingCaptureRequest = {
   requestId: string;
   format: PendingCaptureFormat;
   createdAt: number;
+  source?: PendingCaptureSource;
 };

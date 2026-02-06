@@ -1,5 +1,9 @@
 import {defineExtensionMessaging} from '@webext-core/messaging';
-import type {PendingCaptureFormat, Settings} from '@/types';
+import type {
+  PendingCaptureFormat,
+  PendingCaptureSource,
+  Settings,
+} from '@/types';
 
 export type CaptureScreenshotErrorCode =
   | 'activeTab-required'
@@ -13,6 +17,7 @@ export type CaptureScreenshotResponse = {
 export type ResumeExportRequest = {
   requestId: string;
   format: PendingCaptureFormat;
+  source: PendingCaptureSource;
 };
 
 export type ResumeExportResponse = {

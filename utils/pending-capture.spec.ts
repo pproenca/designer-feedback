@@ -11,10 +11,22 @@ import {
 } from './pending-capture';
 
 describe('pending-capture helpers', () => {
-  it('creates pending capture requests with snapshot format', () => {
-    const request = createPendingCaptureRequest('snapshot', 1700000000000);
+  it('creates pending capture requests with active-tab-retry source by default', () => {
+    const request = createPendingCaptureRequest('snapshot');
     expect(request.format).toBe('snapshot');
-    expect(request.createdAt).toBe(1700000000000);
+    expect(request.source).toBe('active-tab-retry');
+    expect(request.createdAt).toBeGreaterThan(0);
+    expect(request.requestId.length).toBeGreaterThan(0);
+  });
+
+  it('preserves explicit source for context-menu requests', () => {
+    const request = createPendingCaptureRequest(
+      'snapshot',
+      'context-menu',
+      1700000000000
+    );
+    expect(request.format).toBe('snapshot');
+    expect(request.source).toBe('context-menu');
     expect(request.requestId.length).toBeGreaterThan(0);
   });
 

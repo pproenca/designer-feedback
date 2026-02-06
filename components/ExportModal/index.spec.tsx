@@ -8,8 +8,9 @@ import {
   isActiveTabRequiredError,
   isRestrictedPage,
 } from '@/utils/dom/screenshot';
-import type {Annotation, ExportFormat} from '@/types';
+import type {Annotation} from '@/types';
 import {ToastProvider} from '@/components/Toast';
+import type {ResumeExportRequest} from '@/utils/messaging';
 
 // Verify ExportModal is a named export (supports lazy loading with transform)
 describe('ExportModal module structure', () => {
@@ -92,7 +93,7 @@ describe('ExportModal', () => {
   const renderModal = (props: {
     onClose: () => void;
     onCaptureChange?: (isCapturing: boolean) => void;
-    autoStartFormat?: ExportFormat;
+    autoStartRequest?: ResumeExportRequest;
     onAutoStartConsumed?: () => void;
   }) =>
     render(
@@ -102,7 +103,7 @@ describe('ExportModal', () => {
           onClose={props.onClose}
           onCaptureChange={props.onCaptureChange ?? defaultCaptureChange}
           shadowRoot={mockShadowRoot}
-          autoStartFormat={props.autoStartFormat}
+          autoStartRequest={props.autoStartRequest}
           onAutoStartConsumed={props.onAutoStartConsumed}
         />
       </ToastProvider>
@@ -167,7 +168,7 @@ describe('ExportModal', () => {
     expect(mockShadowHost.style.display).toBe('');
   });
 
-  it('enables capture mode before auto-start snapshot export and restores it after completion', async () => {
+  it('enables capture mode before non-headless auto-start snapshot export and restores it after completion', async () => {
     const onClose = vi.fn();
     const onAutoStartConsumed = vi.fn();
     const callOrder: string[] = [];
@@ -184,7 +185,11 @@ describe('ExportModal', () => {
     renderModal({
       onClose,
       onCaptureChange: defaultCaptureChange,
-      autoStartFormat: 'snapshot',
+      autoStartRequest: {
+        requestId: 'resume-active-tab',
+        format: 'snapshot',
+        source: 'active-tab-retry',
+      },
       onAutoStartConsumed,
     });
 
@@ -194,6 +199,49 @@ describe('ExportModal', () => {
 
     expect(onAutoStartConsumed).toHaveBeenCalledTimes(1);
     expect(mockedExportAsSnapshotImage).toHaveBeenCalledWith(mockAnnotations);
+    expect(callOrder.indexOf('capture-on')).toBeLessThan(
+      callOrder.indexOf('export')
+    );
+    expect(callOrder).toContain('capture-off');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockShadowHost.hasAttribute('data-capture')).toBe(false);
+    expect(mockShadowHost.style.display).toBe('');
+  });
+
+  it('runs context-menu auto-start snapshot headlessly without rendering dialog UI', async () => {
+    const onClose = vi.fn();
+    const onAutoStartConsumed = vi.fn();
+    const callOrder: string[] = [];
+    defaultCaptureChange.mockImplementation((isCapturing: boolean) => {
+      callOrder.push(isCapturing ? 'capture-on' : 'capture-off');
+    });
+    mockedExportAsSnapshotImage.mockImplementation(async () => {
+      callOrder.push('export');
+      expect(mockShadowHost.getAttribute('data-capture')).toBe('true');
+      expect(mockShadowHost.style.display).toBe('none');
+      return {captureMode: 'full'};
+    });
+
+    renderModal({
+      onClose,
+      onCaptureChange: defaultCaptureChange,
+      autoStartRequest: {
+        requestId: 'resume-context-menu',
+        format: 'snapshot',
+        source: 'context-menu',
+      },
+      onAutoStartConsumed,
+    });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(
+      screen.queryByRole('dialog', {name: /export feedback/i})
+    ).not.toBeInTheDocument();
+    expect(onAutoStartConsumed).toHaveBeenCalledTimes(1);
+    expect(mockedExportAsSnapshotImage).toHaveBeenCalledTimes(1);
     expect(callOrder.indexOf('capture-on')).toBeLessThan(
       callOrder.indexOf('export')
     );

@@ -11,7 +11,11 @@ describe('resume-export queue', () => {
   });
 
   it('delivers a request queued before subscription (race protection)', () => {
-    enqueueResumeExportRequest({requestId: 'req-1', format: 'snapshot'});
+    enqueueResumeExportRequest({
+      requestId: 'req-1',
+      format: 'snapshot',
+      source: 'active-tab-retry',
+    });
     const listener = vi.fn();
 
     const unsubscribe = subscribeResumeExportRequests(listener);
@@ -19,13 +23,22 @@ describe('resume-export queue', () => {
     expect(listener).toHaveBeenCalledWith({
       requestId: 'req-1',
       format: 'snapshot',
+      source: 'active-tab-retry',
     });
     unsubscribe();
   });
 
   it('deduplicates queued requests by requestId', () => {
-    enqueueResumeExportRequest({requestId: 'same', format: 'snapshot'});
-    enqueueResumeExportRequest({requestId: 'same', format: 'snapshot'});
+    enqueueResumeExportRequest({
+      requestId: 'same',
+      format: 'snapshot',
+      source: 'active-tab-retry',
+    });
+    enqueueResumeExportRequest({
+      requestId: 'same',
+      format: 'snapshot',
+      source: 'active-tab-retry',
+    });
     const listener = vi.fn();
 
     const unsubscribe = subscribeResumeExportRequests(listener);
@@ -38,11 +51,16 @@ describe('resume-export queue', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeResumeExportRequests(listener);
 
-    enqueueResumeExportRequest({requestId: 'req-live', format: 'snapshot'});
+    enqueueResumeExportRequest({
+      requestId: 'req-live',
+      format: 'snapshot',
+      source: 'active-tab-retry',
+    });
 
     expect(listener).toHaveBeenCalledWith({
       requestId: 'req-live',
       format: 'snapshot',
+      source: 'active-tab-retry',
     });
     unsubscribe();
   });

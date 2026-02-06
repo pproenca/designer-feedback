@@ -1,4 +1,8 @@
-import type {PendingCaptureFormat, PendingCaptureRequest} from '@/types';
+import type {
+  PendingCaptureFormat,
+  PendingCaptureRequest,
+  PendingCaptureSource,
+} from '@/types';
 import type {ResumeExportResponse} from '@/utils/messaging';
 
 export const PENDING_CAPTURE_TTL_MS = 5 * 60 * 1000;
@@ -7,12 +11,14 @@ export type PendingCaptureStore = Record<string, PendingCaptureRequest>;
 
 export function createPendingCaptureRequest(
   format: PendingCaptureFormat,
+  source: PendingCaptureSource = 'active-tab-retry',
   now = Date.now()
 ): PendingCaptureRequest {
   return {
     requestId: `${now}-${Math.random().toString(36).slice(2, 10)}`,
     format,
     createdAt: now,
+    source,
   };
 }
 

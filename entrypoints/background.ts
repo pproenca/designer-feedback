@@ -1,6 +1,6 @@
 import {defineBackground} from '#imports';
 import type {Browser} from 'wxt/browser';
-import type {PendingCaptureRequest} from '@/types';
+import type {PendingCaptureRequest, PendingCaptureSource} from '@/types';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {
   isInjectableUrl,
@@ -52,10 +52,11 @@ export default defineBackground(() => {
   }
 
   async function markPendingCapture(
-    tabId: number
+    tabId: number,
+    source: PendingCaptureSource = 'active-tab-retry'
   ): Promise<PendingCaptureRequest> {
     const current = await readPendingCaptureStore();
-    const request = createPendingCaptureRequest('snapshot');
+    const request = createPendingCaptureRequest('snapshot', source);
     const next = setPendingCaptureForTab(current, tabId, request);
     await pendingCaptureTabs.setValue(next);
     return request;
@@ -199,6 +200,7 @@ export default defineBackground(() => {
       const resumeRequest: ResumeExportRequest = {
         requestId: pendingRequest.requestId,
         format: pendingRequest.format,
+        source: pendingRequest.source ?? 'active-tab-retry',
       };
       const resumed = await sendResumeExportWithRetry(tabId, resumeRequest);
       if (didResumeExportAcknowledgeRequest(pendingRequest, resumed)) {
@@ -225,7 +227,7 @@ export default defineBackground(() => {
 
   async function queueSnapshotExport(tabId: number): Promise<boolean> {
     try {
-      await markPendingCapture(tabId);
+      await markPendingCapture(tabId, 'context-menu');
     } catch (error) {
       console.error('Failed to queue snapshot export request:', error);
       return false;

@@ -30,6 +30,7 @@ import {
 } from './ExportContext';
 import {useSettings} from '@/hooks/useSettings';
 import {useToasts, type ToastInput} from '@/components/Toast';
+import type {ResumeExportRequest} from '@/utils/messaging';
 
 const EMIL_EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const EMIL_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
@@ -71,7 +72,7 @@ interface ExportModalProps {
   onClose: () => void;
   onCaptureChange?: (isCapturing: boolean) => void;
   shadowRoot: ShadowRoot;
-  autoStartFormat?: ExportFormat;
+  autoStartRequest?: ResumeExportRequest;
   onAutoStartConsumed?: () => void;
 }
 
@@ -115,7 +116,7 @@ export function ExportModal({
   onClose,
   onCaptureChange,
   shadowRoot,
-  autoStartFormat,
+  autoStartRequest,
   onAutoStartConsumed,
 }: ExportModalProps) {
   const {settings} = useSettings();
@@ -123,6 +124,7 @@ export function ExportModal({
   const [isDialogOpen, setDialogOpen] = useState(true);
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
   const hostStyleSnapshotRef = useRef<HostStyleSnapshot | null>(null);
+  const handledAutoStartRequestIdRef = useRef<string | null>(null);
   const reduceMotion = useReducedMotion() ?? false;
   const {pushToast} = useToasts();
   const overlayVariants = useMemo(
@@ -317,10 +319,22 @@ export function ExportModal({
   }, [runExport]);
 
   useEffect(() => {
-    if (!autoStartFormat) return;
+    if (!autoStartRequest) return;
+    if (handledAutoStartRequestIdRef.current === autoStartRequest.requestId) {
+      return;
+    }
+    handledAutoStartRequestIdRef.current = autoStartRequest.requestId;
     onAutoStartConsumed?.();
-    void runExport(autoStartFormat);
-  }, [autoStartFormat, onAutoStartConsumed, runExport]);
+    void runExport(autoStartRequest.format);
+  }, [autoStartRequest, onAutoStartConsumed, runExport]);
+
+  const isHeadlessAutoStart =
+    autoStartRequest?.format === 'snapshot' &&
+    autoStartRequest.source === 'context-menu';
+
+  if (isHeadlessAutoStart) {
+    return null;
+  }
 
   const statusMessageId = statusMessage ? 'df-export-status' : undefined;
 
