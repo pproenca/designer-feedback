@@ -1,9 +1,8 @@
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {Radio} from '@base-ui/react/radio';
 import {RadioGroup} from '@base-ui/react/radio-group';
 import type {ExportFormat} from '@/types';
 import {clsx} from 'clsx';
-import {useExportState, useExportActions} from './ExportContext';
 
 export type ExportFormatOption = {
   id: ExportFormat;
@@ -15,19 +14,22 @@ export type ExportFormatOption = {
 
 interface FormatSelectorProps {
   options: ExportFormatOption[];
+  selectedFormat: ExportFormat;
+  isExporting: boolean;
+  onFormatChange: (format: ExportFormat) => void;
 }
 
-export function FormatSelector({options}: FormatSelectorProps) {
-  const {selectedFormat, isExporting} = useExportState();
-  const {dispatch, formatOptionsRef} = useExportActions();
-
+export function FormatSelector({
+  options,
+  selectedFormat,
+  isExporting,
+  onFormatChange,
+}: FormatSelectorProps) {
+  const formatOptionsRef = useRef<HTMLDivElement | null>(null);
   const [isKeyboardNav, setIsKeyboardNav] = useState(false);
 
   const handleValueChange = (value: string) => {
-    dispatch({
-      type: 'updateState',
-      payload: {selectedFormat: value as ExportFormat},
-    });
+    onFormatChange(value as ExportFormat);
   };
 
   return (

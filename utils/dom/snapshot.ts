@@ -1,10 +1,38 @@
 import type {Annotation} from '@/types';
-import {getCategoryConfig} from '@/shared/categories';
+import {getCategoryConfig, CATEGORIES} from '@/shared/categories';
 import {loadImage} from '@/utils/image';
 import {assertDomAvailable, getDocument, getWindow} from '@/utils/dom/guards';
+import {wrapText, truncateText} from '@/utils/canvas/text';
+import {drawRoundedRect} from '@/utils/canvas/drawing';
+import {hexToRgba} from '@/utils/canvas/color';
 
 const SNAPSHOT_FONT_FAMILY =
   '"Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif';
+
+function formatAnnotationSummary(annotations: Annotation[]): string {
+  const total = annotations.length;
+  const prefix = `${total} annotation${total !== 1 ? 's' : ''}`;
+  const counts = new Map<string, number>();
+  for (const a of annotations) {
+    const config = getCategoryConfig(a.category);
+    counts.set(
+      config.label.toLowerCase(),
+      (counts.get(config.label.toLowerCase()) ?? 0) + 1
+    );
+  }
+  if (counts.size <= 1) return prefix;
+  const parts = [...counts.entries()].map(
+    ([label, count]) => `${count} ${label}${count !== 1 ? 's' : ''}`
+  );
+  return `${prefix} · ${parts.join(', ')}`;
+}
+
+function getMarkerRadius(index: number, baseRadius: number): number {
+  const digits = String(index + 1).length;
+  if (digits <= 1) return baseRadius;
+  if (digits === 2) return baseRadius * 1.23;
+  return baseRadius * 1.46;
+}
 
 export async function createSnapshotImage(
   screenshot: string,
@@ -72,9 +100,7 @@ export async function createSnapshotImage(
   ctx.fillText('Feedback Export', headerPaddingX, 16 * scaleY);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = `400 ${11 * scaleY}px ${SNAPSHOT_FONT_FAMILY}`;
-  const metaText = `${doc.title || 'Untitled page'} · ${exportDate} · ${
-    annotations.length
-  } annotation${annotations.length !== 1 ? 's' : ''}`;
+  const metaText = `${doc.title || 'Untitled page'} · ${exportDate} · ${formatAnnotationSummary(annotations)}`;
   ctx.fillText(
     truncateText(ctx, metaText, canvas.width - headerPaddingX * 2),
     headerPaddingX,
@@ -114,7 +140,7 @@ function drawAnnotationOverlays(
   }
 ): void {
   const {offsetX, offsetY, scaleX, scaleY, scrollX, scrollY} = options;
-  const markerRadius = 13 * scaleX;
+  const baseMarkerRadius = 13 * scaleX;
   const markerFontSize = 12 * scaleX;
   const strokeWidth = Math.max(1, 2 * scaleX);
 
@@ -155,6 +181,7 @@ function drawAnnotationOverlays(
 
     const x = offsetX + point.x * scaleX;
     const y = offsetY + point.y * scaleY;
+    const markerRadius = getMarkerRadius(index, baseMarkerRadius);
 
     ctx.save();
     ctx.beginPath();
@@ -176,310 +203,349 @@ function drawAnnotationOverlays(
   });
 }
 
+type SidebarLayoutConfig = {
+  headerHeight: number;
+  headerPaddingX: number;
+  headerPaddingY: number;
+  listPadding: number;
+  cardGap: number;
+  cardPaddingX: number;
+  cardPaddingY: number;
+  indexSize: number;
+  indexGap: number;
+  categoryLineHeight: number;
+  elementLineHeight: number;
+  commentLineHeight: number;
+  commentFont: string;
+  headerFont: string;
+  labelFont: string;
+  titleFont: string;
+  indexFont: string;
+  overflowFont: string;
+  borderWidth: number;
+  cardRadius: number;
+  categoryDotRadius: number;
+  categoryDotGap: number;
+};
+
+function createSidebarLayout(scale: number): SidebarLayoutConfig {
+  return {
+    headerHeight: 72 * scale,
+    headerPaddingX: 18 * scale,
+    headerPaddingY: 16 * scale,
+    listPadding: 14 * scale,
+    cardGap: 10 * scale,
+    cardPaddingX: 14 * scale,
+    cardPaddingY: 12 * scale,
+    indexSize: 26 * scale,
+    indexGap: 12 * scale,
+    categoryLineHeight: 12 * scale,
+    elementLineHeight: 16 * scale,
+    commentLineHeight: 18 * scale,
+    commentFont: `500 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    headerFont: `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    labelFont: `600 ${10 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    titleFont: `600 ${13 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    indexFont: `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    overflowFont: `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`,
+    borderWidth: Math.max(1, scale),
+    cardRadius: 14 * scale,
+    categoryDotRadius: 3 * scale,
+    categoryDotGap: 12 * scale,
+  };
+}
+
 function drawSidebarPanel(
   ctx: CanvasRenderingContext2D,
   annotations: Annotation[],
   options: {x: number; y: number; width: number; height: number; scale: number}
 ): void {
   const {x, y, width, height, scale} = options;
-  const headerHeight = 48 * scale;
-  const headerPaddingX = 18 * scale;
-  const headerPaddingY = 16 * scale;
-  const listPadding = 14 * scale;
-  const cardGap = 10 * scale;
-  const cardPaddingX = 14 * scale;
-  const cardPaddingY = 12 * scale;
-  const indexSize = 26 * scale;
-  const indexGap = 12 * scale;
-  const categoryLineHeight = 12 * scale;
-  const elementLineHeight = 16 * scale;
-  const commentLineHeight = 18 * scale;
-  const commentFont = `500 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
+  const L = createSidebarLayout(scale);
 
-  ctx.save();
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-  ctx.fillText(
-    `Annotations (${annotations.length})`,
-    x + headerPaddingX,
-    y + headerPaddingY
-  );
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.lineWidth = Math.max(1, scale);
-  ctx.beginPath();
-  ctx.moveTo(x, y + headerHeight);
-  ctx.lineTo(x + width, y + headerHeight);
-  ctx.stroke();
-  ctx.restore();
+  drawSidebarHeader(ctx, annotations.length, {x, y, width}, L);
 
-  let cursorY = y + headerHeight + listPadding;
-  const maxY = y + height - listPadding;
-  const cardX = x + listPadding;
-  const cardWidth = width - listPadding * 2;
-  const textWidth = cardWidth - cardPaddingX * 2 - indexSize - indexGap;
+  let cursorY = y + L.headerHeight + L.listPadding;
+  const maxY = y + height - L.listPadding;
+  const cardX = x + L.listPadding;
+  const cardWidth = width - L.listPadding * 2;
+  const textWidth = cardWidth - L.cardPaddingX * 2 - L.indexSize - L.indexGap;
 
   for (let i = 0; i < annotations.length; i++) {
     const annotation = annotations[i];
     const config = getCategoryConfig(annotation.category);
 
-    ctx.font = commentFont;
-    const baseContentHeight =
-      categoryLineHeight + 6 * scale + elementLineHeight + 4 * scale;
-    const minCardHeight =
-      cardPaddingY * 2 + Math.max(indexSize, baseContentHeight);
+    ctx.font = L.commentFont;
+    const cardLayout = calculateCardLayout(ctx, {
+      annotation,
+      textWidth,
+      cursorY,
+      maxY,
+      scale,
+      layout: L,
+    });
 
-    if (cursorY + minCardHeight > maxY) {
-      const remaining = annotations.length - i;
-      ctx.save();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-      ctx.textBaseline = 'top';
-      ctx.fillText(`… and ${remaining} more`, cardX, cursorY);
-      ctx.restore();
+    if (cardLayout.overflow) {
+      drawOverflowIndicator(ctx, annotations.length - i, {
+        x: cardX,
+        y: cursorY,
+        font: L.overflowFont,
+      });
       break;
     }
 
-    let commentLines = wrapText(ctx, annotation.comment, textWidth);
-    const maxContentHeight = maxY - cursorY - cardPaddingY * 2;
-    const maxCommentLines = Math.max(
-      0,
-      Math.floor((maxContentHeight - baseContentHeight) / commentLineHeight)
-    );
+    drawAnnotationCard(ctx, {
+      annotation,
+      config,
+      index: i,
+      cardX,
+      cardWidth,
+      cursorY,
+      cardHeight: cardLayout.cardHeight,
+      commentLines: cardLayout.commentLines,
+      textWidth,
+      scale,
+      layout: L,
+    });
 
-    if (maxCommentLines === 0) {
-      commentLines = [];
-    } else if (commentLines.length > maxCommentLines) {
-      commentLines = commentLines.slice(0, maxCommentLines);
-      const lastIndex = commentLines.length - 1;
-      commentLines[lastIndex] = truncateText(
-        ctx,
-        `${commentLines[lastIndex]}…`,
-        textWidth
-      );
-    }
+    cursorY += cardLayout.cardHeight + L.cardGap;
+  }
+}
 
-    const contentHeight =
-      baseContentHeight + commentLines.length * commentLineHeight;
-    const cardHeight = cardPaddingY * 2 + Math.max(indexSize, contentHeight);
+function drawSidebarHeader(
+  ctx: CanvasRenderingContext2D,
+  count: number,
+  area: {x: number; y: number; width: number},
+  L: SidebarLayoutConfig
+): void {
+  ctx.save();
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = L.headerFont;
+  ctx.fillText(
+    `Annotations (${count})`,
+    area.x + L.headerPaddingX,
+    area.y + L.headerPaddingY
+  );
 
-    if (cursorY + cardHeight > maxY) {
-      const remaining = annotations.length - i;
-      ctx.save();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = `400 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-      ctx.textBaseline = 'top';
-      ctx.fillText(`… and ${remaining} more`, cardX, cursorY);
-      ctx.restore();
-      break;
-    }
+  // Category legend (2x2 grid)
+  const legendY =
+    area.y + L.headerPaddingY + L.categoryLineHeight + 8 * L.categoryDotRadius;
+  const legendX = area.x + L.headerPaddingX;
+  const colWidth = (area.width - L.headerPaddingX * 2) / 2;
+  const legendRowHeight = L.categoryLineHeight + 2 * L.categoryDotRadius;
+  ctx.font = L.labelFont;
 
-    ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-    ctx.lineWidth = Math.max(1, scale);
-    drawRoundedRect(ctx, cardX, cursorY, cardWidth, cardHeight, 14 * scale);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+  CATEGORIES.forEach((cat, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const cx = legendX + col * colWidth;
+    const cy = legendY + row * legendRowHeight;
 
-    const indexCenterX = cardX + cardPaddingX + indexSize / 2;
-    const indexCenterY = cursorY + cardPaddingY + indexSize / 2;
-
-    ctx.save();
     ctx.beginPath();
-    ctx.fillStyle = config.color;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 10 * scale;
-    ctx.shadowOffsetY = 3 * scale;
-    ctx.arc(indexCenterX, indexCenterY, indexSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    ctx.font = `600 ${12 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), indexCenterX, indexCenterY);
-    ctx.restore();
-
-    const textX = cardX + cardPaddingX + indexSize + indexGap;
-    let textY = cursorY + cardPaddingY;
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = `600 ${10 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-    ctx.textBaseline = 'top';
-    ctx.beginPath();
+    ctx.fillStyle = cat.color;
     ctx.arc(
-      textX + 3 * scale,
-      textY + categoryLineHeight / 2,
-      3 * scale,
+      cx + L.categoryDotRadius,
+      cy + L.categoryLineHeight / 2,
+      L.categoryDotRadius,
       0,
       Math.PI * 2
     );
-    ctx.fillStyle = config.color;
     ctx.fill();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.fillText(config.label.toUpperCase(), textX + 12 * scale, textY);
-    ctx.restore();
 
-    textY += categoryLineHeight + 6 * scale;
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    ctx.font = `600 ${13 * scale}px ${SNAPSHOT_FONT_FAMILY}`;
-    ctx.textBaseline = 'top';
-    ctx.fillText(
-      truncateText(ctx, annotation.element, textWidth),
-      textX,
-      textY
-    );
-    ctx.restore();
-
-    textY += elementLineHeight + 4 * scale;
-    ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.76)';
-    ctx.font = commentFont;
-    ctx.textBaseline = 'top';
-    commentLines.forEach(line => {
-      ctx.fillText(line, textX, textY);
-      textY += commentLineHeight;
-    });
-    ctx.restore();
-
-    cursorY += cardHeight + cardGap;
-  }
-}
-
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
-): void {
-  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  if (!text) return [''];
-  const lines: string[] = [];
-  const paragraphs = text.split(/\r?\n/);
-
-  paragraphs.forEach((paragraph, index) => {
-    if (!paragraph.trim()) {
-      lines.push('');
-      return;
-    }
-
-    const words = paragraph.split(/\s+/);
-    let currentLine = '';
-
-    words.forEach(word => {
-      if (!word) return;
-      if (ctx.measureText(word).width > maxWidth) {
-        if (currentLine) {
-          lines.push(currentLine);
-          currentLine = '';
-        }
-        const segments = breakLongWord(ctx, word, maxWidth);
-        segments.slice(0, -1).forEach(segment => lines.push(segment));
-        currentLine = segments[segments.length - 1] ?? '';
-        return;
-      }
-
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (ctx.measureText(testLine).width <= maxWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = word;
-      }
-    });
-
-    if (currentLine) lines.push(currentLine);
-    if (index < paragraphs.length - 1) lines.push('');
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fillText(cat.label, cx + L.categoryDotGap, cy);
   });
 
-  return lines;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = L.borderWidth;
+  ctx.beginPath();
+  ctx.moveTo(area.x, area.y + L.headerHeight);
+  ctx.lineTo(area.x + area.width, area.y + L.headerHeight);
+  ctx.stroke();
+  ctx.restore();
 }
 
-function breakLongWord(
+type CardLayoutInput = {
+  annotation: Annotation;
+  textWidth: number;
+  cursorY: number;
+  maxY: number;
+  scale: number;
+  layout: SidebarLayoutConfig;
+};
+
+type CardLayoutResult = {
+  cardHeight: number;
+  commentLines: string[];
+  overflow: boolean;
+};
+
+function calculateCardLayout(
   ctx: CanvasRenderingContext2D,
-  word: string,
-  maxWidth: number
-): string[] {
-  const segments: string[] = [];
-  let current = '';
+  input: CardLayoutInput
+): CardLayoutResult {
+  const {annotation, textWidth, cursorY, maxY, scale, layout: L} = input;
+  const baseContentHeight =
+    L.categoryLineHeight + 6 * scale + L.elementLineHeight + 4 * scale;
+  const minCardHeight =
+    L.cardPaddingY * 2 + Math.max(L.indexSize, baseContentHeight);
 
-  for (const char of word) {
-    const testSegment = current + char;
-    if (ctx.measureText(testSegment).width <= maxWidth || !current) {
-      current = testSegment;
-    } else {
-      segments.push(current);
-      current = char;
-    }
+  if (cursorY + minCardHeight > maxY) {
+    return {cardHeight: 0, commentLines: [], overflow: true};
   }
 
-  if (current) segments.push(current);
-  return segments;
+  let commentLines = wrapText(ctx, annotation.comment, textWidth);
+  const maxContentHeight = maxY - cursorY - L.cardPaddingY * 2;
+  const maxCommentLines = Math.max(
+    0,
+    Math.floor((maxContentHeight - baseContentHeight) / L.commentLineHeight)
+  );
+
+  if (maxCommentLines === 0) {
+    commentLines = [];
+  } else if (commentLines.length > maxCommentLines) {
+    commentLines = commentLines.slice(0, maxCommentLines);
+    const lastIndex = commentLines.length - 1;
+    commentLines[lastIndex] = truncateText(
+      ctx,
+      `${commentLines[lastIndex]}…`,
+      textWidth
+    );
+  }
+
+  const contentHeight =
+    baseContentHeight + commentLines.length * L.commentLineHeight;
+  const cardHeight = L.cardPaddingY * 2 + Math.max(L.indexSize, contentHeight);
+
+  if (cursorY + cardHeight > maxY) {
+    return {cardHeight: 0, commentLines: [], overflow: true};
+  }
+
+  return {cardHeight, commentLines, overflow: false};
 }
 
-function truncateText(
+function drawOverflowIndicator(
   ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-
-  let low = 0;
-  let high = text.length;
-
-  while (low < high) {
-    const mid = Math.floor((low + high + 1) / 2);
-    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxWidth) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-
-  return low > 0 ? text.slice(0, low) + '…' : '';
+  remaining: number,
+  position: {x: number; y: number; font: string}
+): void {
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.font = position.font;
+  ctx.textBaseline = 'top';
+  ctx.fillText(`… and ${remaining} more`, position.x, position.y);
+  ctx.restore();
 }
 
-function hexToRgba(hex: string, alpha: number): string {
-  const normalized = hex.replace('#', '');
-  const value =
-    normalized.length === 3
-      ? normalized
-          .split('')
-          .map(char => char + char)
-          .join('')
-      : normalized;
-  const int = Number.parseInt(value, 16);
-  if (Number.isNaN(int) || value.length !== 6) {
-    return `rgba(0, 0, 0, ${alpha})`;
+function drawAnnotationCard(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    annotation: Annotation;
+    config: {color: string; label: string};
+    index: number;
+    cardX: number;
+    cardWidth: number;
+    cursorY: number;
+    cardHeight: number;
+    commentLines: string[];
+    textWidth: number;
+    scale: number;
+    layout: SidebarLayoutConfig;
   }
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+): void {
+  const {
+    annotation,
+    config,
+    index,
+    cardX,
+    cardWidth,
+    cursorY,
+    cardHeight,
+    commentLines,
+    textWidth,
+    scale,
+    layout: L,
+  } = opts;
+
+  // Card background + border
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = L.borderWidth;
+  drawRoundedRect(ctx, cardX, cursorY, cardWidth, cardHeight, L.cardRadius);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Category-colored left accent border
+  const accentWidth = 3 * L.borderWidth;
+  ctx.save();
+  ctx.beginPath();
+  drawRoundedRect(ctx, cardX, cursorY, cardWidth, cardHeight, L.cardRadius);
+  ctx.clip();
+  ctx.fillStyle = config.color;
+  ctx.fillRect(cardX, cursorY, accentWidth, cardHeight);
+  ctx.restore();
+
+  const indexCenterX = cardX + L.cardPaddingX + L.indexSize / 2;
+  const indexCenterY = cursorY + L.cardPaddingY + L.indexSize / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = config.color;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  ctx.shadowBlur = 10 * scale;
+  ctx.shadowOffsetY = 3 * scale;
+  ctx.arc(indexCenterX, indexCenterY, L.indexSize / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = L.indexFont;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(index + 1), indexCenterX, indexCenterY);
+  ctx.restore();
+
+  const textX = cardX + L.cardPaddingX + L.indexSize + L.indexGap;
+  let textY = cursorY + L.cardPaddingY;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = L.labelFont;
+  ctx.textBaseline = 'top';
+  ctx.beginPath();
+  ctx.arc(
+    textX + L.categoryDotRadius,
+    textY + L.categoryLineHeight / 2,
+    L.categoryDotRadius,
+    0,
+    Math.PI * 2
+  );
+  ctx.fillStyle = config.color;
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.fillText(config.label.toUpperCase(), textX + L.categoryDotGap, textY);
+  ctx.restore();
+
+  textY += L.categoryLineHeight + 6 * scale;
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.font = L.titleFont;
+  ctx.textBaseline = 'top';
+  ctx.fillText(truncateText(ctx, annotation.element, textWidth), textX, textY);
+  ctx.restore();
+
+  textY += L.elementLineHeight + 4 * scale;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.76)';
+  ctx.font = L.commentFont;
+  ctx.textBaseline = 'top';
+  commentLines.forEach(line => {
+    ctx.fillText(line, textX, textY);
+    textY += L.commentLineHeight;
+  });
+  ctx.restore();
 }

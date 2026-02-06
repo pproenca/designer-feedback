@@ -1,14 +1,29 @@
 import type {ReactNode} from 'react';
 import {AnimatePresence} from 'framer-motion';
 import {clsx} from 'clsx';
-import {Check, Download} from 'lucide-react';
+import {Check, ClipboardCopy, Download} from 'lucide-react';
 import {StatusMessage} from '../StatusMessage';
-import {useExportState, useExportActions} from './ExportContext';
+import type {ExportStatus} from './ExportContext';
 
-export function ExportActions() {
-  const {isExporting, exportOutcome, statusMessage, statusMessageId} =
-    useExportState();
-  const {onClose, handleExport} = useExportActions();
+interface ExportActionsProps {
+  isExporting: boolean;
+  exportOutcome: 'copied' | 'downloaded' | null;
+  isClipboardFormat: boolean;
+  statusMessage: ExportStatus | null;
+  statusMessageId: string | undefined;
+  onClose: () => void;
+  handleExport: () => Promise<void>;
+}
+
+export function ExportActions({
+  isExporting,
+  exportOutcome,
+  isClipboardFormat,
+  statusMessage,
+  statusMessageId,
+  onClose,
+  handleExport,
+}: ExportActionsProps) {
   const getButtonContent = (): ReactNode => {
     if (exportOutcome) {
       return (
@@ -75,9 +90,13 @@ export function ExportActions() {
           onClick={handleExport}
           disabled={isExporting}
         >
-          {!exportOutcome && !isExporting && (
-            <Download size={16} aria-hidden="true" />
-          )}
+          {!exportOutcome &&
+            !isExporting &&
+            (isClipboardFormat ? (
+              <ClipboardCopy size={16} aria-hidden="true" />
+            ) : (
+              <Download size={16} aria-hidden="true" />
+            ))}
           {getButtonContent()}
         </button>
       </div>

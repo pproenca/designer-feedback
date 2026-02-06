@@ -23,12 +23,9 @@ import {X} from 'lucide-react';
 import {clsx} from 'clsx';
 import {FormatSelector, type ExportFormatOption} from './FormatSelector';
 import {ExportActions} from './ExportActions';
-import {
-  ExportProvider,
-  exportReducer,
-  initialExportState,
-} from './ExportContext';
+import {exportReducer, initialExportState} from './ExportContext';
 import {useSettings} from '@/hooks/useSettings';
+import {useCaptureMode} from '@/hooks/useCaptureMode';
 import {useToasts, type ToastInput} from '@/components/Toast';
 import type {ResumeExportRequest} from '@/utils/messaging';
 
@@ -76,41 +73,6 @@ interface ExportModalProps {
   onAutoStartConsumed?: () => void;
 }
 
-type InlineStyleSnapshot = {
-  value: string;
-  priority: string;
-};
-
-type HostStyleSnapshot = {
-  display: InlineStyleSnapshot;
-  opacity: InlineStyleSnapshot;
-  pointerEvents: InlineStyleSnapshot;
-  visibility: InlineStyleSnapshot;
-  transition: InlineStyleSnapshot;
-};
-
-function readInlineStyle(
-  style: CSSStyleDeclaration,
-  property: string
-): InlineStyleSnapshot {
-  return {
-    value: style.getPropertyValue(property),
-    priority: style.getPropertyPriority(property),
-  };
-}
-
-function restoreInlineStyle(
-  style: CSSStyleDeclaration,
-  property: string,
-  snapshot: InlineStyleSnapshot
-): void {
-  if (!snapshot.value) {
-    style.removeProperty(property);
-    return;
-  }
-  style.setProperty(property, snapshot.value, snapshot.priority);
-}
-
 export function ExportModal({
   annotations,
   onClose,
@@ -123,7 +85,6 @@ export function ExportModal({
   const lightMode = settings.lightMode;
   const [isDialogOpen, setDialogOpen] = useState(true);
   const [state, dispatch] = useReducer(exportReducer, initialExportState);
-  const hostStyleSnapshotRef = useRef<HostStyleSnapshot | null>(null);
   const handledAutoStartRequestIdRef = useRef<string | null>(null);
   const reduceMotion = useReducedMotion() ?? false;
   const {pushToast} = useToasts();
@@ -163,7 +124,7 @@ export function ExportModal({
 
   useEffect(() => {
     if (restricted && selectedFormat === 'snapshot') {
-      dispatch({type: 'updateState', payload: {selectedFormat: 'image-notes'}});
+      dispatch({type: 'formatSelected', format: 'image-notes'});
     }
   }, [restricted, selectedFormat]);
 
@@ -173,49 +134,7 @@ export function ExportModal({
     return 'Export failed. Please try again.';
   };
 
-  const setCaptureMode = useCallback(
-    (isCapturing: boolean) => {
-      onCaptureChange?.(isCapturing);
-      const host = shadowRoot.host as HTMLElement | null;
-      if (!host) {
-        return;
-      }
-      const hostStyle = host.style;
-      if (isCapturing) {
-        if (!hostStyleSnapshotRef.current) {
-          hostStyleSnapshotRef.current = {
-            display: readInlineStyle(hostStyle, 'display'),
-            opacity: readInlineStyle(hostStyle, 'opacity'),
-            pointerEvents: readInlineStyle(hostStyle, 'pointer-events'),
-            visibility: readInlineStyle(hostStyle, 'visibility'),
-            transition: readInlineStyle(hostStyle, 'transition'),
-          };
-        }
-        host.setAttribute('data-capture', 'true');
-        hostStyle.setProperty('display', 'none', 'important');
-        hostStyle.setProperty('opacity', '0', 'important');
-        hostStyle.setProperty('pointer-events', 'none', 'important');
-        hostStyle.setProperty('visibility', 'hidden', 'important');
-        hostStyle.setProperty('transition', 'none', 'important');
-      } else {
-        host.removeAttribute('data-capture');
-        const snapshot = hostStyleSnapshotRef.current;
-        if (snapshot) {
-          restoreInlineStyle(hostStyle, 'display', snapshot.display);
-          restoreInlineStyle(hostStyle, 'opacity', snapshot.opacity);
-          restoreInlineStyle(
-            hostStyle,
-            'pointer-events',
-            snapshot.pointerEvents
-          );
-          restoreInlineStyle(hostStyle, 'visibility', snapshot.visibility);
-          restoreInlineStyle(hostStyle, 'transition', snapshot.transition);
-          hostStyleSnapshotRef.current = null;
-        }
-      }
-    },
-    [onCaptureChange, shadowRoot]
-  );
+  const setCaptureMode = useCaptureMode(shadowRoot, onCaptureChange);
 
   const waitForCaptureUiFlush = useCallback(async () => {
     const raf =
@@ -233,19 +152,10 @@ export function ExportModal({
     async (overrideFormat?: ExportFormat) => {
       const format = overrideFormat ?? selectedFormat;
       dispatch({
-        type: 'updateState',
-        payload: {
-          isExporting: true,
-          exportOutcome: null,
-          selectedFormat: format,
-          statusMessage: {
-            type: 'info',
-            text:
-              format === 'snapshot'
-                ? 'Capturing full page…'
-                : 'Preparing export…',
-          },
-        },
+        type: 'exportStarted',
+        format,
+        message:
+          format === 'snapshot' ? 'Capturing full page…' : 'Preparing export…',
       });
       let captureActive = false;
       let pendingToast: ToastInput | null = null;
@@ -300,7 +210,7 @@ export function ExportModal({
             captureActive ? toastDelayMs : 0
           );
         }
-        dispatch({type: 'updateState', payload: {isExporting: false}});
+        dispatch({type: 'exportFinished'});
       }
     },
     [
@@ -416,19 +326,27 @@ export function ExportModal({
               </Dialog.Close>
             </div>
 
-            {/* Content - wrapped with ExportProvider for child components */}
-            <ExportProvider
-              state={state}
-              dispatch={dispatch}
+            {/* Content */}
+            <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
+              <FormatSelector
+                options={formatOptions}
+                selectedFormat={selectedFormat}
+                isExporting={isExporting}
+                onFormatChange={format =>
+                  dispatch({type: 'formatSelected', format})
+                }
+              />
+            </div>
+
+            <ExportActions
+              isExporting={isExporting}
+              exportOutcome={state.exportOutcome}
+              isClipboardFormat={selectedFormat === 'image-notes'}
+              statusMessage={statusMessage}
+              statusMessageId={statusMessageId}
               onClose={onClose}
               handleExport={handleExport}
-            >
-              <div className="py-4 px-4.5 pb-4.5 overflow-y-auto flex-1">
-                <FormatSelector options={formatOptions} />
-              </div>
-
-              <ExportActions />
-            </ExportProvider>
+            />
           </Dialog.Popup>
         </AnimatePresence>
       </Dialog.Portal>
