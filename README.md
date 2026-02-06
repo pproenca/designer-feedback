@@ -50,7 +50,7 @@ See `docs/privacy.html` for the full policy.
 - `contextMenus` to expose a right-click “Designer Feedback” submenu with
   “Open Feedback Toolbar” and “Export Feedback Snapshot” actions.
 
-Snapshot capture uses `activeTab` runtime access. If access expires, click the extension action (or keyboard shortcut) and the export resumes automatically.
+Snapshot capture uses `activeTab` runtime access. If access expires, click the extension action and the export resumes automatically.
 
 ## installation
 

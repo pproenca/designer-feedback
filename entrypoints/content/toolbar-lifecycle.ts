@@ -5,6 +5,7 @@ export interface MountedToolbar {
 export interface ToolbarLifecycle {
   enable(): Promise<void>;
   disable(): void;
+  isMounted(): boolean;
   dispose(): void;
 }
 
@@ -65,6 +66,10 @@ export function createToolbarLifecycle(
     safeRemove(toolbar);
   }
 
+  function isMounted(): boolean {
+    return mountedToolbar !== null;
+  }
+
   function dispose(): void {
     disposed = true;
     disable();
@@ -73,6 +78,7 @@ export function createToolbarLifecycle(
   return {
     enable,
     disable,
+    isMounted,
     dispose,
   };
 }

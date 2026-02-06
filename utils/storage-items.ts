@@ -3,7 +3,7 @@ import type {PendingCaptureRequest} from '@/types';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 
 export const settingsEnabled = storage.defineItem<boolean>('sync:enabled', {
-  fallback: DEFAULT_SETTINGS.enabled,
+  fallback: true,
   version: 1,
 });
 
@@ -33,11 +33,3 @@ export const pendingCaptureTabs = storage.defineItem<
   fallback: {},
   version: 1,
 });
-
-export const toolbarEnabledTabs = storage.defineItem<Record<string, boolean>>(
-  'session:designer-feedback:toolbar-enabled-tabs',
-  {
-    fallback: {},
-    version: 1,
-  }
-);

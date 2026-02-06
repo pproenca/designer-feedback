@@ -17,6 +17,7 @@ import {
   getCaptureScreenshotErrorCode,
   // Settings
   getSettings,
+  migrateLegacyEnabledSetting,
   saveSettings,
   // Downloads
   downloadFile,
@@ -271,8 +272,8 @@ describe('Background Helpers', () => {
   describe('Settings Management', () => {
     describe('getSettings', () => {
       it('returns settings from sync storage', async () => {
-        const customSettings: Settings = {enabled: false, lightMode: false};
-        await settingsEnabled.setValue(customSettings.enabled);
+        const customSettings: Settings = {lightMode: false};
+        await settingsEnabled.setValue(false);
         await settingsLightMode.setValue(customSettings.lightMode);
 
         const result = await getSettings();
@@ -282,7 +283,7 @@ describe('Background Helpers', () => {
       });
 
       it('returns default settings when storage fails', async () => {
-        vi.spyOn(settingsEnabled, 'getValue').mockRejectedValue(
+        vi.spyOn(settingsLightMode, 'getValue').mockRejectedValue(
           new Error('Storage error')
         );
         const consoleSpy = vi
@@ -303,7 +304,7 @@ describe('Background Helpers', () => {
 
     describe('saveSettings', () => {
       it('saves settings to sync storage', async () => {
-        const newSettings: Settings = {enabled: false, lightMode: true};
+        const newSettings: Settings = {lightMode: true};
         const enabledSpy = vi
           .spyOn(settingsEnabled, 'setValue')
           .mockResolvedValue(undefined);
@@ -313,7 +314,7 @@ describe('Background Helpers', () => {
 
         const result = await saveSettings(newSettings);
 
-        expect(enabledSpy).toHaveBeenCalledWith(false);
+        expect(enabledSpy).toHaveBeenCalledWith(true);
         expect(lightModeSpy).toHaveBeenCalledWith(true);
         expect(result.settings).toEqual(newSettings);
         expect(result.error).toBeUndefined();
@@ -336,6 +337,24 @@ describe('Background Helpers', () => {
           expect.any(Error)
         );
         consoleSpy.mockRestore();
+      });
+    });
+
+    describe('migrateLegacyEnabledSetting', () => {
+      it('forces legacy disabled state to enabled', async () => {
+        await settingsEnabled.setValue(false);
+
+        await migrateLegacyEnabledSetting();
+
+        expect(await settingsEnabled.getValue()).toBe(true);
+      });
+
+      it('keeps enabled state unchanged when already true', async () => {
+        await settingsEnabled.setValue(true);
+
+        await migrateLegacyEnabledSetting();
+
+        expect(await settingsEnabled.getValue()).toBe(true);
       });
     });
   });

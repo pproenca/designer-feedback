@@ -228,11 +228,8 @@ export type SettingsResult = {settings: Settings; error?: string};
 
 export async function getSettings(): Promise<SettingsResult> {
   try {
-    const [enabled, lightMode] = await Promise.all([
-      settingsEnabled.getValue(),
-      settingsLightMode.getValue(),
-    ]);
-    return {settings: {enabled, lightMode}};
+    const lightMode = await settingsLightMode.getValue();
+    return {settings: {lightMode}};
   } catch (error) {
     console.error('Failed to get settings:', error);
     return {settings: DEFAULT_SETTINGS, error: String(error)};
@@ -244,13 +241,25 @@ export async function saveSettings(
 ): Promise<SettingsResult> {
   try {
     await Promise.all([
-      settingsEnabled.setValue(settings.enabled),
+      // Keep the legacy key normalized so historical installs do not remain disabled.
+      settingsEnabled.setValue(true),
       settingsLightMode.setValue(settings.lightMode),
     ]);
     return {settings};
   } catch (error) {
     console.error('Failed to save settings:', error);
     return {settings, error: String(error)};
+  }
+}
+
+export async function migrateLegacyEnabledSetting(): Promise<void> {
+  try {
+    const enabled = await settingsEnabled.getValue();
+    if (enabled === false) {
+      await settingsEnabled.setValue(true);
+    }
+  } catch (error) {
+    console.warn('Failed to migrate legacy enabled setting:', error);
   }
 }
 

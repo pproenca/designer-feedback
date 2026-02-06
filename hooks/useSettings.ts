@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {backgroundMessenger} from '@/utils/messaging';
-import {settingsEnabled, settingsLightMode} from '@/utils/storage-items';
+import {settingsLightMode} from '@/utils/storage-items';
 import type {Settings} from '@/types';
 
 export function useSettings() {
@@ -27,11 +27,6 @@ export function useSettings() {
   }, []);
 
   useEffect(() => {
-    const unwatchEnabled = settingsEnabled.watch(newValue => {
-      setSettings(prev =>
-        prev.enabled === newValue ? prev : {...prev, enabled: newValue}
-      );
-    });
     const unwatchLightMode = settingsLightMode.watch(newValue => {
       setSettings(prev =>
         prev.lightMode === newValue ? prev : {...prev, lightMode: newValue}
@@ -39,7 +34,6 @@ export function useSettings() {
     });
 
     return () => {
-      unwatchEnabled();
       unwatchLightMode();
     };
   }, []);

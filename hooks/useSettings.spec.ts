@@ -31,7 +31,7 @@ describe('useSettings', () => {
 
   describe('loading settings', () => {
     it('should use backgroundMessenger to get settings on mount', async () => {
-      const customSettings: Settings = {enabled: false, lightMode: false};
+      const customSettings: Settings = {lightMode: false};
       mockSendMessage.mockResolvedValueOnce({
         settings: customSettings,
       });

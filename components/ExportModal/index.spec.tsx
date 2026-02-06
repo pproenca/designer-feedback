@@ -42,7 +42,7 @@ vi.mock('@/utils/dom/screenshot', () => ({
 
 vi.mock('@/hooks/useSettings', () => ({
   useSettings: () => ({
-    settings: {enabled: true, lightMode: true},
+    settings: {lightMode: true},
     updateSettings: () => {},
   }),
 }));

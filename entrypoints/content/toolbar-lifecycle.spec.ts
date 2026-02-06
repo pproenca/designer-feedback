@@ -77,4 +77,18 @@ describe('toolbar-lifecycle', () => {
     expect(firstToolbar.remove).toHaveBeenCalledTimes(1);
     expect(secondToolbar.remove).not.toHaveBeenCalled();
   });
+
+  it('exposes mounted status transitions', async () => {
+    const toolbar: MountedToolbar = {remove: vi.fn()};
+    const mountToolbar = vi.fn(async () => toolbar);
+    const lifecycle = createToolbarLifecycle(mountToolbar);
+
+    expect(lifecycle.isMounted()).toBe(false);
+
+    await lifecycle.enable();
+    expect(lifecycle.isMounted()).toBe(true);
+
+    lifecycle.disable();
+    expect(lifecycle.isMounted()).toBe(false);
+  });
 });

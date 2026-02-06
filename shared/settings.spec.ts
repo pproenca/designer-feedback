@@ -6,9 +6,5 @@ describe('settings', () => {
     it('should have lightMode enabled by default', () => {
       expect(DEFAULT_SETTINGS.lightMode).toBe(true);
     });
-
-    it('should have extension enabled by default', () => {
-      expect(DEFAULT_SETTINGS.enabled).toBe(true);
-    });
   });
 });

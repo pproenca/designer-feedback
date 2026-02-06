@@ -34,7 +34,6 @@ export type Annotation = {
 };
 
 export type Settings = {
-  enabled: boolean;
   lightMode: boolean;
 };
 

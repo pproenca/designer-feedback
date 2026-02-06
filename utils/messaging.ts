@@ -39,9 +39,11 @@ interface BackgroundProtocolMap {
 
 interface ContentProtocolMap {
   getAnnotationCount(url?: string): {count: number};
-  showToolbar(): void;
+  pingToolbar(): {ready: true};
+  getToolbarStatus(): {mounted: boolean};
+  showToolbar(): {mounted: boolean};
   triggerExport(): void;
-  toggleToolbar(enabled: boolean): void;
+  toggleToolbar(enabled: boolean): {mounted: boolean};
   resumeExport(params: ResumeExportRequest): ResumeExportResponse;
 }
 

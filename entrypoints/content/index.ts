@@ -41,10 +41,17 @@ export default defineContentScript({
       await lifecycle.enable();
     }
 
-    contentMessenger.onMessage('showToolbar', () => {
-      ensureInjected().catch(error => {
-        console.error('Failed to show toolbar:', error);
-      });
+    contentMessenger.onMessage('pingToolbar', () => {
+      return {ready: true} as const;
+    });
+
+    contentMessenger.onMessage('getToolbarStatus', () => {
+      return {mounted: lifecycle.isMounted()};
+    });
+
+    contentMessenger.onMessage('showToolbar', async () => {
+      await ensureInjected();
+      return {mounted: true};
     });
 
     contentMessenger.onMessage('getAnnotationCount', async ({data: url}) => {
@@ -95,13 +102,13 @@ export default defineContentScript({
       }
     });
 
-    contentMessenger.onMessage('toggleToolbar', ({data: enabled}) => {
+    contentMessenger.onMessage('toggleToolbar', async ({data: enabled}) => {
       if (enabled) {
-        ensureInjected().catch(error => {
-          console.error('Failed to toggle toolbar:', error);
-        });
+        await ensureInjected();
+        return {mounted: true};
       } else {
         lifecycle.disable();
+        return {mounted: false};
       }
     });
 
