@@ -71,8 +71,10 @@ function resolveFirefoxBinary() {
     '/Applications/Firefox.app/Contents/MacOS/firefox',
     '/Applications/Firefox Nightly.app/Contents/MacOS/firefox',
     '/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox',
+    '/usr/bin/firefox',
     '/usr/local/bin/firefox',
     '/opt/homebrew/bin/firefox',
+    '/snap/bin/firefox',
   ];
 
   for (const candidate of candidates) {
@@ -81,11 +83,34 @@ function resolveFirefoxBinary() {
     }
   }
 
+  try {
+    const playwright = require('playwright');
+    const playwrightBinary = playwright.firefox?.executablePath?.();
+    if (playwrightBinary && fs.existsSync(playwrightBinary)) {
+      return playwrightBinary;
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const resolved = execSync('command -v firefox', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (resolved && fs.existsSync(resolved)) {
+      return resolved;
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }
 
 async function main() {
-  run('npx wxt zip -b firefox');
+  run('npx wxt zip -b firefox --mv3');
 
   const zipPath = findLatestZip(path.join(repoRoot, '.output'));
   if (!zipPath) {
@@ -109,6 +134,14 @@ async function main() {
     .setPreference('xpinstall.signatures.required', false)
     .setPreference('extensions.autoDisableScopes', 0)
     .setPreference('extensions.enabledScopes', 15);
+
+  const headless =
+    process.env.FIREFOX_HEADLESS === '1' ||
+    process.env.CI === 'true' ||
+    process.env.CI === '1';
+  if (headless) {
+    options.addArguments('-headless');
+  }
 
   const service = new firefox.ServiceBuilder(geckoPath);
   const driver = await new Builder()

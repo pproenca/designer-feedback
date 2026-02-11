@@ -4,6 +4,7 @@ import {
   getContentScriptFiles,
   isInjectableUrl,
 } from '@/utils/background-helpers';
+import {createScriptInjectionAdapter} from '@/utils/script-injection-adapter';
 import {createActivationTrace, type ActivationTrace} from './activation-trace';
 import type {
   ActivationFailureReason,
@@ -78,6 +79,7 @@ const WARNING_BADGE_COLOR = '#D97706';
 const WARNING_BADGE_TEXT = '!';
 const WARNING_BADGE_DURATION_MS = 3500;
 const READINESS_RETRY_DELAYS_MS = [0, 25, 50, 100, 180, 300];
+const scriptInjectionAdapter = createScriptInjectionAdapter(browser);
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -156,17 +158,8 @@ const defaultDeps: ActivationControllerDeps = {
     contentMessenger.sendMessage('showToolbar', undefined, tabId),
   toggleToolbar: (tabId, enabled) =>
     contentMessenger.sendMessage('toggleToolbar', enabled, tabId),
-  executeScript: async (tabId, files) => {
-    if (!browser.scripting?.executeScript) {
-      throw new Error('Scripting API unavailable');
-    }
-
-    if (!files.length) {
-      throw new Error('No content script files configured');
-    }
-
-    await browser.scripting.executeScript({target: {tabId}, files});
-  },
+  executeScript: (tabId, files) =>
+    scriptInjectionAdapter.injectFiles(tabId, files),
   notifyActivationFailure: notifyActivationFailureDefault,
   sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   createTrace: createActivationTrace,

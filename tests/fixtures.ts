@@ -47,13 +47,13 @@ async function createTestExtensionDir(
   );
   await fs.promises.cp(extensionPath, tempDir, {recursive: true});
 
-  // For test automation, we inject broad host permissions so scripting can run
-  // without activeTab user gestures. Production builds omit host permissions.
+  // Keep test defaults close to production. Broad host permissions are opt-in
+  // for scenarios that intentionally bypass activeTab gesture requirements.
   const manifestPath = path.join(tempDir, 'manifest.json');
   const manifest = JSON.parse(
     await fs.promises.readFile(manifestPath, 'utf-8')
   );
-  const permissionsMode = process.env.E2E_HOST_PERMISSIONS ?? 'broad';
+  const permissionsMode = process.env.E2E_HOST_PERMISSIONS ?? 'strict';
   if (permissionsMode === 'broad') {
     manifest.host_permissions = ['http://*/*', 'https://*/*'];
   } else {

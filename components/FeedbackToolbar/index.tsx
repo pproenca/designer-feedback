@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useState, lazy, Suspense} from 'react';
 import {createPortal} from 'react-dom';
-import {AnimatePresence} from 'framer-motion';
+import {AnimatePresence} from '@/utils/motion';
 import {useShallow} from 'zustand/react/shallow';
 import {CreateAnnotationPopup, ViewAnnotationPopup} from '../AnnotationPopup';
 import {Toolbar} from './Toolbar';

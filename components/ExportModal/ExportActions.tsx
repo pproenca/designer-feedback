@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {AnimatePresence} from 'framer-motion';
+import {AnimatePresence} from '@/utils/motion';
 import {clsx} from 'clsx';
 import {Check, ClipboardCopy, Download} from 'lucide-react';
 import {StatusMessage} from '../StatusMessage';

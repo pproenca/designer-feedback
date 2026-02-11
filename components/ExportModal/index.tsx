@@ -11,14 +11,9 @@ import {
   AnimatePresence,
   useReducedMotion,
   type Variants,
-} from 'framer-motion';
+} from '@/utils/motion';
 import {Dialog} from '@base-ui/react/dialog';
 import type {Annotation, ExportFormat} from '@/types';
-import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
-import {
-  isRestrictedPage,
-  isActiveTabRequiredError,
-} from '@/utils/dom/screenshot';
 import {X} from 'lucide-react';
 import {clsx} from 'clsx';
 import {FormatSelector, type ExportFormatOption} from './FormatSelector';
@@ -29,6 +24,33 @@ import {useCaptureMode} from '@/hooks/useCaptureMode';
 import {useToasts, type ToastInput} from '@/components/Toast';
 import type {ResumeExportRequest} from '@/utils/messaging';
 import {EASE_OUT, EASE_IN} from '@/utils/animation';
+
+type ExportModule = typeof import('@/utils/export');
+let exportModulePromise: Promise<ExportModule> | null = null;
+
+function preloadExportModule(): Promise<ExportModule> {
+  if (!exportModulePromise) {
+    exportModulePromise = import('@/utils/export');
+  }
+  return exportModulePromise;
+}
+
+function isRestrictedPageProtocol(): boolean {
+  try {
+    const protocol = window.location.protocol;
+    return protocol !== 'http:' && protocol !== 'https:';
+  } catch {
+    return true;
+  }
+}
+
+function isActiveTabPermissionError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'ActiveTabRequiredError' ||
+      error.message.toLowerCase().includes('activetab'))
+  );
+}
 
 function getReadableError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
@@ -103,7 +125,7 @@ export function ExportModal({
   const {isExporting, statusMessage, selectedFormat} = state;
   const themeClassName = lightMode ? '' : 'dark';
 
-  const restricted = isRestrictedPage();
+  const restricted = isRestrictedPageProtocol();
 
   const formatOptions: ExportFormatOption[] = useMemo(
     () => [
@@ -132,6 +154,10 @@ export function ExportModal({
     }
   }, [restricted, selectedFormat]);
 
+  useEffect(() => {
+    void preloadExportModule();
+  }, []);
+
   const setCaptureMode = useCaptureMode(shadowRoot, onCaptureChange);
 
   const waitForCaptureUiFlush = useCallback(async () => {
@@ -159,6 +185,7 @@ export function ExportModal({
       let pendingToast: ToastInput | null = null;
       try {
         if (format === 'snapshot') {
+          const {exportAsSnapshotImage} = await preloadExportModule();
           captureActive = true;
           setCaptureMode(true);
           setDialogOpen(false);
@@ -177,6 +204,7 @@ export function ExportModal({
           onClose();
           return;
         } else {
+          const {exportAsImageWithNotes} = await preloadExportModule();
           await exportAsImageWithNotes(annotations);
           pendingToast = {
             type: 'success',
@@ -185,7 +213,7 @@ export function ExportModal({
           onClose();
         }
       } catch (error) {
-        if (isActiveTabRequiredError(error) && format === 'snapshot') {
+        if (isActiveTabPermissionError(error) && format === 'snapshot') {
           pendingToast = {
             type: 'warning',
             message:

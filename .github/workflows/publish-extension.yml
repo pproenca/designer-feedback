@@ -54,13 +54,31 @@ jobs:
         if: ${{ !inputs.skip_tests }}
         run: npm run build
 
-      - name: Install Playwright
+      - name: Verify manifests
+        if: ${{ !inputs.skip_tests }}
+        run: npm run verify:manifests
+
+      - name: Verify content-script bundle size
+        if: ${{ !inputs.skip_tests }}
+        run: npm run check:bundle-size
+
+      - name: Install Playwright (Chrome)
         if: ${{ !inputs.skip_tests }}
         run: npx playwright install chromium --with-deps
 
-      - name: Run Playwright tests
+      - name: Run Chrome E2E tests
         if: ${{ !inputs.skip_tests }}
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npm run test:e2e
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npm run test:e2e:chrome
+        env:
+          CI: true
+
+      - name: Install Playwright (Firefox)
+        if: ${{ !inputs.skip_tests }}
+        run: npx playwright install firefox --with-deps
+
+      - name: Run Firefox smoke test
+        if: ${{ !inputs.skip_tests }}
+        run: npm run test:e2e:firefox
         env:
           CI: true
 
@@ -101,17 +119,31 @@ jobs:
       - name: Validate manifest version matches bump
         run: |
           MANIFEST_PATH=".output/chrome-mv3/manifest.json"
+          FIREFOX_MANIFEST_PATH=".output/firefox-mv3/manifest.json"
           if [ ! -f "$MANIFEST_PATH" ]; then
             echo "Error: $MANIFEST_PATH not found. Build output is missing."
             exit 1
           fi
+          if [ ! -f "$FIREFOX_MANIFEST_PATH" ]; then
+            echo "Error: $FIREFOX_MANIFEST_PATH not found. Build output is missing."
+            exit 1
+          fi
           MANIFEST_VERSION=$(jq -r '.version' "$MANIFEST_PATH")
+          FIREFOX_VERSION=$(jq -r '.version' "$FIREFOX_MANIFEST_PATH")
           if [ -z "$MANIFEST_VERSION" ] || [ "$MANIFEST_VERSION" = "null" ]; then
             echo "Error: version could not be resolved from manifest."
             exit 1
           fi
+          if [ -z "$FIREFOX_VERSION" ] || [ "$FIREFOX_VERSION" = "null" ]; then
+            echo "Error: version could not be resolved from Firefox manifest."
+            exit 1
+          fi
           if [ "$MANIFEST_VERSION" != "${{ steps.bump.outputs.version }}" ]; then
             echo "Error: manifest ($MANIFEST_VERSION) != bump (${{ steps.bump.outputs.version }})"
+            exit 1
+          fi
+          if [ "$FIREFOX_VERSION" != "${{ steps.bump.outputs.version }}" ]; then
+            echo "Error: firefox manifest ($FIREFOX_VERSION) != bump (${{ steps.bump.outputs.version }})"
             exit 1
           fi
 

@@ -6,7 +6,7 @@
     <title>Designer Feedback Privacy Policy</title>
     <meta
       name="description"
-      content="Privacy policy for the Designer Feedback Chrome extension."
+      content="Privacy policy for the Designer Feedback browser extension."
     />
     <style>
       :root {
@@ -112,8 +112,8 @@
       <header>
         <h1>Privacy Policy</h1>
         <div class="meta">
-          <span>Product: Designer Feedback (Chrome extension) v1.1.1</span>
-          <span>Effective date: February 2, 2026</span>
+          <span>Product: Designer Feedback (Chrome + Firefox extension) v1.1.2</span>
+          <span>Effective date: February 11, 2026</span>
         </div>
       </header>
 
@@ -140,7 +140,7 @@
         <p>We collect and use this data only to deliver the extension’s single purpose:</p>
         <ul>
           <li>Create, display, and manage annotations on the current page.</li>
-          <li>Generate exports (HTML, image, or ZIP) when you choose to export.</li>
+          <li>Generate exports (snapshot image or Markdown notes) when you choose to export.</li>
           <li>Show an annotation count badge.</li>
         </ul>
         <p>
@@ -148,11 +148,14 @@
           page you are actively annotating.
         </p>
         <p>
-          <strong>Permissions used:</strong> The extension requests <code>tabs</code> to capture the
-          visible tab during snapshot exports, <code>storage</code> to save data locally,
-          <code>activeTab</code> and <code>scripting</code> to inject the toolbar and capture
-          screenshots on demand, <code>downloads</code> to save exports, and <code>contextMenus</code>
-          to provide a right-click export shortcut.
+          <strong>Permissions used:</strong> Production builds request <code>storage</code> to save
+          data locally, <code>activeTab</code> and <code>scripting</code> to inject the toolbar and
+          capture screenshots on demand, <code>downloads</code> to save exports, and
+          <code>contextMenus</code> to provide right-click actions. Chromium builds also request
+          <code>offscreen</code> for reliable file download handling.
+        </p>
+        <p>
+          The extension does not request persistent broad host permissions in production.
         </p>
       </section>
 
@@ -169,13 +172,12 @@
         <h2>Storage, syncing, and retention</h2>
         <p>
           Annotations are stored locally in your browser storage. Extension settings are stored
-          using Chrome Sync (chrome.storage.sync), which may sync those settings across your Chrome
-          profiles if you have sync enabled. We do not access or process this data outside your
-          browser.
+          using browser sync storage, which may sync those settings across your browser profiles if
+          sync is enabled. We do not access or process this data outside your browser.
         </p>
         <p>
-          Data remains in your browser storage until you delete it using the extension or clear
-          your browser data.
+          Annotation data is retained for up to 7 days and is automatically cleaned up. Pending
+          export resume state is stored session-first with local fallback for reliability.
         </p>
       </section>
 
@@ -199,9 +201,8 @@
       <section class="card">
         <h2>Your choices</h2>
         <ul>
-          <li>Disable the extension on specific sites using the site list controls.</li>
           <li>Clear all annotations from the extension UI.</li>
-          <li>Uninstall the extension to remove its local data.</li>
+          <li>Disable or uninstall the extension to stop local processing and remove stored data.</li>
         </ul>
       </section>
 
@@ -229,7 +230,7 @@
 
       <footer>
         <p>
-          This policy applies to the Designer Feedback Chrome extension.
+          This policy applies to the Designer Feedback browser extension.
         </p>
       </footer>
     </main>

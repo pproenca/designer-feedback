@@ -21,7 +21,7 @@ import {
   setPendingCaptureForTab,
   trimExpiredPendingCaptures,
 } from '@/utils/pending-capture';
-import {pendingCaptureTabs} from '@/utils/storage-items';
+import {createPendingCaptureStoreAdapter} from '@/utils/pending-capture-store';
 import {
   backgroundMessenger,
   contentMessenger,
@@ -40,16 +40,17 @@ import type {
 
 export default defineBackground(() => {
   const activationController = new ActivationController();
+  const pendingCaptureStore = createPendingCaptureStoreAdapter();
 
   void migrateLegacyEnabledSetting();
 
   async function readPendingCaptureStore(): Promise<
     Record<string, PendingCaptureRequest>
   > {
-    const current = await pendingCaptureTabs.getValue();
+    const current = await pendingCaptureStore.getValue();
     const trimmed = trimExpiredPendingCaptures(current);
     if (trimmed !== current) {
-      await pendingCaptureTabs.setValue(trimmed);
+      await pendingCaptureStore.setValue(trimmed);
     }
     return trimmed;
   }
@@ -61,7 +62,7 @@ export default defineBackground(() => {
     const current = await readPendingCaptureStore();
     const request = createPendingCaptureRequest('snapshot', source);
     const next = setPendingCaptureForTab(current, tabId, request);
-    await pendingCaptureTabs.setValue(next);
+    await pendingCaptureStore.setValue(next);
     return request;
   }
 
@@ -73,11 +74,11 @@ export default defineBackground(() => {
   }
 
   async function clearPendingCapture(tabId: number): Promise<void> {
-    const current = await pendingCaptureTabs.getValue();
+    const current = await pendingCaptureStore.getValue();
     const trimmed = trimExpiredPendingCaptures(current);
     const next = clearPendingCaptureForTab(trimmed, tabId);
     if (next !== current) {
-      await pendingCaptureTabs.setValue(next);
+      await pendingCaptureStore.setValue(next);
     }
   }
 

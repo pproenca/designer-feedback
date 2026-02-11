@@ -1,11 +1,15 @@
 import {defineConfig} from 'wxt';
 
 const isE2E = process.env.VITE_DF_E2E === '1';
+const defaultEntrypoints = ['background', 'content', 'offscreen'] as const;
+const e2eEntrypoints = [...defaultEntrypoints, 'test-activate'] as const;
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],
   srcDir: '.',
   outDir: '.output',
+  manifestVersion: 3,
+  filterEntrypoints: isE2E ? [...e2eEntrypoints] : [...defaultEntrypoints],
 
   manifest: ({browser}) => {
     const permissions = [

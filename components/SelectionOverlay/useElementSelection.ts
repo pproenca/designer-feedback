@@ -1,5 +1,5 @@
 import {useState, useRef, useEffect, useCallback} from 'react';
-import {useMotionValue, type MotionValue} from 'framer-motion';
+import {useMotionValue, type MotionValue} from '@/utils/motion';
 import {identifyElement} from '@/utils/dom/element-identification';
 
 export interface HoverInfo {

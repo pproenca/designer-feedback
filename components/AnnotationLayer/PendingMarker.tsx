@@ -1,4 +1,4 @@
-import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {m, AnimatePresence, useReducedMotion} from '@/utils/motion';
 import {clsx} from 'clsx';
 import type {PendingAnnotation} from '@/components/FeedbackToolbar/context';
 import type {FeedbackCategory} from '@/types';

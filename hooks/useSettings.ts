@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {DEFAULT_SETTINGS} from '@/shared/settings';
 import {backgroundMessenger} from '@/utils/messaging';
-import {settingsLightMode} from '@/utils/storage-items';
+import {getExtensionApi, type StorageChangeRecord} from '@/utils/extension-api';
 import type {Settings} from '@/types';
 
 export function useSettings() {
@@ -27,14 +27,42 @@ export function useSettings() {
   }, []);
 
   useEffect(() => {
-    const unwatchLightMode = settingsLightMode.watch(newValue => {
+    const handleStorageChanged = (
+      changes: StorageChangeRecord,
+      areaName: string
+    ) => {
+      if (areaName !== 'sync') {
+        return;
+      }
+      const change = changes.lightMode;
+      if (!change || typeof change.newValue !== 'boolean') {
+        return;
+      }
+      const nextLightMode = change.newValue;
       setSettings(prev =>
-        prev.lightMode === newValue ? prev : {...prev, lightMode: newValue}
+        prev.lightMode === nextLightMode
+          ? prev
+          : {...prev, lightMode: nextLightMode}
       );
-    });
+    };
+
+    let extensionApi: ReturnType<typeof getExtensionApi> | null = null;
+    const handleSyncAreaChanged = (changes: StorageChangeRecord) => {
+      handleStorageChanged(changes, 'sync');
+    };
+    try {
+      extensionApi = getExtensionApi();
+      extensionApi.storage.onChanged.addListener(handleStorageChanged);
+      extensionApi.storage.sync?.onChanged?.addListener(handleSyncAreaChanged);
+    } catch (error) {
+      console.warn('Storage change listener unavailable:', error);
+    }
 
     return () => {
-      unwatchLightMode();
+      extensionApi?.storage.onChanged.removeListener(handleStorageChanged);
+      extensionApi?.storage.sync?.onChanged?.removeListener(
+        handleSyncAreaChanged
+      );
     };
   }, []);
 

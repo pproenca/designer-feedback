@@ -13,7 +13,7 @@ import {
   AnimatePresence,
   useReducedMotion,
   type Variants,
-} from 'framer-motion';
+} from '@/utils/motion';
 import {AlertTriangle, CheckCircle2, Info, XCircle} from 'lucide-react';
 import {clsx} from 'clsx';
 

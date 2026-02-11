@@ -1,9 +1,7 @@
 import type {Annotation} from '@/types';
 import {backgroundMessenger, withTimeout} from '@/utils/messaging';
-import {captureFullPage} from '@/utils/dom/screenshot';
 import {copyToClipboard} from '@/utils/dom/clipboard';
 import {generateNotesMarkdown} from './export/markdown';
-import {createSnapshotImage} from '@/utils/dom/snapshot';
 import {getDocument, getWindow} from '@/utils/dom/guards';
 
 export async function downloadDataUrl(
@@ -21,6 +19,11 @@ export async function downloadDataUrl(
 export async function exportAsSnapshotImage(
   annotations: Annotation[]
 ): Promise<{captureMode: 'full' | 'viewport' | 'placeholder'; error?: string}> {
+  const [{captureFullPage}, {createSnapshotImage}] = await Promise.all([
+    import('@/utils/dom/screenshot'),
+    import('@/utils/dom/snapshot'),
+  ]);
+
   const capture = await captureFullPage();
   const screenshot: string = capture.dataUrl;
   const captureMode: 'full' | 'viewport' | 'placeholder' = capture.mode;

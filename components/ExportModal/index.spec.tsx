@@ -4,10 +4,6 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {render, fireEvent, cleanup, act, within} from '@testing-library/react';
 import {ExportModal} from './index';
 import {exportAsImageWithNotes, exportAsSnapshotImage} from '@/utils/export';
-import {
-  isActiveTabRequiredError,
-  isRestrictedPage,
-} from '@/utils/dom/screenshot';
 import type {Annotation} from '@/types';
 import {ToastProvider} from '@/components/Toast';
 import type {ResumeExportRequest} from '@/utils/messaging';
@@ -35,11 +31,6 @@ vi.mock('@/utils/export', () => ({
   exportAsSnapshotImage: vi.fn().mockResolvedValue({captureMode: 'full'}),
 }));
 
-vi.mock('@/utils/dom/screenshot', () => ({
-  isRestrictedPage: vi.fn().mockReturnValue(false),
-  isActiveTabRequiredError: vi.fn().mockReturnValue(false),
-}));
-
 vi.mock('@/hooks/useSettings', () => ({
   useSettings: () => ({
     settings: {lightMode: true},
@@ -48,7 +39,7 @@ vi.mock('@/hooks/useSettings', () => ({
 }));
 
 // Mock Framer Motion to avoid animation timing issues in tests
-vi.mock('framer-motion', () => ({
+vi.mock('@/utils/motion', () => ({
   m: {
     div: ({children, ...props}: HTMLAttributes<HTMLDivElement>) => (
       <div {...props}>{children}</div>
@@ -79,8 +70,6 @@ const mockAnnotations: Annotation[] = [
 describe('ExportModal', () => {
   const mockedExportAsImageWithNotes = vi.mocked(exportAsImageWithNotes);
   const mockedExportAsSnapshotImage = vi.mocked(exportAsSnapshotImage);
-  const mockedIsActiveTabRequiredError = vi.mocked(isActiveTabRequiredError);
-  const mockedIsRestrictedPage = vi.mocked(isRestrictedPage);
 
   // Create a mock shadow root for portal rendering
   let mockShadowHost: HTMLDivElement;
@@ -89,6 +78,17 @@ describe('ExportModal', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let screen: any;
   const defaultCaptureChange = vi.fn();
+  let locationSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  const mockProtocol = (protocol: string) => {
+    if (!locationSpy) {
+      locationSpy = vi.spyOn(window, 'location', 'get');
+    }
+    locationSpy.mockReturnValue({
+      ...window.location,
+      protocol,
+    } as Location);
+  };
 
   const renderModal = (props: {
     onClose: () => void;
@@ -115,8 +115,6 @@ describe('ExportModal', () => {
     defaultCaptureChange.mockReset();
     mockedExportAsImageWithNotes.mockResolvedValue(undefined);
     mockedExportAsSnapshotImage.mockResolvedValue({captureMode: 'full'});
-    mockedIsActiveTabRequiredError.mockReturnValue(false);
-    mockedIsRestrictedPage.mockReturnValue(false);
 
     // Set up mock shadow DOM
     mockShadowHost = document.createElement('div');
@@ -133,6 +131,8 @@ describe('ExportModal', () => {
     if (mockShadowHost.parentNode) {
       mockShadowHost.parentNode.removeChild(mockShadowHost);
     }
+    locationSpy?.mockRestore();
+    locationSpy = null;
   });
 
   it('enables capture mode before snapshot export and restores it after success', async () => {
@@ -309,7 +309,7 @@ describe('ExportModal', () => {
   });
 
   it('disables snapshot option on restricted pages', async () => {
-    mockedIsRestrictedPage.mockReturnValue(true);
+    mockProtocol('chrome:');
 
     renderModal({onClose: () => {}, onCaptureChange: defaultCaptureChange});
 
@@ -331,7 +331,7 @@ describe('ExportModal', () => {
   });
 
   it('auto-selects markdown format on restricted pages', async () => {
-    mockedIsRestrictedPage.mockReturnValue(true);
+    mockProtocol('chrome:');
 
     renderModal({onClose: () => {}, onCaptureChange: defaultCaptureChange});
 
@@ -379,10 +379,9 @@ describe('ExportModal', () => {
   });
 
   it('handles activeTab permission loss without logging export failure', async () => {
-    mockedExportAsSnapshotImage.mockRejectedValue(
-      new Error('activeTab permission required')
-    );
-    mockedIsActiveTabRequiredError.mockReturnValue(true);
+    const activeTabError = new Error('activeTab permission required');
+    activeTabError.name = 'ActiveTabRequiredError';
+    mockedExportAsSnapshotImage.mockRejectedValue(activeTabError);
     const onClose = vi.fn();
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

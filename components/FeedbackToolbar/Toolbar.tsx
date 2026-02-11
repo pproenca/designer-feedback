@@ -5,9 +5,10 @@ import {
   useMemo,
   useRef,
   startTransition,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import {m, AnimatePresence, useReducedMotion} from 'framer-motion';
+import {m, AnimatePresence, useReducedMotion} from '@/utils/motion';
 import {useDraggable} from '@/hooks/useDraggable';
 import type {Position} from '@/types/position';
 import {clsx} from 'clsx';
@@ -208,7 +209,7 @@ export function Toolbar({children}: ToolbarProps) {
               )
         )}
         onClick={() => !isExpanded && handleExpandedChange(true)}
-        onKeyDown={event => {
+        onKeyDown={(event: ReactKeyboardEvent) => {
           if (!isExpanded && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
             handleExpandedChange(true);

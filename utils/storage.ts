@@ -4,8 +4,8 @@ import {
   STORAGE_KEY_VERSION,
 } from '@/utils/storage-constants';
 import {hashString} from '@/utils/hash';
-import {storage} from 'wxt/utils/storage';
 import {backgroundMessenger} from '@/utils/messaging';
+import {getExtensionApi} from '@/utils/extension-api';
 import {
   maybeRunCleanup,
   getRetentionCutoff,
@@ -59,7 +59,10 @@ function normalizeStoredAnnotations(value: unknown): Annotation[] {
 
 async function getLocal<T>(key: string, fallback: T): Promise<T> {
   try {
-    return await storage.getItem<T>(`local:${key}`, {fallback});
+    const extensionApi = getExtensionApi();
+    const result = await extensionApi.storage.local.get(key);
+    const value = result[key] as T | undefined;
+    return value ?? fallback;
   } catch (error) {
     console.warn('Storage access failed (get):', error);
     return fallback;
@@ -73,18 +76,16 @@ function isQuotaError(error: unknown): boolean {
 }
 
 async function setLocal(values: Record<string, unknown>): Promise<void> {
-  const entries = Object.entries(values).map(([key, value]) => ({
-    key: `local:${key}` as const,
-    value,
-  }));
-  if (!entries.length) return;
+  if (!Object.keys(values).length) return;
   try {
-    await storage.setItems(entries);
+    const extensionApi = getExtensionApi();
+    await extensionApi.storage.local.set(values);
   } catch (error) {
     if (isQuotaError(error)) {
       try {
         await cleanupExpiredAnnotations(getRetentionCutoff());
-        await storage.setItems(entries);
+        const extensionApi = getExtensionApi();
+        await extensionApi.storage.local.set(values);
         return;
       } catch (retryError) {
         console.warn('Storage quota exceeded; retry failed:', retryError);
@@ -95,12 +96,11 @@ async function setLocal(values: Record<string, unknown>): Promise<void> {
 }
 
 async function removeLocal(keys: string | string[]): Promise<void> {
-  const entries = (Array.isArray(keys) ? keys : [keys]).map(key => ({
-    key: `local:${key}` as const,
-  }));
-  if (!entries.length) return;
+  const normalizedKeys = Array.isArray(keys) ? keys : [keys];
+  if (!normalizedKeys.length) return;
   try {
-    await storage.removeItems(entries);
+    const extensionApi = getExtensionApi();
+    await extensionApi.storage.local.remove(normalizedKeys);
   } catch (error) {
     console.warn('Storage access failed (remove):', error);
   }

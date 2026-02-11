@@ -4,7 +4,7 @@ import {
   AnimatePresence,
   useReducedMotion,
   type Variants,
-} from 'framer-motion';
+} from '@/utils/motion';
 import type {Annotation} from '@/types';
 import {clsx} from 'clsx';
 import {usePopupPosition} from './usePopupPosition';

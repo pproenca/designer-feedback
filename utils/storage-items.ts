@@ -33,3 +33,10 @@ export const pendingCaptureTabs = storage.defineItem<
   fallback: {},
   version: 1,
 });
+
+export const pendingCaptureTabsLocalFallback = storage.defineItem<
+  Record<string, PendingCaptureRequest>
+>('local:designer-feedback:pending-capture-tabs', {
+  fallback: {},
+  version: 1,
+});

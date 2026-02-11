@@ -1,119 +1,85 @@
 # Designer Feedback
 
-Annotate any webpage and export visual feedback that developers can act on.
+Annotate live webpages and export actionable feedback for implementation.
 
-Designer Feedback adds a small toolbar to the current page so you can drop markers, write notes, and export a shareable artifact.
+## Browser support
 
-## problem statement
+- Chrome MV3 (`.output/chrome-mv3`)
+- Firefox MV3 (`.output/firefox-mv3`)
 
-Design feedback often arrives as a mix of screenshots plus vague comments in chat. The person implementing has to guess which element was meant, where it lives, and how to reproduce the issue. That guesswork slows reviews and causes rework.
+## Features
 
-## the dream state
+- On-page annotation toolbar with category tagging and marker management
+- Element-targeted comments with visual highlight and per-page badge counts
+- Export flows:
+  - Download snapshot image
+  - Copy Markdown notes to clipboard
+- Context menu shortcuts:
+  - Open Feedback Toolbar
+  - Export Feedback Snapshot
 
-Open the page, click what you mean, and leave a clear note tied to the exact element. When it is time to share, export a single file that anyone can open and understand without back-and-forth.
+## Data and privacy
 
-## features
+- Annotation data is stored locally and keyed by page URL.
+- Settings are stored in sync storage (currently light/dark preference and legacy enable-state migration key).
+- Pending snapshot resume state is stored session-first with local fallback for reliability.
+- Annotation retention is 7 days.
+- No analytics or remote backend; data leaves the extension only when you export/share it.
 
-- On-page toolbar with add mode and hover highlight to pick the exact element
-- Categories for bug, suggestion, question, and accessibility feedback
-- Numbered markers with quick view and delete or clear-all controls
-- Export as a full-page snapshot image or copy a markdown report
-- Site access controls with allowlist and blocklist modes
-- Local-only storage with a per-page badge count
+Full policy: `docs/privacy.html`.
 
-## how it works
+## Permissions
 
-1. Click the toolbar button and choose a category.
-2. Click an element on the page and write your note.
-3. Review markers directly on the page.
-4. Export when you are ready to share.
+Production builds request:
 
-## exports
+- `storage`
+- `downloads`
+- `activeTab`
+- `scripting`
+- `contextMenus`
+- `offscreen` (Chromium builds only)
 
-- Snapshot image: a full-page image with highlights and a sidebar list.
-- Markdown to clipboard: a concise report you can paste into an issue or PR.
+Notes:
 
-## privacy and data
+- No persistent broad `host_permissions` in production.
+- `tabs` is test-only and only included in E2E builds.
+- Snapshot capture is runtime-gated by `activeTab`; if access expires, invoking the extension action re-establishes access and resumes export.
 
-- Annotations are stored locally in IndexedDB and keyed to the page URL.
-- Settings (enabled state, site list) are stored in chrome.storage.sync.
-- Old annotations are cleaned up after 30 days.
-- No servers or analytics. Data only leaves the extension when you export and share it.
-
-See `docs/privacy.html` for the full policy.
-
-## permissions
-
-- `storage` to save annotations and settings locally.
-- `activeTab` and `scripting` to inject the toolbar and capture screenshots on demand (no persistent host permissions).
-- `downloads` to save snapshot exports to your device.
-- `contextMenus` to expose a right-click “Designer Feedback” submenu with
-  “Open Feedback Toolbar” and “Export Feedback Snapshot” actions.
-
-Snapshot capture uses `activeTab` runtime access. If access expires, click the extension action and the export resumes automatically.
-
-## installation
-
-### battle-tested install outside the web store
-
-The most common pattern used by large open-source extensions is:
-
-1. **Download a prebuilt zip from GitHub Releases.**
-2. **Unzip it and load it unpacked in Chrome.**
-3. **Manually update by downloading the next release.**
-
-This repo supports that flow (plus build-from-source) so you can install without the web store.
-
-### install from release (no store)
-
-1. Run the installer:
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash
-   ```
-2. Open Chrome and go to `chrome://extensions`.
-3. Enable Developer mode.
-4. Click "Load unpacked" and select `~/.designer-feedback`.
-
-To install from your own fork or a direct asset URL:
-
-```bash
-REPO=you/designer-feedback curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash
-curl -fsSL https://raw.githubusercontent.com/pproenca/designer-feedback/master/scripts/install.sh | bash -s -- --zip-url https://example.com/designer-feedback.zip
-```
-
-### build from source
+## Install from source
 
 1. `npm install`
 2. `npm run build`
-3. Open Chrome and go to `chrome://extensions`.
-4. Enable Developer mode.
-5. Click "Load unpacked" and select `dist`.
 
-For local development with live rebuilds:
+Load unpacked builds:
 
-1. `npm run dev`
-2. Load `dist` as above.
+- Chrome: `chrome://extensions` -> Developer mode -> Load unpacked -> select `.output/chrome-mv3`
+- Firefox: `about:debugging#/runtime/this-firefox` -> Load Temporary Add-on -> select `.output/firefox-mv3/manifest.json`
 
-## development scripts
+## Development
 
-- `npm run dev` starts the Vite dev build.
-- `npm run build` builds the production extension.
-- `npm run pack` builds and creates a zip in `dist`.
-- `npm run test` runs unit tests.
-- `npm run test:e2e` runs Playwright tests.
+Key scripts:
 
-## project structure
+- `npm run dev` - WXT dev server
+- `npm run build` - production builds for Chrome MV3 + Firefox MV3
+- `npm run zip` - package Chrome MV3
+- `npm run zip:firefox` - package Firefox MV3
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run test:e2e:chrome`
+- `npm run test:e2e:firefox`
+- `npm run verify:manifests`
+- `npm run check:bundle-size`
 
-- `src/content` content script that injects the toolbar and markers
-- `src/popup` extension popup UI and site access settings
-- `src/background` service worker for badge updates
-- `src/utils` storage, export, and screenshot helpers
-- `docs/privacy.html` privacy policy
+## Project structure
 
-## contributing
+- `entrypoints/` - WXT entrypoints (`background.ts`, `content/`, `offscreen/`, `test-activate/`)
+- `components/` - shared React UI
+- `hooks/`, `stores/`, `utils/`, `shared/`, `types/` - app logic and typed utilities
+- `tests/` - Playwright E2E specs and fixtures
+- `test/` - Vitest setup
+- `docs/` - project docs and privacy policy
 
-If you are working in this repo, keep changes small and focused. Add or update tests when behavior changes.
+## License
 
-## license
-
-MIT License. See `LICENSE`.
+MIT. See `LICENSE`.

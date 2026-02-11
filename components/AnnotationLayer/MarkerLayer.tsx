@@ -3,7 +3,7 @@ import type {
   MouseEvent as ReactMouseEvent,
 } from 'react';
 import {useMemo} from 'react';
-import {m, useReducedMotion} from 'framer-motion';
+import {m, useReducedMotion} from '@/utils/motion';
 import {clsx} from 'clsx';
 import {getCategoryConfig} from '@/shared/categories';
 import {useMarkerDragContext} from './MarkerDragContext';

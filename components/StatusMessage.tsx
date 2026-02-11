@@ -1,5 +1,5 @@
 import {useMemo} from 'react';
-import {m, useReducedMotion, type Variants} from 'framer-motion';
+import {m, useReducedMotion, type Variants} from '@/utils/motion';
 import {clsx} from 'clsx';
 
 export type StatusType = 'success' | 'warning' | 'error' | 'info';

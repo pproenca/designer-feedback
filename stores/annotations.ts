@@ -8,7 +8,6 @@ import {
   getStorageKey,
   updateBadgeCount,
 } from '@/utils/storage';
-import {debounce} from 'lodash-es';
 
 export interface AnnotationsState {
   annotations: Annotation[];
@@ -31,6 +30,23 @@ export interface AnnotationsActions {
 }
 
 const BADGE_DEBOUNCE_MS = 150;
+
+function createDebouncedTask<TArgs extends unknown[]>(
+  task: (...args: TArgs) => void,
+  delayMs: number
+): (...args: TArgs) => void {
+  let timeoutId: number | null = null;
+
+  return (...args: TArgs) => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = window.setTimeout(() => {
+      timeoutId = null;
+      task(...args);
+    }, delayMs);
+  };
+}
 
 export const useAnnotationsStore = create<
   AnnotationsState & AnnotationsActions
@@ -98,7 +114,7 @@ export const useAnnotationsStore = create<
   },
 }));
 
-const debouncedUpdateBadge = debounce((count: number) => {
+const debouncedUpdateBadge = createDebouncedTask((count: number) => {
   updateBadgeCount(count);
 }, BADGE_DEBOUNCE_MS);
 
