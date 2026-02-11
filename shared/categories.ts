@@ -18,7 +18,7 @@ export type CategoryConfig = {
   };
 };
 
-export const CATEGORIES: CategoryConfig[] = [
+export const CATEGORIES = [
   {
     id: 'bug',
     label: 'Bug',
@@ -59,7 +59,7 @@ export const CATEGORIES: CategoryConfig[] = [
       text: 'text-df-purple',
     },
   },
-];
+] as const satisfies readonly CategoryConfig[];
 
 export const getCategoryConfig = (id: FeedbackCategory): CategoryConfig => {
   return CATEGORIES.find(c => c.id === id) ?? CATEGORIES[0];

@@ -118,7 +118,7 @@ const debouncedUpdateBadge = createDebouncedTask((count: number) => {
   updateBadgeCount(count);
 }, BADGE_DEBOUNCE_MS);
 
-export function initBadgeSync() {
+export function initBadgeSync(): () => void {
   return useAnnotationsStore.subscribe((state, prevState) => {
     if (state.annotations.length !== prevState.annotations.length) {
       debouncedUpdateBadge(state.annotations.length);

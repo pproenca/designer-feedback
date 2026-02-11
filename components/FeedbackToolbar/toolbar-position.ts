@@ -3,6 +3,15 @@ import {getExtensionApi} from '@/utils/extension-api';
 
 const TOOLBAR_POSITIONS_KEY = 'designer-feedback:toolbar-positions';
 
+function isPosition(value: unknown): value is Position {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).x === 'number' &&
+    typeof (value as Record<string, unknown>).y === 'number'
+  );
+}
+
 async function getStoredToolbarPositions(): Promise<Record<string, Position>> {
   const extensionApi = getExtensionApi();
   const result = await extensionApi.storage.local.get(TOOLBAR_POSITIONS_KEY);
@@ -10,7 +19,14 @@ async function getStoredToolbarPositions(): Promise<Record<string, Position>> {
   if (!raw || typeof raw !== 'object') {
     return {};
   }
-  return raw as Record<string, Position>;
+  const positions: Record<string, Position> = {};
+  const entries = Object.entries(raw as Record<string, unknown>);
+  for (const [key, value] of entries) {
+    if (isPosition(value)) {
+      positions[key] = value;
+    }
+  }
+  return positions;
 }
 
 async function setStoredToolbarPositions(

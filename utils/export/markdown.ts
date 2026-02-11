@@ -9,12 +9,12 @@ type NotesMarkdownMeta = {
 };
 
 /** Severity order for markdown export (most severe first). */
-const SEVERITY_ORDER: FeedbackCategory[] = [
+const SEVERITY_ORDER = [
   'bug',
   'accessibility',
   'suggestion',
   'question',
-];
+] as const satisfies readonly FeedbackCategory[];
 
 export function generateNotesMarkdown(
   annotations: Annotation[],

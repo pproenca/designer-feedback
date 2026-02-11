@@ -9,14 +9,14 @@ export function isInjectableUrl(url: string): boolean {
 
 export type ScreenshotResult = {data: string; error?: string};
 
-const RATE_LIMIT_ERROR_PATTERNS = [
+const RATE_LIMIT_ERROR_PATTERNS: readonly string[] = [
   'max_capture_visible_tab_calls_per_second',
   'too many calls',
   'rate limit',
   'quota',
 ];
 
-const ACTIVE_TAB_ERROR_PATTERNS = [
+const ACTIVE_TAB_ERROR_PATTERNS: readonly string[] = [
   'activetab',
   'not allowed to access',
   'cannot access contents of the page',
