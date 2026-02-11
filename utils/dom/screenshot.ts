@@ -10,7 +10,6 @@ import {assertDomAvailable} from '@/utils/dom/guards';
 
 export type FullPageCaptureResult = {
   dataUrl: string;
-  isPlaceholder: boolean;
   mode: 'full' | 'viewport' | 'placeholder';
   error?: string;
 };
@@ -93,14 +92,12 @@ export async function captureFullPage(): Promise<FullPageCaptureResult> {
   if (isE2E) {
     return {
       dataUrl: createPlaceholderScreenshot(),
-      isPlaceholder: false,
       mode: 'full',
     };
   }
   try {
     return {
       dataUrl: await captureFullPageFromExtension(),
-      isPlaceholder: false,
       mode: 'full',
     };
   } catch (error) {
@@ -115,7 +112,6 @@ export async function captureFullPage(): Promise<FullPageCaptureResult> {
       const fallback = await captureScreenshotWithRetry();
       return {
         dataUrl: fallback,
-        isPlaceholder: false,
         mode: 'viewport',
         error: error instanceof Error ? error.message : String(error),
       };
@@ -127,7 +123,6 @@ export async function captureFullPage(): Promise<FullPageCaptureResult> {
     }
     return {
       dataUrl: createPlaceholderScreenshot(),
-      isPlaceholder: true,
       mode: 'placeholder',
       error: error instanceof Error ? error.message : String(error),
     };

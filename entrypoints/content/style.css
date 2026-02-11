@@ -209,6 +209,32 @@
     @apply after:bg-white dark:after:bg-df-dark;
   }
 
+  /* Category panel - opens upward when near viewport bottom */
+  [data-panel-direction="up"] > .category-panel {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+  }
+
+  [data-panel-direction="up"] > .category-panel::after {
+    top: auto;
+    bottom: -0.375rem;
+    border-top-left-radius: 0;
+    border-bottom-right-radius: 0.125rem;
+  }
+
+  /* Category panel - left-align when toolbar is on left side */
+  [data-expand-direction="right"] > .category-panel {
+    left: 0;
+    translate: none;
+  }
+
+  [data-expand-direction="right"] > .category-panel::after {
+    left: 1.25rem;
+    translate: none;
+  }
+
   /* Category panel item */
   .category-panel-item {
     @apply flex items-center gap-3 py-2.5 px-3;

@@ -59,7 +59,11 @@ export default defineContentScript({
         const targetUrl = url ?? getStorageKey();
         const count = await getAnnotationCount(targetUrl);
         return {count};
-      } catch {
+      } catch (error) {
+        console.warn(
+          '[Designer Feedback] Failed to get annotation count:',
+          error
+        );
         return {count: 0};
       }
     });

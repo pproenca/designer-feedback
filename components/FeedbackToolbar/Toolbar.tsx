@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   startTransition,
   type ReactNode,
@@ -158,6 +159,12 @@ export function Toolbar({children}: ToolbarProps) {
     onPositionChange: handleToolbarPositionChange,
   });
 
+  const panelDirection = useMemo(() => {
+    if (!toolbarPosition) return 'down';
+    const spaceBelow = window.innerHeight - toolbarPosition.y - 44;
+    return spaceBelow < 280 ? 'up' : 'down';
+  }, [toolbarPosition]);
+
   return (
     <div
       className={clsx(
@@ -253,7 +260,11 @@ export function Toolbar({children}: ToolbarProps) {
           )}
         >
           {/* Add annotation button */}
-          <div className="relative flex items-center justify-center group">
+          <div
+            className="relative flex items-center justify-center group"
+            data-panel-direction={panelDirection}
+            data-expand-direction={expandDirection}
+          >
             <button
               className={clsx(
                 'btn-toolbar',

@@ -23,7 +23,24 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? null;
+      return (
+        this.props.fallback ?? (
+          <div
+            style={{
+              padding: '12px 16px',
+              background: '#fef2f2',
+              border: '1px solid #fca5a5',
+              borderRadius: '8px',
+              color: '#991b1b',
+              fontSize: '13px',
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            <strong>Designer Feedback crashed.</strong> Reload the page to
+            recover.
+          </div>
+        )
+      );
     }
     return this.props.children;
   }
