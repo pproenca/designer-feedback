@@ -17,7 +17,7 @@ const SEVERITY_ORDER = [
 ] as const satisfies readonly FeedbackCategory[];
 
 export function generateNotesMarkdown(
-  annotations: Annotation[],
+  annotations: readonly Annotation[],
   meta: NotesMarkdownMeta = {}
 ): string {
   const lines: string[] = [];

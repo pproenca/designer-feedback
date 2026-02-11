@@ -1,14 +1,8 @@
 import {browser} from 'wxt/browser';
-
-const RESTRICTED_ACCESS_ERROR_PATTERNS = [
-  'cannot access contents of the page',
-  'missing host permission',
-  'activetab',
-  'not allowed to access',
-  'permission is required',
-  'cannot access a chrome://',
-  'extensions gallery cannot be scripted',
-];
+import {
+  isRestrictedAccessError,
+  normalizeErrorMessage,
+} from '@/utils/error-patterns';
 
 export type ScriptInjectionErrorCode =
   | 'no-files'
@@ -29,20 +23,6 @@ export class ScriptInjectionError extends Error {
 
 export interface ScriptInjectionAdapter {
   injectFiles(tabId: number, files: string[]): Promise<void>;
-}
-
-function normalizeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-}
-
-function isRestrictedAccessError(error: unknown): boolean {
-  const message = normalizeErrorMessage(error).toLowerCase();
-  return RESTRICTED_ACCESS_ERROR_PATTERNS.some(pattern =>
-    message.includes(pattern)
-  );
 }
 
 type ExtensionBrowser = typeof browser;
@@ -86,9 +66,8 @@ export function createScriptInjectionAdapter(
         }
       }
 
-      const legacyTabs = extensionBrowser.tabs as
-        | TabsWithLegacyExecuteScript
-        | undefined;
+      const legacyTabs: TabsWithLegacyExecuteScript | undefined =
+        extensionBrowser.tabs;
       if (legacyTabs && typeof legacyTabs.executeScript === 'function') {
         try {
           for (const file of files) {

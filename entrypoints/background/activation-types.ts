@@ -24,13 +24,19 @@ export type ActivationStep =
   | 'completed'
   | 'failed';
 
-export type ActivationResult = {
-  ok: boolean;
-  tabId?: number;
-  reason?: ActivationFailureReason;
-  action?: 'opened' | 'closed' | 'noop';
-  changed: boolean;
-};
+export type ActivationResult =
+  | {
+      ok: true;
+      tabId: number;
+      action: 'opened' | 'closed' | 'noop';
+      changed: boolean;
+    }
+  | {
+      ok: false;
+      tabId?: number;
+      reason: ActivationFailureReason;
+      changed: false;
+    };
 
 export type ActivationTarget = {
   tabId: number;

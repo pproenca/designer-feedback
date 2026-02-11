@@ -4,6 +4,10 @@ import {
   getContentScriptFiles,
   isInjectableUrl,
 } from '@/utils/background-helpers';
+import {
+  isRestrictedAccessError,
+  normalizeErrorMessage,
+} from '@/utils/error-patterns';
 import {createScriptInjectionAdapter} from '@/utils/script-injection-adapter';
 import {createActivationTrace, type ActivationTrace} from './activation-trace';
 import type {
@@ -64,16 +68,6 @@ const NO_RECEIVER_ERROR_PATTERNS = [
   'message port closed before a response was received',
 ];
 
-const RESTRICTED_ACCESS_ERROR_PATTERNS = [
-  'cannot access contents of the page',
-  'missing host permission',
-  'activetab',
-  'not allowed to access',
-  'permission is required',
-  'cannot access a chrome://',
-  'extensions gallery cannot be scripted',
-];
-
 const DEFAULT_ACTION_TITLE = 'Click to toggle Designer Feedback';
 const WARNING_BADGE_COLOR = '#D97706';
 const WARNING_BADGE_TEXT = '!';
@@ -81,23 +75,9 @@ const WARNING_BADGE_DURATION_MS = 3500;
 const READINESS_RETRY_DELAYS_MS = [0, 25, 50, 100, 180, 300];
 const scriptInjectionAdapter = createScriptInjectionAdapter(browser);
 
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.toLowerCase();
-  }
-  return String(error).toLowerCase();
-}
-
 function isNoReceiverError(error: unknown): boolean {
-  const message = errorMessage(error);
+  const message = normalizeErrorMessage(error).toLowerCase();
   return NO_RECEIVER_ERROR_PATTERNS.some(pattern => message.includes(pattern));
-}
-
-function isRestrictedAccessError(error: unknown): boolean {
-  const message = errorMessage(error);
-  return RESTRICTED_ACCESS_ERROR_PATTERNS.some(pattern =>
-    message.includes(pattern)
-  );
 }
 
 function getActivationFailureTitle(reason: ActivationFailureReason): string {
@@ -237,12 +217,7 @@ export class ActivationController {
 
     if (ready.mounted) {
       trace.step('completed', {tabId, action: 'noop'});
-      return {
-        ok: true,
-        tabId,
-        action: 'noop',
-        changed: false,
-      };
+      return {ok: true, tabId, action: 'noop', changed: false};
     }
 
     return await this.showToolbar(tabId, trace);
@@ -263,12 +238,7 @@ export class ActivationController {
       ) {
         this.legacyMountedTabs.add(tabId);
         trace.step('completed', {tabId, action: 'opened'});
-        return {
-          ok: true,
-          tabId,
-          action: 'opened',
-          changed: true,
-        };
+        return {ok: true, tabId, action: 'opened', changed: true};
       }
     } catch (error) {
       trace.step('show-sent', {
@@ -299,12 +269,7 @@ export class ActivationController {
       ) {
         this.legacyMountedTabs.delete(tabId);
         trace.step('completed', {tabId, action: 'closed'});
-        return {
-          ok: true,
-          tabId,
-          action: 'closed',
-          changed: true,
-        };
+        return {ok: true, tabId, action: 'closed', changed: true};
       }
     } catch (error) {
       if (isNoReceiverError(error)) {
@@ -314,12 +279,7 @@ export class ActivationController {
           action: 'closed',
           noReceiver: true,
         });
-        return {
-          ok: true,
-          tabId,
-          action: 'closed',
-          changed: false,
-        };
+        return {ok: true, tabId, action: 'closed', changed: false};
       }
 
       if (isRestrictedAccessError(error)) {
@@ -512,11 +472,6 @@ export class ActivationController {
 
     await this.deps.notifyActivationFailure(tabId, reason);
 
-    return {
-      ok: false,
-      tabId,
-      reason,
-      changed: false,
-    };
+    return {ok: false, tabId, reason, changed: false};
   }
 }

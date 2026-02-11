@@ -7,11 +7,9 @@ import type {
 export type CaptureScreenshotErrorCode =
   | 'activeTab-required'
   | 'capture-rate-limited';
-export type CaptureScreenshotResponse = {
-  data: string;
-  error?: string;
-  errorCode?: CaptureScreenshotErrorCode;
-};
+export type CaptureScreenshotResponse =
+  | {data: string; error?: undefined; errorCode?: undefined}
+  | {data: string; error: string; errorCode?: CaptureScreenshotErrorCode};
 
 export type ResumeExportRequest = {
   requestId: string;
@@ -19,18 +17,16 @@ export type ResumeExportRequest = {
   source: PendingCaptureSource;
 };
 
-export type ResumeExportResponse = {
-  accepted: boolean;
-  requestId: string;
-  reason?: string;
-};
+export type ResumeExportResponse =
+  | {accepted: true; requestId: string}
+  | {accepted: false; requestId: string; reason: string};
 
 interface BackgroundProtocolMap {
   captureScreenshot(): CaptureScreenshotResponse;
-  downloadFile(params: {filename: string; dataUrl: string}): {
-    ok: boolean;
-    error?: string;
-  };
+  downloadFile(params: {
+    filename: string;
+    dataUrl: string;
+  }): {ok: true; downloadId: number} | {ok: false; error: string};
   getSettings(): {settings: Settings; error?: string};
   saveSettings(settings: Settings): {settings: Settings; error?: string};
   updateBadge(count: number): void;
@@ -128,11 +124,13 @@ function isEnvelope(message: unknown): message is Envelope {
   if (!message || typeof message !== 'object') {
     return false;
   }
-  const candidate = message as Partial<Envelope>;
+  if (!('dfChannel' in message) || !('dfType' in message)) {
+    return false;
+  }
+  const {dfChannel, dfType} = message as Record<string, unknown>;
   return (
-    (candidate.dfChannel === 'background' ||
-      candidate.dfChannel === 'content') &&
-    typeof candidate.dfType === 'string'
+    (dfChannel === 'background' || dfChannel === 'content') &&
+    typeof dfType === 'string'
   );
 }
 

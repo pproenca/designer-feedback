@@ -177,7 +177,7 @@ describe('ActivationController', () => {
       pageUrl: 'chrome://settings',
     });
 
-    expect(result.reason).toBe('restricted-url');
+    expect(result).toMatchObject({ok: false, reason: 'restricted-url'});
     expect(notifyActivationFailure).toHaveBeenCalledWith(16, 'restricted-url');
   });
 
@@ -328,8 +328,8 @@ describe('ActivationController', () => {
     controller.clearTabState(44);
     const second = await controller.handleInvocation(invocation);
 
-    expect(first.action).toBe('opened');
-    expect(second.action).toBe('opened');
+    expect(first).toMatchObject({ok: true, action: 'opened'});
+    expect(second).toMatchObject({ok: true, action: 'opened'});
     expect(showToolbar).toHaveBeenCalledTimes(2);
     expect(toggleToolbar).not.toHaveBeenCalled();
     expect(pingToolbar).toHaveBeenCalledTimes(12);
@@ -372,7 +372,7 @@ describe('ActivationController', () => {
       })
     );
 
-    expect(result.reason).toBe('show-failed');
+    expect(result).toMatchObject({ok: false, reason: 'show-failed'});
     expect(notifyActivationFailure).toHaveBeenCalledWith(73, 'show-failed');
   });
 });

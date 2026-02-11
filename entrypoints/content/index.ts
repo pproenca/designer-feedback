@@ -138,7 +138,7 @@ export default defineContentScript({
 
     ctx.onInvalidated(() => {
       lifecycle.dispose();
-      delete window.__designerFeedbackInjected;
+      window.__designerFeedbackInjected = undefined;
     });
   },
 });

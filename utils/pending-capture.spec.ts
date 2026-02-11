@@ -79,6 +79,7 @@ describe('pending-capture helpers', () => {
       didResumeExportAcknowledgeRequest(pending, {
         accepted: false,
         requestId: 'match-id',
+        reason: 'not-ready',
       })
     ).toBe(false);
     expect(

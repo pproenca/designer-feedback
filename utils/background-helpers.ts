@@ -7,7 +7,9 @@ export function isInjectableUrl(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
-export type ScreenshotResult = {data: string; error?: string};
+export type ScreenshotResult =
+  | {data: string; error?: undefined}
+  | {data: string; error: string};
 
 const RATE_LIMIT_ERROR_PATTERNS: readonly string[] = [
   'max_capture_visible_tab_calls_per_second',
@@ -63,12 +65,27 @@ export async function captureVisibleTabScreenshot(
   }
 }
 
-export type DownloadResult = {ok: boolean; downloadId?: number; error?: string};
+export type DownloadResult =
+  | {ok: true; downloadId: number}
+  | {ok: false; error: string};
 
 const DOWNLOAD_URL_REVOKE_DELAY_MS = 60000;
 const OFFSCREEN_DOCUMENT_URL = '/offscreen.html';
 const OFFSCREEN_JUSTIFICATION =
   'Create blob URLs for large downloads when service workers lack DOM APIs';
+
+function isSuccessDownloadResult(
+  value: unknown
+): value is DownloadResult & {ok: true} {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'ok' in value &&
+    (value as {ok: unknown}).ok === true &&
+    'downloadId' in value &&
+    typeof (value as {downloadId: unknown}).downloadId === 'number'
+  );
+}
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, data] = dataUrl.split(',');
@@ -154,17 +171,24 @@ async function downloadFileViaOffscreen(
       }
     }
 
-    const response = (await browser.runtime.sendMessage({
+    const raw: unknown = await browser.runtime.sendMessage({
       dfOffscreen: 'download',
       dataUrl,
       filename,
-    })) as DownloadResult | undefined;
+    });
 
-    if (response?.ok) {
-      return response;
+    if (isSuccessDownloadResult(raw)) {
+      return raw;
     }
 
-    return {ok: false, error: response?.error ?? 'Offscreen download failed'};
+    const errorMsg =
+      raw &&
+      typeof raw === 'object' &&
+      'error' in raw &&
+      typeof (raw as {error: unknown}).error === 'string'
+        ? (raw as {error: string}).error
+        : 'Offscreen download failed';
+    return {ok: false, error: errorMsg};
   } catch (error) {
     console.warn('[Background] Offscreen download failed:', error);
     return {ok: false, error: String(error)};

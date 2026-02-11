@@ -21,7 +21,7 @@ export interface AnnotationsActions {
 
   annotationUpdated: (
     id: string,
-    updates: Partial<Annotation>
+    updates: Readonly<Partial<Annotation>>
   ) => Promise<void>;
 
   annotationDeleted: (id: string) => Promise<void>;

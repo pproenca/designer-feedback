@@ -5,7 +5,11 @@ import {
 } from '@/utils/storage-constants';
 import {hashString} from '@/utils/hash';
 import {backgroundMessenger} from '@/utils/messaging';
-import {getExtensionApi} from '@/utils/extension-api';
+import {
+  getLocalStorage,
+  setLocalStorage,
+  removeLocalStorage,
+} from '@/utils/extension-api';
 import {
   maybeRunCleanup,
   getRetentionCutoff,
@@ -35,21 +39,9 @@ export function getStorageKey(targetUrl?: string): string {
 }
 
 function stripUrl(annotation: Annotation & {url?: string}): Annotation {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {url, ...rest} = annotation;
-  return rest as Annotation;
-}
-
-async function getLocal<T>(key: string, fallback: T): Promise<T> {
-  try {
-    const extensionApi = getExtensionApi();
-    const result = await extensionApi.storage.local.get(key);
-    const value = result[key] as T | undefined;
-    return value ?? fallback;
-  } catch (error) {
-    console.warn('Storage access failed (get):', error);
-    return fallback;
-  }
+  return rest;
 }
 
 function isQuotaError(error: unknown): boolean {
@@ -58,40 +50,28 @@ function isQuotaError(error: unknown): boolean {
   return message.toLowerCase().includes('quota');
 }
 
-async function setLocal(values: Record<string, unknown>): Promise<void> {
-  if (!Object.keys(values).length) return;
+async function setLocalWithQuotaRetry(
+  values: Record<string, unknown>
+): Promise<void> {
   try {
-    const extensionApi = getExtensionApi();
-    await extensionApi.storage.local.set(values);
+    await setLocalStorage(values);
   } catch (error) {
     if (isQuotaError(error)) {
       try {
         await cleanupExpiredAnnotations(getRetentionCutoff());
-        const extensionApi = getExtensionApi();
-        await extensionApi.storage.local.set(values);
+        await setLocalStorage(values);
         return;
       } catch (retryError) {
         console.warn('Storage quota exceeded; retry failed:', retryError);
       }
     }
-    console.warn('Storage access failed (set):', error);
-  }
-}
-
-async function removeLocal(keys: string | string[]): Promise<void> {
-  const normalizedKeys = Array.isArray(keys) ? keys : [keys];
-  if (!normalizedKeys.length) return;
-  try {
-    const extensionApi = getExtensionApi();
-    await extensionApi.storage.local.remove(normalizedKeys);
-  } catch (error) {
-    console.warn('Storage access failed (remove):', error);
+    throw error;
   }
 }
 
 async function loadAnnotationsForKey(urlKey: string): Promise<Annotation[]> {
   const bucketKey = getAnnotationsBucketKey(urlKey);
-  const stored = await getLocal<Annotation[]>(bucketKey, []);
+  const stored = await getLocalStorage<Annotation[]>(bucketKey, []);
   return normalizeStoredAnnotations(stored);
 }
 
@@ -100,12 +80,12 @@ async function saveAnnotationsForKey(
   annotations: Annotation[]
 ): Promise<void> {
   const bucketKey = getAnnotationsBucketKey(urlKey);
-  await setLocal({[bucketKey]: annotations.map(stripUrl)});
+  await setLocalWithQuotaRetry({[bucketKey]: annotations.map(stripUrl)});
 }
 
 async function clearAnnotationsForKey(urlKey: string): Promise<void> {
   const bucketKey = getAnnotationsBucketKey(urlKey);
-  await removeLocal(bucketKey);
+  await removeLocalStorage(bucketKey);
 }
 
 export async function saveAnnotation(

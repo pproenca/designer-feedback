@@ -23,7 +23,7 @@ export function createPendingCaptureRequest(
 }
 
 export function trimExpiredPendingCaptures(
-  current: PendingCaptureStore,
+  current: Readonly<PendingCaptureStore>,
   now = Date.now(),
   ttlMs = PENDING_CAPTURE_TTL_MS
 ): PendingCaptureStore {
@@ -40,7 +40,7 @@ export function trimExpiredPendingCaptures(
 }
 
 export function setPendingCaptureForTab(
-  current: PendingCaptureStore,
+  current: Readonly<PendingCaptureStore>,
   tabId: number,
   request: PendingCaptureRequest
 ): PendingCaptureStore {
@@ -48,14 +48,14 @@ export function setPendingCaptureForTab(
 }
 
 export function getPendingCaptureForTab(
-  current: PendingCaptureStore,
+  current: Readonly<PendingCaptureStore>,
   tabId: number
 ): PendingCaptureRequest | null {
   return current[String(tabId)] ?? null;
 }
 
 export function clearPendingCaptureForTab(
-  current: PendingCaptureStore,
+  current: Readonly<PendingCaptureStore>,
   tabId: number
 ): PendingCaptureStore {
   const tabKey = String(tabId);

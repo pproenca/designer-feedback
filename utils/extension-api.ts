@@ -40,3 +40,51 @@ export function getExtensionApi(): ExtensionApi {
   }
   return api;
 }
+
+export async function getLocalStorage<T>(key: string, fallback: T): Promise<T> {
+  try {
+    const extensionApi = getExtensionApi();
+    const result = await extensionApi.storage.local.get(key);
+    const value: unknown = result[key];
+    if (value === undefined || value === null) return fallback;
+    return value as T;
+  } catch (error) {
+    console.warn('Storage access failed (get):', error);
+    return fallback;
+  }
+}
+
+export async function setLocalStorage(
+  values: Record<string, unknown>
+): Promise<void> {
+  if (!Object.keys(values).length) return;
+  try {
+    const extensionApi = getExtensionApi();
+    await extensionApi.storage.local.set(values);
+  } catch (error) {
+    console.warn('Storage access failed (set):', error);
+  }
+}
+
+export async function removeLocalStorage(
+  keys: string | string[]
+): Promise<void> {
+  const normalizedKeys = Array.isArray(keys) ? keys : [keys];
+  if (!normalizedKeys.length) return;
+  try {
+    const extensionApi = getExtensionApi();
+    await extensionApi.storage.local.remove(normalizedKeys);
+  } catch (error) {
+    console.warn('Storage access failed (remove):', error);
+  }
+}
+
+export async function getAllLocalStorage(): Promise<Record<string, unknown>> {
+  try {
+    const extensionApi = getExtensionApi();
+    return await extensionApi.storage.local.get(null);
+  } catch (error) {
+    console.warn('Storage access failed (get all):', error);
+    return {};
+  }
+}

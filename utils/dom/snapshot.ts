@@ -9,7 +9,7 @@ import {hexToRgba} from '@/utils/canvas/color';
 const SNAPSHOT_FONT_FAMILY =
   '"Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif';
 
-function formatAnnotationSummary(annotations: Annotation[]): string {
+function formatAnnotationSummary(annotations: readonly Annotation[]): string {
   const total = annotations.length;
   const prefix = `${total} annotation${total !== 1 ? 's' : ''}`;
   const counts = new Map<string, number>();
@@ -36,7 +36,7 @@ function getMarkerRadius(index: number, baseRadius: number): number {
 
 export async function createSnapshotImage(
   screenshot: string,
-  annotations: Annotation[]
+  annotations: readonly Annotation[]
 ): Promise<string> {
   assertDomAvailable('createSnapshotImage');
   const doc = getDocument('createSnapshotImage');
@@ -129,7 +129,7 @@ export async function createSnapshotImage(
 
 function drawAnnotationOverlays(
   ctx: CanvasRenderingContext2D,
-  annotations: Annotation[],
+  annotations: readonly Annotation[],
   options: {
     offsetX: number;
     offsetY: number;
@@ -257,7 +257,7 @@ function createSidebarLayout(scale: number): SidebarLayoutConfig {
 
 function drawSidebarPanel(
   ctx: CanvasRenderingContext2D,
-  annotations: Annotation[],
+  annotations: readonly Annotation[],
   options: {x: number; y: number; width: number; height: number; scale: number}
 ): void {
   const {x, y, width, height, scale} = options;

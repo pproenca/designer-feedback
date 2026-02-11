@@ -254,7 +254,7 @@ export default defineBackground(() => {
       return await downloadFile(data.dataUrl, data.filename);
     } catch (error) {
       console.error('[Background] downloadFile error:', error);
-      return {ok: false, error: String(error)};
+      return {ok: false as const, error: String(error)};
     }
   });
 

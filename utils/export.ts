@@ -17,7 +17,7 @@ export async function downloadDataUrl(
 }
 
 export async function exportAsSnapshotImage(
-  annotations: Annotation[]
+  annotations: readonly Annotation[]
 ): Promise<{captureMode: 'full' | 'viewport' | 'placeholder'; error?: string}> {
   const [{captureFullPage}, {createSnapshotImage}] = await Promise.all([
     import('@/utils/dom/screenshot'),
@@ -36,7 +36,7 @@ export async function exportAsSnapshotImage(
 }
 
 export async function exportAsImageWithNotes(
-  annotations: Annotation[]
+  annotations: readonly Annotation[]
 ): Promise<void> {
   const doc = getDocument('exportAsImageWithNotes');
   const win = getWindow('exportAsImageWithNotes');

@@ -2,11 +2,7 @@ import {useEffect, useRef} from 'react';
 
 type EscapeKeyHandler = () => void;
 
-interface EscapeKeyState {
-  [key: string]: unknown;
-}
-
-export function useEscapeKey<T extends EscapeKeyState>(
+export function useEscapeKey<T>(
   state: T,
   handlers: Array<{condition: (state: T) => boolean; handler: EscapeKeyHandler}>
 ) {
