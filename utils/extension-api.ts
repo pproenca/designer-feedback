@@ -58,12 +58,8 @@ export async function setLocalStorage(
   values: Record<string, unknown>
 ): Promise<void> {
   if (!Object.keys(values).length) return;
-  try {
-    const extensionApi = getExtensionApi();
-    await extensionApi.storage.local.set(values);
-  } catch (error) {
-    console.warn('Storage access failed (set):', error);
-  }
+  const extensionApi = getExtensionApi();
+  await extensionApi.storage.local.set(values);
 }
 
 export async function removeLocalStorage(
@@ -71,12 +67,8 @@ export async function removeLocalStorage(
 ): Promise<void> {
   const normalizedKeys = Array.isArray(keys) ? keys : [keys];
   if (!normalizedKeys.length) return;
-  try {
-    const extensionApi = getExtensionApi();
-    await extensionApi.storage.local.remove(normalizedKeys);
-  } catch (error) {
-    console.warn('Storage access failed (remove):', error);
-  }
+  const extensionApi = getExtensionApi();
+  await extensionApi.storage.local.remove(normalizedKeys);
 }
 
 export async function getAllLocalStorage(): Promise<Record<string, unknown>> {
