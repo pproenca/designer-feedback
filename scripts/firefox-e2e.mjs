@@ -66,6 +66,41 @@ async function waitFor(driver, predicate, timeoutMs, description) {
   throw new Error(`Timed out waiting for ${description}`);
 }
 
+async function resolveExtensionHostname(driver, addonId) {
+  await driver.setContext(firefox.Context.CHROME);
+  try {
+    const result = await driver.executeAsyncScript(
+      `const [targetId, done] = arguments;
+       (async () => {
+         try {
+           const {ExtensionParent} = ChromeUtils.importESModule(
+             'resource://gre/modules/ExtensionParent.sys.mjs'
+           );
+           const policy = ExtensionParent.WebExtensionPolicy.getByID(targetId);
+           done({
+             ok: Boolean(policy?.mozExtensionHostname),
+             hostname: policy?.mozExtensionHostname ?? null,
+             debugName: policy?.debugName ?? null,
+           });
+         } catch (error) {
+           done({ok: false, error: String(error)});
+         }
+       })();`,
+      addonId
+    );
+
+    if (!result?.ok || !result.hostname) {
+      throw new Error(
+        `Failed to resolve extension hostname: ${JSON.stringify(result)}`
+      );
+    }
+
+    return result.hostname;
+  } finally {
+    await driver.setContext(firefox.Context.CONTENT);
+  }
+}
+
 function resolveFirefoxBinary() {
   if (process.env.FIREFOX_BINARY) {
     return process.env.FIREFOX_BINARY;
@@ -149,6 +184,7 @@ async function main() {
   if (headless) {
     options.addArguments('-headless');
   }
+  options.addArguments('-remote-allow-system-access');
 
   const service = new firefox.ServiceBuilder(geckoPath);
   const driver = await new Builder()
@@ -163,10 +199,18 @@ async function main() {
       throw new Error('Firefox add-on installation failed.');
     }
 
+    const extensionHostname = await resolveExtensionHostname(driver, addonId);
+    console.log(`Using extension host: ${extensionHostname}`);
+
     const targetUrl = 'https://example.com/';
-    const activationUrl = `moz-extension://${addonId}/test-activate.html?target=${encodeURIComponent(
+    const activationUrl = `moz-extension://${extensionHostname}/test-activate.html?target=${encodeURIComponent(
       targetUrl
     )}`;
+
+    await driver.get(targetUrl);
+    const targetHandle = await driver.getWindowHandle();
+    await driver.switchTo().newWindow('tab');
+    const activationHandle = await driver.getWindowHandle();
 
     await driver.get(activationUrl);
     await waitFor(
@@ -191,7 +235,9 @@ async function main() {
       throw new Error(`Activation failed: ${String(status)}`);
     }
 
-    await driver.get(targetUrl);
+    await driver.switchTo().window(activationHandle);
+    await driver.close();
+    await driver.switchTo().window(targetHandle);
     await waitFor(
       driver,
       async () =>
@@ -204,7 +250,13 @@ async function main() {
 
     console.log('Firefox E2E smoke test passed.');
   } finally {
-    await driver.quit();
+    try {
+      await driver.quit();
+    } catch (error) {
+      if (!String(error).includes('NoSuchSessionError')) {
+        throw error;
+      }
+    }
   }
 }
 

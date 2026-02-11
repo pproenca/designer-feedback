@@ -1,4 +1,5 @@
 import {browser} from 'wxt/browser';
+import {contentMessenger} from '@/utils/messaging';
 
 interface TargetInfo {
   targetOrigin: string;
@@ -81,16 +82,38 @@ async function activate(targetInfo: TargetInfo): Promise<void> {
 
     const sendShowToolbar = async (): Promise<boolean> => {
       try {
-        await browser.tabs.sendMessage(targetTab.id!, {
-          id: Date.now(),
-          type: 'showToolbar',
-          data: undefined,
-          timestamp: Date.now(),
-        });
-        return true;
-      } catch {
+        const response = await contentMessenger.sendMessage(
+          'showToolbar',
+          undefined,
+          targetTab.id!
+        );
+        debug.showResponse = response;
+        return response?.mounted === true;
+      } catch (error) {
+        debug.showError = String(error);
         return false;
       }
+    };
+
+    const waitForMounted = async (): Promise<boolean> => {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          const status = await contentMessenger.sendMessage(
+            'getToolbarStatus',
+            undefined,
+            targetTab.id!
+          );
+          debug.statusCheck = {attempt: attempt + 1, status};
+          if (status.mounted) {
+            return true;
+          }
+        } catch (error) {
+          debug.statusCheckError = {attempt: attempt + 1, error: String(error)};
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      return false;
     };
 
     const firstAttempt = await sendShowToolbar();
@@ -100,10 +123,14 @@ async function activate(targetInfo: TargetInfo): Promise<void> {
       shown = await sendShowToolbar();
     }
 
+    const mounted = shown ? await waitForMounted() : false;
+
     debug.toolbarShown = shown;
+    debug.toolbarMounted = mounted;
 
     window.__dfActivateDebug = debug;
-    window.__dfActivateStatus = 'done';
+    window.__dfActivateStatus =
+      shown && mounted ? 'done' : 'error:show-toolbar-failed';
   } catch (error: unknown) {
     window.__dfActivateStatus = `error:${String(error)}`;
     window.__dfActivateDebug = {
