@@ -1,6 +1,7 @@
 import {defineConfig} from 'wxt';
 
 const isE2E = process.env.VITE_DF_E2E === '1';
+const e2eHostPermissionsMode = process.env.E2E_HOST_PERMISSIONS ?? 'strict';
 const defaultEntrypoints = ['background', 'content', 'offscreen'] as const;
 const e2eEntrypoints = [...defaultEntrypoints, 'test-activate'] as const;
 
@@ -12,6 +13,10 @@ export default defineConfig({
   filterEntrypoints: isE2E ? [...e2eEntrypoints] : [...defaultEntrypoints],
 
   manifest: ({browser}) => {
+    const hostPermissions =
+      isE2E && e2eHostPermissionsMode === 'broad'
+        ? ['http://*/*', 'https://*/*']
+        : undefined;
     const permissions = [
       'storage',
       'downloads',
@@ -39,6 +44,7 @@ export default defineConfig({
       action: {
         default_title: 'Click to toggle Designer Feedback',
       },
+      ...(hostPermissions ? {host_permissions: hostPermissions} : {}),
       // CSS must be accessible from all URLs for runtime content script injection
       web_accessible_resources: [
         {

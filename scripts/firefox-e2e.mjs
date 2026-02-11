@@ -16,19 +16,23 @@ const repoRoot = path.join(__dirname, '..');
 function run(command) {
   execSync(command, {
     cwd: repoRoot,
-    env: {...process.env, VITE_DF_E2E: '1'},
+    env: {
+      ...process.env,
+      VITE_DF_E2E: '1',
+      E2E_HOST_PERMISSIONS: process.env.E2E_HOST_PERMISSIONS ?? 'broad',
+    },
     stdio: 'inherit',
   });
 }
 
-function findLatestZip(outputDir) {
+function findLatestFirefoxZip(outputDir) {
   const zips = [];
   const walk = dir => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
       const entryPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(entryPath);
-      } else if (entry.isFile() && entry.name.endsWith('.zip')) {
+      } else if (entry.isFile() && entry.name.endsWith('-firefox.zip')) {
         const stat = fs.statSync(entryPath);
         zips.push({path: entryPath, mtimeMs: stat.mtimeMs});
       }
@@ -112,10 +116,13 @@ function resolveFirefoxBinary() {
 async function main() {
   run('npx wxt zip -b firefox --mv3');
 
-  const zipPath = findLatestZip(path.join(repoRoot, '.output'));
+  const zipPath = findLatestFirefoxZip(path.join(repoRoot, '.output'));
   if (!zipPath) {
-    throw new Error('Firefox zip not found in .output. Run wxt zip first.');
+    throw new Error(
+      'Firefox extension zip not found in .output. Run wxt zip -b firefox --mv3 first.'
+    );
   }
+  console.log(`Using Firefox extension zip: ${zipPath}`);
 
   const geckoPath = await geckodriver.download();
   if (!geckoPath) {
