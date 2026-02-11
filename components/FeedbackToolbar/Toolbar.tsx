@@ -154,6 +154,7 @@ export function Toolbar({children}: ToolbarProps) {
     expandDirection,
     onMouseDown: handleToolbarDragMouseDown,
   } = useDraggable({
+    enabled: !isExpanded,
     elementWidth: 44,
     elementHeight: 44,
     initialPosition: savedToolbarPosition,

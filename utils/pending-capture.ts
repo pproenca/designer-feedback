@@ -27,11 +27,12 @@ export function trimExpiredPendingCaptures(
   now = Date.now(),
   ttlMs = PENDING_CAPTURE_TTL_MS
 ): PendingCaptureStore {
+  const next: PendingCaptureStore = {};
   let changed = false;
-  const next: PendingCaptureStore = {...current};
   for (const [tabKey, request] of Object.entries(current)) {
-    if (!request?.createdAt || now - request.createdAt > ttlMs) {
-      delete next[tabKey];
+    if (request?.createdAt && now - request.createdAt <= ttlMs) {
+      next[tabKey] = request;
+    } else {
       changed = true;
     }
   }
@@ -58,12 +59,10 @@ export function clearPendingCaptureForTab(
   tabId: number
 ): PendingCaptureStore {
   const tabKey = String(tabId);
-  if (!current[tabKey]) {
-    return current;
-  }
-  const next: PendingCaptureStore = {...current};
-  delete next[tabKey];
-  return next;
+  if (!current[tabKey]) return current;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit
+  const {[tabKey]: _, ...rest} = current;
+  return rest;
 }
 
 export function didResumeExportAcknowledgeRequest(

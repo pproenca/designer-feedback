@@ -4,7 +4,10 @@ import {backgroundMessenger} from '@/utils/messaging';
 import {getExtensionApi, type StorageChangeRecord} from '@/utils/extension-api';
 import type {Settings} from '@/types';
 
-export function useSettings() {
+export function useSettings(): {
+  settings: Settings;
+  updateSettings: (next: Partial<Settings>) => void;
+} {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {

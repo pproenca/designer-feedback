@@ -3,6 +3,14 @@ import type {Position} from '@/types/position';
 
 const DRAG_THRESHOLD = 5;
 
+interface DragSessionState {
+  readonly startX: number;
+  readonly startY: number;
+  readonly startPositionX: number;
+  readonly startPositionY: number;
+  hasDragged: boolean;
+}
+
 export interface DragSessionCallbacks {
   onDragStart?: () => void;
   onDragMove: (position: Position) => void;
@@ -19,13 +27,7 @@ export function useDragSession(
 ): UseDragSessionReturn {
   const [isDragging, setIsDragging] = useState(false);
 
-  const dragSessionRef = useRef<{
-    startX: number;
-    startY: number;
-    startPositionX: number;
-    startPositionY: number;
-    hasDragged: boolean;
-  } | null>(null);
+  const dragSessionRef = useRef<DragSessionState | null>(null);
 
   const dragCleanupTimerRef = useRef<number | null>(null);
   const hasJustDraggedRef = useRef(false);
@@ -100,9 +102,7 @@ export function useDragSession(
     dragCleanupTimerRef.current = window.setTimeout(() => {
       dragSessionRef.current = null;
       hasJustDraggedRef.current = false;
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('click', handlePostDragClickCapture, true);
-      }
+      window.removeEventListener('click', handlePostDragClickCapture, true);
     }, 16);
   }, [
     handleDragMouseMove,
@@ -116,15 +116,13 @@ export function useDragSession(
 
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined') {
-        if (dragCleanupTimerRef.current !== null) {
-          window.clearTimeout(dragCleanupTimerRef.current);
-          dragCleanupTimerRef.current = null;
-        }
-        window.removeEventListener('mousemove', handleDragMouseMove);
-        window.removeEventListener('mouseup', handleDragMouseUpStable);
-        window.removeEventListener('click', handlePostDragClickCapture, true);
+      if (dragCleanupTimerRef.current !== null) {
+        window.clearTimeout(dragCleanupTimerRef.current);
+        dragCleanupTimerRef.current = null;
       }
+      window.removeEventListener('mousemove', handleDragMouseMove);
+      window.removeEventListener('mouseup', handleDragMouseUpStable);
+      window.removeEventListener('click', handlePostDragClickCapture, true);
     };
   }, [
     handleDragMouseMove,

@@ -11,6 +11,7 @@ import {
   getRetentionCutoff,
   cleanupExpiredAnnotations,
 } from '@/utils/storage-cleanup';
+import {normalizeStoredAnnotations} from '@/utils/normalize-annotations';
 import {getWindow} from '@/utils/dom/guards';
 
 export function getStorageKey(targetUrl?: string): string {
@@ -37,24 +38,6 @@ function stripUrl(annotation: Annotation & {url?: string}): Annotation {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit
   const {url, ...rest} = annotation;
   return rest as Annotation;
-}
-
-function normalizeStoredAnnotations(value: unknown): Annotation[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value
-    .filter(Boolean)
-    .map((raw, index) => {
-      if (!raw || typeof raw !== 'object') return null;
-      const annotation = raw as Annotation;
-      let id = typeof annotation.id === 'string' ? annotation.id.trim() : '';
-      if (!id || seen.has(id)) {
-        id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`;
-      }
-      seen.add(id);
-      return {...annotation, id};
-    })
-    .filter(Boolean) as Annotation[];
 }
 
 async function getLocal<T>(key: string, fallback: T): Promise<T> {

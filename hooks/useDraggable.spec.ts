@@ -28,6 +28,32 @@ describe('useDraggable', () => {
     });
   });
 
+  describe('enabled option', () => {
+    it('ignores drag starts when disabled', () => {
+      const {result} = renderHook(() => useDraggable({enabled: false}));
+
+      act(() => {
+        result.current.onMouseDown({
+          button: 0,
+          clientX: 100,
+          clientY: 100,
+          preventDefault: vi.fn(),
+        } as unknown as React.MouseEvent);
+      });
+
+      act(() => {
+        const mouseMoveEvent = new MouseEvent('mousemove', {
+          clientX: 100 + THRESHOLD + 10,
+          clientY: 100,
+        });
+        window.dispatchEvent(mouseMoveEvent);
+      });
+
+      expect(result.current.isDragging).toBe(false);
+      expect(result.current.position).toBeNull();
+    });
+  });
+
   describe('drag threshold', () => {
     it('should not start dragging until movement exceeds threshold', () => {
       const {result} = renderHook(() => useDraggable());

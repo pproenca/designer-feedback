@@ -1,6 +1,7 @@
 import type {Annotation} from '@/types';
 import {ANNOTATIONS_PREFIX} from '@/utils/storage-constants';
 import {getExtensionApi} from '@/utils/extension-api';
+import {normalizeStoredAnnotations} from '@/utils/normalize-annotations';
 
 const DEFAULT_RETENTION_DAYS = 7;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -8,24 +9,6 @@ const LAST_CLEANUP_TIMESTAMP_KEY = 'designer-feedback:last-cleanup';
 
 const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024;
 const STORAGE_WARNING_THRESHOLD = 0.8;
-
-function normalizeStoredAnnotations(value: unknown): Annotation[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value
-    .filter(Boolean)
-    .map((raw, index) => {
-      if (!raw || typeof raw !== 'object') return null;
-      const annotation = raw as Annotation;
-      let id = typeof annotation.id === 'string' ? annotation.id.trim() : '';
-      if (!id || seen.has(id)) {
-        id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`;
-      }
-      seen.add(id);
-      return {...annotation, id};
-    })
-    .filter(Boolean) as Annotation[];
-}
 
 async function setLocal(values: Record<string, unknown>): Promise<void> {
   if (!Object.keys(values).length) return;

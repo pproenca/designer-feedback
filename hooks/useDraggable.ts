@@ -5,10 +5,11 @@ import {useDragSession} from './useDragSession';
 export type ExpandDirection = 'left' | 'right';
 
 export interface UseDraggableOptions {
-  elementWidth?: number;
-  elementHeight?: number;
-  initialPosition?: Position | null;
-  onPositionChange?: (position: Position) => void;
+  readonly enabled?: boolean;
+  readonly elementWidth?: number;
+  readonly elementHeight?: number;
+  readonly initialPosition?: Position | null;
+  readonly onPositionChange?: (position: Position) => void;
 }
 
 export interface UseDraggableReturn {
@@ -23,6 +24,7 @@ export function useDraggable(
   options: UseDraggableOptions = {}
 ): UseDraggableReturn {
   const {
+    enabled = true,
     elementWidth = 0,
     elementHeight = 0,
     initialPosition,
@@ -100,12 +102,16 @@ export function useDraggable(
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (!enabled) {
+        return;
+      }
+
       startDrag(e, {
         x: position?.x ?? e.clientX,
         y: position?.y ?? e.clientY,
       });
     },
-    [position, startDrag]
+    [enabled, position, startDrag]
   );
 
   const reset = useCallback(() => {
