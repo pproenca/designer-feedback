@@ -5,7 +5,8 @@ type ClickOutsideHandler = () => void;
 export function useClickOutside(
   enabled: boolean,
   selectors: string[],
-  onClickOutside: ClickOutsideHandler
+  onClickOutside: ClickOutsideHandler,
+  root: Document | ShadowRoot = document
 ) {
   const selectorsRef = useRef(selectors);
   const onClickOutsideRef = useRef(onClickOutside);
@@ -35,7 +36,8 @@ export function useClickOutside(
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [enabled]);
+    root.addEventListener('mousedown', handlePointerDown as EventListener);
+    return () =>
+      root.removeEventListener('mousedown', handlePointerDown as EventListener);
+  }, [enabled, root]);
 }

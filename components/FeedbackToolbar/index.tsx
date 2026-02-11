@@ -217,7 +217,8 @@ function FeedbackToolbarContent({shadowRoot}: FeedbackToolbarProps) {
   useClickOutside(
     Boolean(selectedAnnotation),
     clickOutsideSelectors,
-    handleClickOutside
+    handleClickOutside,
+    shadowRoot
   );
 
   const handleAnnotationSubmit = useCallback(

@@ -18,48 +18,36 @@ export interface MarkerLayerProps {
   onMarkerClick: (id: string) => void;
 }
 
-const getVariants = (reduceMotion: boolean) => ({
-  marker: {
-    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.9})},
-    visible: {
-      opacity: 1,
-      ...(reduceMotion ? {} : {scale: 1}),
-      transition: reduceMotion
-        ? {duration: 0.12, ease: 'easeOut' as const}
-        : {type: 'spring' as const, stiffness: 400, damping: 20},
-    },
-    hover: {
-      ...(reduceMotion ? {} : {scale: 1.08}),
-      transition: {duration: 0.1, ease: 'easeOut' as const},
-    },
+const getMarkerVariants = (reduceMotion: boolean) => ({
+  hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.9})},
+  visible: {
+    opacity: 1,
+    ...(reduceMotion ? {} : {scale: 1}),
+    transition: reduceMotion
+      ? {duration: 0.12, ease: 'easeOut' as const}
+      : {type: 'spring' as const, stiffness: 400, damping: 20},
   },
-  tooltip: {
-    hidden: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: 2})},
-    visible: {opacity: 0, ...(reduceMotion ? {} : {scale: 0.95, y: 2})},
-    hover: {
-      opacity: 1,
-      ...(reduceMotion ? {} : {scale: 1, y: 0}),
-      transition: {duration: 0.1, ease: 'easeOut' as const},
-    },
+  hover: {
+    ...(reduceMotion ? {} : {scale: 1.08}),
+    transition: {duration: 0.1, ease: 'easeOut' as const},
   },
 });
 
 interface MarkerTooltipProps {
   annotation: Annotation;
-  variants: ReturnType<typeof getVariants>['tooltip'];
 }
 
-function MarkerTooltip({annotation, variants}: MarkerTooltipProps) {
+function MarkerTooltip({annotation}: MarkerTooltipProps) {
   const config = getCategoryConfig(annotation.category);
 
   return (
     <m.div
-      variants={variants}
       className={clsx(
         'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 z-tooltip',
         'px-3 py-2 rounded-xl min-w-30 max-w-50 pointer-events-none cursor-default',
         'bg-white shadow-popup-light',
-        'dark:bg-df-dark-ink dark:shadow-popup'
+        'dark:bg-df-dark-ink dark:shadow-popup',
+        'opacity-0 group-hover/marker:opacity-100 transition-opacity duration-100'
       )}
     >
       <span
@@ -96,7 +84,7 @@ interface MarkerProps {
   index: number;
   isEntranceComplete: boolean;
   onMarkerClick: (id: string) => void;
-  variants: ReturnType<typeof getVariants>;
+  variants: ReturnType<typeof getMarkerVariants>;
 
   isDragged?: boolean;
 
@@ -138,8 +126,9 @@ function Marker({
       initial={!isEntranceComplete ? 'hidden' : false}
       animate="visible"
       whileHover={isDragged ? undefined : 'hover'}
-      variants={variants.marker}
+      variants={variants}
       className={clsx(
+        'group/marker',
         'w-5.5 h-5.5 rounded-full flex items-center justify-center',
         'text-xs font-semibold text-white select-none',
         'shadow-marker -translate-x-1/2 -translate-y-1/2 z-10',
@@ -161,9 +150,7 @@ function Marker({
       aria-label={`Annotation ${index + 1} (${config.label})`}
     >
       {index + 1}
-      {!isDragged && (
-        <MarkerTooltip annotation={annotation} variants={variants.tooltip} />
-      )}
+      {!isDragged && <MarkerTooltip annotation={annotation} />}
     </m.div>
   );
 }
@@ -181,7 +168,7 @@ export function MarkerLayer({
   } = useMarkerDragContext();
 
   const reduceMotion = useReducedMotion() ?? false;
-  const variants = getVariants(reduceMotion);
+  const variants = getMarkerVariants(reduceMotion);
 
   const {absoluteMarkers, fixedMarkers} = useMemo(() => {
     const absolute: Array<{annotation: Annotation; globalIndex: number}> = [];
